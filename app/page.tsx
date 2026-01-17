@@ -23,6 +23,7 @@ export default function Home() {
   const [isStreaming, setIsStreaming] = useState(false);
   const [showWelcome, setShowWelcome] = useState(true);
   const [serverStatus, setServerStatus] = useState<'ok' | 'error'>('ok');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -245,8 +246,13 @@ export default function Home() {
 
   return (
     <div className="app">
+      {/* Mobile Overlay */}
+      {sidebarOpen && (
+        <div className="sidebar-overlay" onClick={() => setSidebarOpen(false)} />
+      )}
+
       {/* Sidebar */}
-      <aside className="sidebar">
+      <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
         <div className="sidebar-header">
           <div className="logo">
             <div className="logo-icon">⚡</div>
@@ -255,10 +261,16 @@ export default function Home() {
               <span className="logo-subtitle">Solution Architect</span>
             </div>
           </div>
+          <button className="sidebar-close-btn" onClick={() => setSidebarOpen(false)} aria-label="Close menu">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
         </div>
 
         <nav className="sidebar-nav">
-          <button className="nav-item active" onClick={clearConversation}>
+          <button className="nav-item active" onClick={() => { clearConversation(); setSidebarOpen(false); }}>
             <span className="nav-icon">+</span>
             <span>New Chat</span>
           </button>
@@ -276,9 +288,18 @@ export default function Home() {
       <main className="chat-container">
         {/* Chat Header */}
         <header className="chat-header">
-          <div className="chat-title">
-            <h1>Lawless AI</h1>
-            <p>Bridging technical complexity and human understanding</p>
+          <div className="header-left">
+            <button className="mobile-menu-btn" onClick={() => setSidebarOpen(true)} aria-label="Open menu">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="3" y1="12" x2="21" y2="12"></line>
+                <line x1="3" y1="6" x2="21" y2="6"></line>
+                <line x1="3" y1="18" x2="21" y2="18"></line>
+              </svg>
+            </button>
+            <div className="chat-title">
+              <h1>Lawless AI</h1>
+              <p>Bridging technical complexity and human understanding</p>
+            </div>
           </div>
           <div className="header-actions">
             <button className="icon-btn" onClick={clearConversation} title="Clear conversation">

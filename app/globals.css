@@ -627,41 +627,411 @@ body {
 }
 
 /* ============================================================================
+   Mobile Menu & Sidebar Overlay
+   ============================================================================ */
+
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  z-index: 99;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mobile-menu-btn {
+  display: none;
+  width: 44px;
+  height: 44px;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--color-moonlight);
+  cursor: pointer;
+  border-radius: var(--radius-md);
+  transition: background-color var(--transition-fast);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mobile-menu-btn:hover,
+.mobile-menu-btn:active {
+  background-color: var(--color-abyss-light);
+}
+
+.sidebar-close-btn {
+  display: none;
+  width: 44px;
+  height: 44px;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--color-moonlight-muted);
+  cursor: pointer;
+  border-radius: var(--radius-md);
+  transition: all var(--transition-fast);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.sidebar-close-btn:hover,
+.sidebar-close-btn:active {
+  background-color: var(--color-abyss-light);
+  color: var(--color-moonlight);
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+/* ============================================================================
    Responsive Design
    ============================================================================ */
 
+/* Tablet landscape and smaller desktops */
+@media (max-width: 1024px) {
+  .message {
+    max-width: 100%;
+  }
+
+  .input-form {
+    max-width: 100%;
+  }
+
+  .welcome-message {
+    max-width: 100%;
+  }
+}
+
+/* Tablet portrait */
 @media (max-width: 768px) {
+  /* Safe area support for notched devices */
+  body {
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+
+  .sidebar-overlay {
+    display: block;
+  }
+
   .sidebar {
     transform: translateX(-100%);
     transition: transform var(--transition-base);
+    width: 85%;
+    max-width: 320px;
   }
 
   .sidebar.open {
     transform: translateX(0);
   }
 
+  .sidebar-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-md);
+    padding-top: calc(var(--space-md) + env(safe-area-inset-top));
+  }
+
+  .sidebar-close-btn {
+    display: flex;
+  }
+
+  .sidebar-footer {
+    padding-bottom: calc(var(--space-md) + env(safe-area-inset-bottom));
+  }
+
   .chat-container {
     margin-left: 0;
   }
 
+  .chat-header {
+    height: auto;
+    min-height: var(--header-height);
+    padding: var(--space-md);
+    padding-top: calc(var(--space-md) + env(safe-area-inset-top));
+  }
+
+  .mobile-menu-btn {
+    display: flex;
+  }
+
+  .chat-title h1 {
+    font-size: clamp(1rem, 4vw, 1.25rem);
+  }
+
+  .chat-title p {
+    font-size: clamp(0.6875rem, 2.5vw, 0.8125rem);
+    display: none;
+  }
+
   .messages-container {
     padding: var(--space-md);
+    padding-bottom: calc(var(--space-md) + env(safe-area-inset-bottom));
   }
 
   .input-container {
     padding: var(--space-md);
+    padding-bottom: calc(var(--space-md) + env(safe-area-inset-bottom));
+  }
+
+  .message {
+    gap: var(--space-sm);
   }
 
   .message.user .message-bubble {
     max-width: 90%;
   }
 
+  .message-avatar {
+    width: 32px;
+    height: 32px;
+    font-size: 14px;
+  }
+
+  .message-bubble {
+    padding: var(--space-sm) var(--space-md);
+    font-size: 0.9375rem;
+  }
+
   .welcome-message {
     padding: var(--space-lg);
   }
 
+  .welcome-icon {
+    width: 64px;
+    height: 64px;
+    font-size: 32px;
+  }
+
+  .welcome-message h2 {
+    font-size: clamp(1.25rem, 5vw, 1.75rem);
+  }
+
+  .welcome-message p {
+    font-size: clamp(0.875rem, 3.5vw, 1rem);
+  }
+
   .welcome-suggestions {
     flex-direction: column;
+    gap: var(--space-sm);
+  }
+
+  .suggestion-chip {
+    padding: var(--space-md);
+    font-size: 0.875rem;
+    text-align: left;
+    min-height: 48px;
+    display: flex;
+    align-items: center;
+  }
+
+  /* Larger touch targets */
+  .icon-btn {
+    width: 44px;
+    height: 44px;
+  }
+
+  .nav-item {
+    padding: var(--space-md);
+    min-height: 48px;
+  }
+
+  .send-btn {
+    width: 48px;
+    height: 48px;
+  }
+
+  .input-wrapper {
+    padding: var(--space-sm) var(--space-md);
+  }
+
+  .input-wrapper textarea {
+    font-size: 16px; /* Prevents iOS zoom on focus */
+    min-height: 44px;
+  }
+
+  .input-hint {
+    display: none;
+  }
+}
+
+/* Large phones */
+@media (max-width: 480px) {
+  .chat-header {
+    padding: var(--space-sm);
+    padding-top: calc(var(--space-sm) + env(safe-area-inset-top));
+  }
+
+  .chat-title p {
+    display: none;
+  }
+
+  .messages-container {
+    padding: var(--space-sm);
+    gap: var(--space-md);
+  }
+
+  .message-bubble {
+    padding: var(--space-sm) var(--space-md);
+  }
+
+  .message.user .message-bubble {
+    max-width: 95%;
+  }
+
+  .welcome-message {
+    padding: var(--space-md);
+  }
+
+  .welcome-icon {
+    width: 56px;
+    height: 56px;
+    font-size: 28px;
+    margin-bottom: var(--space-md);
+  }
+
+  .input-container {
+    padding: var(--space-sm);
+    padding-bottom: calc(var(--space-sm) + env(safe-area-inset-bottom));
+  }
+
+  .input-wrapper {
+    border-radius: var(--radius-md);
+  }
+}
+
+/* Small phones */
+@media (max-width: 360px) {
+  .logo-text {
+    display: none;
+  }
+
+  .chat-title h1 {
+    font-size: 0.9375rem;
+  }
+
+  .message-avatar {
+    width: 28px;
+    height: 28px;
+    font-size: 12px;
+  }
+
+  .message-bubble {
+    font-size: 0.875rem;
+  }
+
+  .welcome-message h2 {
+    font-size: 1.125rem;
+  }
+
+  .welcome-message p {
+    font-size: 0.8125rem;
+  }
+
+  .suggestion-chip {
+    font-size: 0.8125rem;
+    padding: var(--space-sm) var(--space-md);
+    min-height: 44px;
+  }
+}
+
+/* Landscape orientation adjustments */
+@media (max-height: 500px) and (orientation: landscape) {
+  .chat-header {
+    height: auto;
+    min-height: 48px;
+    padding: var(--space-sm) var(--space-md);
+  }
+
+  .chat-title p {
+    display: none;
+  }
+
+  .welcome-icon {
+    width: 48px;
+    height: 48px;
+    font-size: 24px;
+    margin-bottom: var(--space-sm);
+  }
+
+  .welcome-message {
+    padding: var(--space-md);
+  }
+
+  .welcome-message h2 {
+    font-size: 1.25rem;
+    margin-bottom: var(--space-sm);
+  }
+
+  .welcome-message p {
+    margin-bottom: var(--space-md);
+  }
+
+  .messages-container {
+    padding: var(--space-sm) var(--space-md);
+  }
+
+  .input-container {
+    padding: var(--space-sm) var(--space-md);
+  }
+}
+
+/* Touch device optimizations */
+@media (hover: none) and (pointer: coarse) {
+  .nav-item:hover {
+    background: transparent;
+    border-color: var(--color-abyss-lighter);
+    color: var(--color-moonlight-soft);
+  }
+
+  .nav-item:active {
+    background-color: var(--color-abyss-light);
+    border-color: var(--color-accent-primary);
+  }
+
+  .icon-btn:hover {
+    background: transparent;
+    border-color: var(--color-abyss-lighter);
+    color: var(--color-moonlight-muted);
+  }
+
+  .icon-btn:active {
+    background-color: var(--color-abyss-light);
+    border-color: var(--color-accent-primary);
+    color: var(--color-moonlight);
+  }
+
+  .suggestion-chip:hover {
+    background: transparent;
+    border-color: var(--color-abyss-lighter);
+    color: var(--color-moonlight-soft);
+  }
+
+  .suggestion-chip:active {
+    background: rgba(139, 92, 246, 0.1);
+    border-color: var(--color-accent-primary);
+    color: var(--color-accent-bright);
+  }
+
+  .send-btn:hover:not(:disabled) {
+    transform: none;
+    box-shadow: none;
+  }
+
+  .send-btn:active:not(:disabled) {
+    transform: scale(0.95);
+  }
+
+  /* Remove hover effects on code blocks for touch */
+  .message-bubble pre:hover {
+    background-color: var(--color-abyss-mystic);
   }
 }
 
