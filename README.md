@@ -1,6 +1,6 @@
 # Lawless AI Chat
 
-A sleek chat interface for conversing with Lawless AI - powered by Claude CLI, using your subscription instead of API credits.
+A sleek chat interface for conversing with Lawless AI - powered by Claude CLI, using your subscription instead of API credits. Built with **Next.js** for seamless Vercel deployment.
 
 ## Overview
 
@@ -22,14 +22,15 @@ This app creates a web-based chat interface that connects to Claude through the 
 # Install dependencies
 npm install
 
-# Start the server
-npm start
-
-# Or for development with auto-reload
+# Start development server
 npm run dev
+
+# Or build and start production server
+npm run build
+npm start
 ```
 
-Then open **http://localhost:3001** in your browser.
+Then open **http://localhost:3000** in your browser.
 
 ## Architecture
 
@@ -38,7 +39,7 @@ Then open **http://localhost:3001** in your browser.
 │                         Browser                                  │
 │  ┌─────────────────────────────────────────────────────────┐    │
 │  │                 Lawless AI Chat UI                       │    │
-│  │  - HTML/CSS/JS frontend                                  │    │
+│  │  - Next.js React frontend                                │    │
 │  │  - Markdown rendering                                    │    │
 │  │  - Code syntax highlighting                              │    │
 │  └─────────────────────────────────────────────────────────┘    │
@@ -46,9 +47,8 @@ Then open **http://localhost:3001** in your browser.
                              │ HTTP/SSE
                              ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                    Express Server                                │
+│                  Next.js API Routes                              │
 │  ┌─────────────────────────────────────────────────────────┐    │
-│  │  - Serves static frontend files                          │    │
 │  │  - Manages chat sessions                                 │    │
 │  │  - Proxies requests to Claude CLI                        │    │
 │  │  - Streams responses back via SSE                        │    │
@@ -67,17 +67,26 @@ Then open **http://localhost:3001** in your browser.
 ## Project Structure
 
 ```
-├── api/
-│   └── index.js          # Vercel serverless function entry point
-├── server/
-│   └── index.js          # Express server with Claude CLI integration
-├── public/
-│   ├── index.html        # Main HTML page
-│   ├── styles.css        # Design system styles
-│   └── app.js            # Frontend JavaScript
+├── app/
+│   ├── api/
+│   │   ├── chat/
+│   │   │   └── route.ts       # Chat endpoint with SSE streaming
+│   │   ├── health/
+│   │   │   └── route.ts       # Health check endpoint
+│   │   └── session/
+│   │       ├── route.ts       # Session creation
+│   │       └── [sessionId]/
+│   │           └── route.ts   # Session deletion
+│   ├── globals.css            # Design system styles
+│   ├── layout.tsx             # Root layout
+│   └── page.tsx               # Main chat page
+├── lib/
+│   ├── constants.ts           # System prompt and constants
+│   └── conversations.ts       # Conversation management
 ├── package.json
 ├── tsconfig.json
-├── vercel.json           # Vercel deployment configuration
+├── next.config.js
+├── vercel.json
 └── README.md
 ```
 
@@ -94,20 +103,20 @@ The chat interface embodies the **Lawless AI Solution Architect** persona:
 
 ### Styling
 
-The CSS uses design tokens (CSS custom properties) for easy customization:
+The CSS uses design tokens (CSS custom properties) for easy customization in `app/globals.css`:
 
 ```css
 :root {
   --color-accent-primary: #8B5CF6;    /* Main accent color */
   --color-abyss-base: #0A0A0F;        /* Background color */
   --color-moonlight: #F5F5F7;         /* Text color */
-  /* ... more tokens in styles.css */
+  /* ... more tokens in globals.css */
 }
 ```
 
 ### System Prompt
 
-Modify the `LAWLESS_SYSTEM_PROMPT` in `server/index.js` to adjust the AI's personality and behavior.
+Modify the `LAWLESS_SYSTEM_PROMPT` in `lib/constants.ts` to adjust the AI's personality and behavior.
 
 ## API Endpoints
 
@@ -120,7 +129,7 @@ Modify the `LAWLESS_SYSTEM_PROMPT` in `server/index.js` to adjust the AI's perso
 
 ## Vercel Deployment
 
-This project includes Vercel configuration for deployment. To deploy:
+This project is built with Next.js for seamless Vercel deployment:
 
 ```bash
 # Install Vercel CLI
@@ -135,7 +144,7 @@ vercel
 - The **static frontend** will work correctly
 - The **API endpoints** that use Claude CLI will **not function** on Vercel's serverless environment
 
-To make the API work on Vercel, you would need to modify `server/index.js` to use the Claude API instead of CLI:
+To make the API work on Vercel, you would need to modify `app/api/chat/route.ts` to use the Claude API instead of CLI:
 1. Install the Anthropic SDK: `npm install @anthropic-ai/sdk`
 2. Replace the CLI spawn logic with API calls
 3. Set `ANTHROPIC_API_KEY` in Vercel environment variables
@@ -151,7 +160,7 @@ To make the API work on Vercel, you would need to modify `server/index.js` to us
 - Verify Claude CLI works directly: `claude -p "Hello"`
 
 **Connection refused**
-- Make sure the server is running on port 3001
+- Make sure the server is running on port 3000
 - Check for port conflicts
 
 ## License
