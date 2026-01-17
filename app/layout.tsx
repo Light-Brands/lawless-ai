@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
-import { Plus_Jakarta_Sans, JetBrains_Mono } from 'next/font/google';
+import { Space_Grotesk, JetBrains_Mono } from 'next/font/google';
 import './globals.css';
 
-const plusJakartaSans = Plus_Jakarta_Sans({
+const spaceGrotesk = Space_Grotesk({
   subsets: ['latin'],
   variable: '--font-sans',
   weight: ['400', '500', '600', '700'],
@@ -50,7 +50,7 @@ export default function RootLayout({
           href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css"
         />
       </head>
-      <body className={`${plusJakartaSans.variable} ${jetbrainsMono.variable}`}>
+      <body className={`${spaceGrotesk.variable} ${jetbrainsMono.variable}`}>
         {children}
       </body>
     </html>
