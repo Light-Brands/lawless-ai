@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 
-export const runtime = 'edge';
+export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:3001';
