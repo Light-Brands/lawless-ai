@@ -208,6 +208,11 @@ app.post('/api/chat', authenticateApiKey, (req: Request, res: Response) => {
     console.error('Claude stderr:', errorText);
   });
 
+  // Log exit event
+  claude.on('exit', (code, signal) => {
+    console.log('Claude exited with code:', code, 'signal:', signal);
+  });
+
   // Handle process exit
   claude.on('close', (code: number | null) => {
     // Process any remaining buffer
@@ -257,10 +262,15 @@ app.post('/api/chat', authenticateApiKey, (req: Request, res: Response) => {
 
   // Handle client disconnect
   req.on('close', () => {
+    console.log('Request closed, claude.killed:', claude.killed);
     if (!claude.killed) {
+      console.log('Killing Claude process');
       claude.kill('SIGTERM');
     }
   });
+
+  // Log spawn status
+  console.log('Claude spawned with PID:', claude.pid);
 });
 
 // Get conversation history
