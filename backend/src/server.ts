@@ -265,14 +265,14 @@ app.post('/api/chat', authenticateApiKey, (req: Request, res: Response) => {
     res.end();
   });
 
-  // Handle client disconnect
-  req.on('close', () => {
-    console.log('Request closed, claude.killed:', claude.killed);
-    if (!claude.killed) {
-      console.log('Killing Claude process');
-      claude.kill('SIGTERM');
-    }
-  });
+  // Handle client disconnect - temporarily disabled for debugging
+  // req.on('close', () => {
+  //   console.log('Request closed, claude.killed:', claude.killed);
+  //   if (!claude.killed) {
+  //     console.log('Killing Claude process');
+  //     claude.kill('SIGTERM');
+  //   }
+  // });
 
   // Log spawn status
   console.log('Claude spawned with PID:', claude.pid);
