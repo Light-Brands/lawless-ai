@@ -1509,3 +1509,43 @@ body::before {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ============================================================================
+   GitHub Button Styles
+   ============================================================================ */
+
+.github-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: linear-gradient(135deg, #24292e 0%, #1a1e22 100%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.github-btn:hover {
+  background: linear-gradient(135deg, #2d333b 0%, #24292e 100%);
+  border-color: rgba(255, 255, 255, 0.2);
+  transform: translateY(-1px);
+}
+
+.github-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+@media (max-width: 640px) {
+  .github-btn span {
+    display: none;
+  }
+
+  .github-btn {
+    padding: 8px;
+  }
+}

@@ -332,10 +332,285 @@ app.get('/api/sessions', authenticateApiKey, (req: Request, res: Response) => {
 
 // Ensure data directory exists
 import fs from 'fs';
+import { execSync } from 'child_process';
+
 const dataDir = path.dirname(dbPath);
 if (!fs.existsSync(dataDir)) {
   fs.mkdirSync(dataDir, { recursive: true });
 }
+
+// Workspace directory for cloned repos
+const WORKSPACE_DIR = '/home/ubuntu/workspaces';
+if (!fs.existsSync(WORKSPACE_DIR)) {
+  fs.mkdirSync(WORKSPACE_DIR, { recursive: true });
+}
+
+// Helper to get workspace path for a repo
+function getWorkspacePath(repoFullName: string): string {
+  return path.join(WORKSPACE_DIR, repoFullName.replace('/', '_'));
+}
+
+// Setup workspace (clone or pull repo)
+app.post('/api/workspace/setup', authenticateApiKey, async (req: Request, res: Response) => {
+  const { repoFullName, githubToken } = req.body;
+
+  if (!repoFullName || !githubToken) {
+    res.status(400).json({ error: 'Repository name and GitHub token required' });
+    return;
+  }
+
+  const workspacePath = getWorkspacePath(repoFullName);
+
+  try {
+    if (fs.existsSync(workspacePath)) {
+      // Pull latest changes
+      execSync(`git pull`, {
+        cwd: workspacePath,
+        env: { ...process.env, GIT_TERMINAL_PROMPT: '0' }
+      });
+    } else {
+      // Clone the repo
+      const cloneUrl = `https://${githubToken}@github.com/${repoFullName}.git`;
+      execSync(`git clone ${cloneUrl} ${workspacePath}`, {
+        env: { ...process.env, GIT_TERMINAL_PROMPT: '0' }
+      });
+    }
+
+    // Set git config for commits
+    execSync(`git config user.email "lawless-ai@localhost"`, { cwd: workspacePath });
+    execSync(`git config user.name "Lawless AI"`, { cwd: workspacePath });
+
+    res.json({ success: true, workspacePath });
+  } catch (error: any) {
+    console.error('Workspace setup error:', error);
+    res.status(500).json({ error: `Failed to setup workspace: ${error.message}` });
+  }
+});
+
+// Chat with Claude about code in workspace
+app.post('/api/workspace/chat', authenticateApiKey, (req: Request, res: Response) => {
+  const { message, repoFullName, sessionId } = req.body;
+
+  if (!message || !repoFullName) {
+    res.status(400).json({ error: 'Message and repository required' });
+    return;
+  }
+
+  const workspacePath = getWorkspacePath(repoFullName);
+
+  if (!fs.existsSync(workspacePath)) {
+    res.status(400).json({ error: 'Workspace not found. Please setup first.' });
+    return;
+  }
+
+  const activeSessionId = sessionId || uuidv4();
+
+  // Set SSE headers
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+
+  res.write(': connected\n\n');
+  res.flushHeaders();
+
+  // Spawn Claude CLI with access to the workspace
+  const spawnEnv = {
+    ...process.env,
+    NO_COLOR: '1',
+    HOME: '/home/ubuntu',
+    PATH: '/usr/local/bin:/usr/bin:/bin:/home/ubuntu/.local/bin'
+  };
+
+  const claude: ChildProcessWithoutNullStreams = spawn('claude', [
+    '--print',
+    '--output-format', 'stream-json',
+    '--verbose',
+    '--add-dir', workspacePath,
+    '--dangerously-skip-permissions'
+  ], {
+    env: spawnEnv,
+    cwd: workspacePath
+  });
+
+  // Write the user's message
+  claude.stdin.write(message);
+  claude.stdin.end();
+
+  let responseContent = '';
+  let buffer = '';
+
+  claude.stdout.on('data', (chunk: Buffer) => {
+    buffer += chunk.toString();
+    const lines = buffer.split('\n');
+    buffer = lines.pop() || '';
+
+    for (const line of lines) {
+      if (!line.trim()) continue;
+
+      try {
+        const data = JSON.parse(line);
+
+        if (data.type === 'assistant' && data.message?.content) {
+          for (const content of data.message.content) {
+            if (content.type === 'text' && content.text) {
+              responseContent += content.text;
+              res.write(`data: ${JSON.stringify({
+                type: 'chunk',
+                content: content.text,
+                sessionId: activeSessionId
+              })}\n\n`);
+            }
+          }
+        }
+
+        if (data.type === 'result' && data.result && !responseContent) {
+          responseContent = data.result;
+          res.write(`data: ${JSON.stringify({
+            type: 'chunk',
+            content: data.result,
+            sessionId: activeSessionId
+          })}\n\n`);
+        }
+      } catch (e) {
+        // Ignore parse errors
+      }
+    }
+  });
+
+  claude.stderr.on('data', (data: Buffer) => {
+    console.error('Claude stderr:', data.toString());
+  });
+
+  claude.on('close', (code: number | null) => {
+    if (responseContent) {
+      res.write(`data: ${JSON.stringify({
+        type: 'done',
+        content: responseContent.trim(),
+        sessionId: activeSessionId
+      })}\n\n`);
+    }
+    res.end();
+  });
+
+  claude.on('error', (err: Error) => {
+    console.error('Failed to spawn Claude:', err);
+    res.write(`data: ${JSON.stringify({
+      type: 'error',
+      message: 'Failed to start Claude CLI'
+    })}\n\n`);
+    res.end();
+  });
+});
+
+// Get git status for workspace
+app.get('/api/workspace/git/status', authenticateApiKey, (req: Request, res: Response) => {
+  const repoFullName = req.query.repo as string;
+
+  if (!repoFullName) {
+    res.status(400).json({ error: 'Repository required' });
+    return;
+  }
+
+  const workspacePath = getWorkspacePath(repoFullName);
+
+  if (!fs.existsSync(workspacePath)) {
+    res.status(400).json({ error: 'Workspace not found' });
+    return;
+  }
+
+  try {
+    const statusOutput = execSync('git status --porcelain', {
+      cwd: workspacePath,
+      encoding: 'utf-8'
+    });
+
+    const status = {
+      modified: [] as string[],
+      added: [] as string[],
+      deleted: [] as string[],
+      untracked: [] as string[]
+    };
+
+    statusOutput.split('\n').filter(Boolean).forEach(line => {
+      const code = line.substring(0, 2);
+      const file = line.substring(3);
+
+      if (code.includes('M')) status.modified.push(file);
+      else if (code.includes('A')) status.added.push(file);
+      else if (code.includes('D')) status.deleted.push(file);
+      else if (code === '??') status.untracked.push(file);
+    });
+
+    res.json({ status });
+  } catch (error: any) {
+    res.status(500).json({ error: `Failed to get git status: ${error.message}` });
+  }
+});
+
+// Commit changes
+app.post('/api/workspace/git/commit', authenticateApiKey, (req: Request, res: Response) => {
+  const { repoFullName, message } = req.body;
+
+  if (!repoFullName || !message) {
+    res.status(400).json({ error: 'Repository and message required' });
+    return;
+  }
+
+  const workspacePath = getWorkspacePath(repoFullName);
+
+  if (!fs.existsSync(workspacePath)) {
+    res.status(400).json({ error: 'Workspace not found' });
+    return;
+  }
+
+  try {
+    // Stage all changes
+    execSync('git add -A', { cwd: workspacePath });
+
+    // Commit
+    execSync(`git commit -m "${message.replace(/"/g, '\\"')}"`, {
+      cwd: workspacePath
+    });
+
+    res.json({ success: true });
+  } catch (error: any) {
+    res.status(500).json({ error: `Failed to commit: ${error.message}` });
+  }
+});
+
+// Push changes
+app.post('/api/workspace/git/push', authenticateApiKey, (req: Request, res: Response) => {
+  const { repoFullName, githubToken } = req.body;
+
+  if (!repoFullName || !githubToken) {
+    res.status(400).json({ error: 'Repository and GitHub token required' });
+    return;
+  }
+
+  const workspacePath = getWorkspacePath(repoFullName);
+
+  if (!fs.existsSync(workspacePath)) {
+    res.status(400).json({ error: 'Workspace not found' });
+    return;
+  }
+
+  try {
+    // Update remote URL with token for auth
+    const remoteUrl = `https://${githubToken}@github.com/${repoFullName}.git`;
+    execSync(`git remote set-url origin ${remoteUrl}`, { cwd: workspacePath });
+
+    // Push
+    execSync('git push', {
+      cwd: workspacePath,
+      env: { ...process.env, GIT_TERMINAL_PROMPT: '0' }
+    });
+
+    res.json({ success: true });
+  } catch (error: any) {
+    res.status(500).json({ error: `Failed to push: ${error.message}` });
+  }
+});
 
 // Start server
 app.listen(PORT, () => {

@@ -1,0 +1,38 @@
+import { NextRequest, NextResponse } from 'next/server';
+
+export const runtime = 'nodejs';
+
+const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:3001';
+const BACKEND_API_KEY = process.env.BACKEND_API_KEY || '';
+
+export async function GET(request: NextRequest) {
+  const token = request.cookies.get('github_token')?.value;
+
+  if (!token) {
+    return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  }
+
+  const { searchParams } = new URL(request.url);
+  const repoFullName = searchParams.get('repo');
+
+  if (!repoFullName) {
+    return NextResponse.json({ error: 'Repository required' }, { status: 400 });
+  }
+
+  try {
+    const response = await fetch(
+      `${BACKEND_URL}/api/workspace/git/status?repo=${encodeURIComponent(repoFullName)}`,
+      {
+        headers: {
+          'X-API-Key': BACKEND_API_KEY,
+        },
+      }
+    );
+
+    const data = await response.json();
+    return NextResponse.json(data);
+  } catch (error) {
+    console.error('Git status error:', error);
+    return NextResponse.json({ error: 'Failed to get git status' }, { status: 502 });
+  }
+}
