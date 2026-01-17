@@ -1,15 +1,6 @@
 {
-  "version": 2,
-  "buildCommand": "echo 'No build needed'",
-  "outputDirectory": "public",
-  "rewrites": [
-    {
-      "source": "/api/:path*",
-      "destination": "/api/index.js"
-    }
-  ],
   "functions": {
-    "api/index.js": {
+    "app/api/**/*.ts": {
       "maxDuration": 60
     }
   }
