@@ -1,0 +1,19 @@
+{
+  "name": "lawless-ai-chat",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Lawless AI Chat - A chat interface powered by Claude through CLI",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "uuid": "^9.0.1",
+    "marked": "^12.0.0",
+    "highlight.js": "^11.9.0"
+  }
+}

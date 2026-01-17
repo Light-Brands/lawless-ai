@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lawless AI - Solution Architect</title>
+  <meta name="description" content="Chat with Lawless AI - bridging technical complexity and human understanding">
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <!-- Highlight.js for code highlighting -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+
+  <!-- Marked for markdown parsing -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.0/marked.min.js"></script>
+
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="app">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="logo">
+          <div class="logo-icon">⚡</div>
+          <div class="logo-text">
+            <span class="logo-title">Lawless AI</span>
+            <span class="logo-subtitle">Solution Architect</span>
+          </div>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <button class="nav-item active" id="new-chat-btn">
+          <span class="nav-icon">+</span>
+          <span>New Chat</span>
+        </button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="powered-by">
+          <span>Powered by Claude CLI</span>
+          <span class="status-dot" id="status-dot"></span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Chat Area -->
+    <main class="chat-container">
+      <!-- Chat Header -->
+      <header class="chat-header">
+        <div class="chat-title">
+          <h1>Lawless AI</h1>
+          <p>Bridging technical complexity and human understanding</p>
+        </div>
+        <div class="header-actions">
+          <button class="icon-btn" id="clear-btn" title="Clear conversation">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 6h18"></path>
+              <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
+              <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
+            </svg>
+          </button>
+        </div>
+      </header>
+
+      <!-- Messages Container -->
+      <div class="messages-container" id="messages">
+        <!-- Welcome Message -->
+        <div class="welcome-message" id="welcome">
+          <div class="welcome-icon">⚡</div>
+          <h2>Welcome to Lawless AI</h2>
+          <p>I'm your Solution Architect - here to bridge the gap between technical complexity and human understanding. I'll translate complex concepts into clarity, warmth, and accessibility.</p>
+          <div class="welcome-suggestions">
+            <button class="suggestion-chip" data-message="Help me understand how AI agents work in simple terms">
+              Explain AI agents simply
+            </button>
+            <button class="suggestion-chip" data-message="What's the best way to architect a new web application?">
+              Web app architecture
+            </button>
+            <button class="suggestion-chip" data-message="Can you help me debug a problem I'm having?">
+              Debug a problem
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Input Area -->
+      <div class="input-container">
+        <form class="input-form" id="chat-form">
+          <div class="input-wrapper">
+            <textarea
+              id="message-input"
+              placeholder="Ask Lawless AI anything..."
+              rows="1"
+              autofocus
+            ></textarea>
+            <button type="submit" class="send-btn" id="send-btn" disabled>
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="22" y1="2" x2="11" y2="13"></line>
+                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+              </svg>
+            </button>
+          </div>
+          <div class="input-footer">
+            <span class="input-hint">Press Enter to send, Shift+Enter for new line</span>
+          </div>
+        </form>
+      </div>
+    </main>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>
