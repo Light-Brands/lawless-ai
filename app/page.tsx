@@ -754,6 +754,27 @@ export default function Home() {
               </button>
             </div>
             <div className="input-footer">
+              {/* Mobile: Show connect prompt when logged in but no repo selected */}
+              {githubUser && isMobile && !selectedRepo && (
+                <button
+                  type="button"
+                  className="mobile-repo-prompt"
+                  onClick={openMobileRepoSheet}
+                >
+                  <RepoIcon />
+                  <span>Connect a repository to edit code</span>
+                  <ChevronDownIcon />
+                </button>
+              )}
+
+              {/* Mobile: Show workspace indicator when repo is selected */}
+              {githubUser && isMobile && selectedRepo && workspaceReady && (
+                <div className="mobile-workspace-indicator">
+                  <CheckIcon />
+                  <span>{selectedRepo.name} / {selectedBranch}</span>
+                </div>
+              )}
+
               {githubUser && (
                 <div className="workspace-selector">
                   {/* Mobile: Simplified selector that opens bottom sheet */}

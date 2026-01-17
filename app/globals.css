@@ -1011,11 +1011,20 @@ body::before {
   flex-direction: column;
   align-items: center;
   gap: var(--space-2);
+  width: 100%;
 }
 
 .input-hint {
   font-size: 0.75rem;
   color: var(--color-text-muted);
+}
+
+/* Mobile input footer improvements */
+@media (max-width: 640px) {
+  .input-footer {
+    align-items: stretch;
+    gap: var(--space-3);
+  }
 }
 
 /* ============================================================================
@@ -2317,6 +2326,148 @@ body::before {
   }
 }
 
+/* Mobile touch-friendly improvements */
+@media (max-width: 640px) {
+  .repos-page {
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+
+  .repos-header {
+    padding-top: env(safe-area-inset-top, 0);
+  }
+
+  .repos-header-content {
+    padding: 10px 12px;
+    gap: 8px;
+  }
+
+  .repos-logo-icon {
+    width: 36px;
+    height: 36px;
+  }
+
+  .repos-nav-btn {
+    min-width: 40px;
+    min-height: 40px;
+    padding: 8px;
+    border-radius: 10px;
+  }
+
+  .repos-logout-btn {
+    min-width: 40px;
+    min-height: 40px;
+  }
+
+  .repos-avatar {
+    width: 32px;
+    height: 32px;
+  }
+
+  .repos-main {
+    padding: 16px 12px 80px;
+  }
+
+  .repos-hero {
+    margin-bottom: 20px;
+  }
+
+  .repos-hero-icon {
+    width: 48px;
+    height: 48px;
+  }
+
+  .repos-hero h1 {
+    font-size: 22px;
+  }
+
+  .repos-hero p {
+    font-size: 14px;
+  }
+
+  .repos-search-container {
+    margin-bottom: 16px;
+    gap: 10px;
+  }
+
+  .repos-search {
+    padding: 12px 16px;
+    font-size: 16px;
+    min-height: 48px;
+  }
+
+  .repos-search input {
+    font-size: 16px;
+  }
+
+  .repos-grid {
+    gap: 12px;
+  }
+
+  .repo-card {
+    padding: 16px;
+    border-radius: 14px;
+    min-height: 120px;
+  }
+
+  .repo-card:active {
+    transform: scale(0.98);
+    background: rgba(168, 85, 247, 0.08);
+  }
+
+  .repo-card-title h3 {
+    font-size: 15px;
+  }
+
+  .repo-card-description {
+    font-size: 13px;
+    margin-bottom: 12px;
+    -webkit-line-clamp: 2;
+  }
+
+  .repo-card-footer {
+    font-size: 12px;
+    gap: 12px;
+  }
+
+  .repo-card-arrow {
+    opacity: 1;
+    transform: none;
+  }
+
+  .repo-language-dot {
+    width: 10px;
+    height: 10px;
+  }
+
+  .repos-cloning-overlay {
+    padding: 16px;
+  }
+
+  .repos-cloning-modal {
+    padding: 24px;
+    border-radius: 16px;
+  }
+
+  .repos-empty {
+    padding: 60px 20px;
+  }
+
+  .repos-empty svg {
+    width: 40px;
+    height: 40px;
+  }
+
+  .repos-empty h3 {
+    font-size: 16px;
+  }
+
+  .repos-error {
+    padding: 12px 16px;
+    font-size: 13px;
+    border-radius: 10px;
+  }
+}
+
 /* ============================================================================
    Mobile Bottom Sheet - Touch-friendly modal for mobile screens
    ============================================================================ */
@@ -2599,7 +2750,120 @@ body::before {
 /* Mobile selector trigger styling */
 .selector-trigger.mobile-selector {
   flex: 1;
-  max-width: 140px;
+  min-width: 0;
+  max-width: none;
+  padding: 10px 14px;
+  font-size: 14px;
+  min-height: 44px;
+  background: rgba(168, 85, 247, 0.08);
+  border-color: rgba(168, 85, 247, 0.2);
+}
+
+.selector-trigger.mobile-selector:active {
+  transform: scale(0.98);
+  background: rgba(168, 85, 247, 0.15);
+}
+
+.selector-trigger.mobile-selector.active {
+  background: rgba(168, 85, 247, 0.15);
+  border-color: rgba(168, 85, 247, 0.4);
+}
+
+.selector-trigger.mobile-selector span {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Mobile workspace selector container */
+@media (max-width: 640px) {
+  .workspace-selector {
+    width: 100%;
+    flex-wrap: nowrap;
+    margin-bottom: 12px;
+    gap: 8px;
+  }
+
+  .workspace-selector .selector-clear {
+    min-width: 36px;
+    min-height: 36px;
+    flex-shrink: 0;
+  }
+
+  .workspace-selector .workspace-status {
+    display: none;
+  }
+}
+
+/* Mobile repo connect prompt */
+.mobile-repo-prompt {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  .mobile-repo-prompt {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 12px 16px;
+    background: linear-gradient(135deg, rgba(168, 85, 247, 0.1) 0%, rgba(124, 58, 237, 0.1) 100%);
+    border: 1px solid rgba(168, 85, 247, 0.2);
+    border-radius: 12px;
+    color: var(--color-primary-300);
+    font-size: 14px;
+    font-weight: 500;
+    text-decoration: none;
+    margin-bottom: 12px;
+    animation: pulse-prompt 2s ease-in-out infinite;
+  }
+
+  .mobile-repo-prompt:active {
+    transform: scale(0.98);
+    background: rgba(168, 85, 247, 0.15);
+  }
+
+  .mobile-repo-prompt svg {
+    flex-shrink: 0;
+  }
+
+  @keyframes pulse-prompt {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.8; }
+  }
+}
+
+/* Mobile connected indicator */
+.mobile-workspace-indicator {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  .mobile-workspace-indicator {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: rgba(16, 185, 129, 0.1);
+    border: 1px solid rgba(16, 185, 129, 0.2);
+    border-radius: 8px;
+    color: var(--color-success);
+    font-size: 12px;
+    margin-bottom: 12px;
+  }
+
+  .mobile-workspace-indicator svg {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+  }
+
+  .mobile-workspace-indicator span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 }
 
 /* ============================================================================
