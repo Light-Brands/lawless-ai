@@ -166,3 +166,7 @@ To make the API work on Vercel, you would need to modify `app/api/chat/route.ts`
 ## License
 
 Part of the Light-Brands ecosystem.
+
+---
+
+Made with love from Claude ❤️
