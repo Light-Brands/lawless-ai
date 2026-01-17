@@ -119,7 +119,12 @@ app.post('/api/chat', authenticateApiKey, (req: Request, res: Response) => {
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no'); // Disable nginx buffering
   res.setHeader('X-Session-Id', activeSessionId);
+
+  // Send initial comment to establish SSE connection
+  res.write(': connected\n\n');
+  res.flushHeaders();
 
   // Spawn Claude CLI in SDK mode with stream-json output
   const spawnEnv = {
