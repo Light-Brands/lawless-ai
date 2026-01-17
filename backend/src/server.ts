@@ -94,7 +94,7 @@ function buildPromptWithHistory(messages: Array<{ role: string; content: string 
   return prompt.trim();
 }
 
-// Chat endpoint with SSE streaming
+// Chat endpoint with SSE streaming using Claude CLI SDK mode
 app.post('/api/chat', authenticateApiKey, (req: Request, res: Response) => {
   const { message, sessionId } = req.body;
 
@@ -121,9 +121,21 @@ app.post('/api/chat', authenticateApiKey, (req: Request, res: Response) => {
   res.setHeader('Connection', 'keep-alive');
   res.setHeader('X-Session-Id', activeSessionId);
 
-  // Spawn Claude CLI with stdin pipe for prompt
-  const claude: ChildProcessWithoutNullStreams = spawn('claude', ['--print'], {
-    env: { ...process.env, NO_COLOR: '1', HOME: process.env.HOME || '/home/ubuntu' }
+  // Spawn Claude CLI in SDK mode with stream-json output
+  const spawnEnv = {
+    ...process.env,
+    NO_COLOR: '1',
+    HOME: '/home/ubuntu',
+    PATH: '/usr/local/bin:/usr/bin:/bin:/home/ubuntu/.local/bin'
+  };
+
+  const claude: ChildProcessWithoutNullStreams = spawn('claude', [
+    '--print',
+    '--output-format', 'stream-json',
+    '--verbose'
+  ], {
+    env: spawnEnv,
+    cwd: '/home/ubuntu'
   });
 
   // Write prompt to stdin and close it
@@ -132,28 +144,84 @@ app.post('/api/chat', authenticateApiKey, (req: Request, res: Response) => {
 
   let responseContent = '';
   let hasError = false;
+  let buffer = '';
 
-  // Handle stdout (response chunks)
+  // Handle stdout (JSON stream)
   claude.stdout.on('data', (chunk: Buffer) => {
-    const text = chunk.toString();
-    responseContent += text;
-    res.write(`data: ${JSON.stringify({ type: 'chunk', content: text, sessionId: activeSessionId })}\n\n`);
+    buffer += chunk.toString();
+
+    // Process complete JSON lines
+    const lines = buffer.split('\n');
+    buffer = lines.pop() || ''; // Keep incomplete line in buffer
+
+    for (const line of lines) {
+      if (!line.trim()) continue;
+
+      try {
+        const data = JSON.parse(line);
+
+        // Handle assistant message with content
+        if (data.type === 'assistant' && data.message?.content) {
+          for (const content of data.message.content) {
+            if (content.type === 'text' && content.text) {
+              responseContent += content.text;
+              res.write(`data: ${JSON.stringify({
+                type: 'chunk',
+                content: content.text,
+                sessionId: activeSessionId
+              })}\n\n`);
+            }
+          }
+        }
+
+        // Handle result/completion
+        if (data.type === 'result' && data.result) {
+          // Use the final result if we didn't get streaming chunks
+          if (!responseContent) {
+            responseContent = data.result;
+            res.write(`data: ${JSON.stringify({
+              type: 'chunk',
+              content: data.result,
+              sessionId: activeSessionId
+            })}\n\n`);
+          }
+        }
+
+        // Handle errors
+        if (data.type === 'error' || data.is_error) {
+          hasError = true;
+          res.write(`data: ${JSON.stringify({
+            type: 'error',
+            message: data.message || data.error || 'Unknown error'
+          })}\n\n`);
+        }
+      } catch (e) {
+        // Ignore JSON parse errors for incomplete lines
+        console.error('JSON parse error:', e, 'Line:', line);
+      }
+    }
   });
 
-  // Handle stderr (errors/warnings)
+  // Handle stderr
   claude.stderr.on('data', (data: Buffer) => {
     const errorText = data.toString();
     console.error('Claude stderr:', errorText);
-
-    // Don't treat all stderr as fatal - Claude CLI outputs some info to stderr
-    if (errorText.includes('Error') || errorText.includes('error')) {
-      hasError = true;
-      res.write(`data: ${JSON.stringify({ type: 'error', message: errorText })}\n\n`);
-    }
   });
 
   // Handle process exit
   claude.on('close', (code: number | null) => {
+    // Process any remaining buffer
+    if (buffer.trim()) {
+      try {
+        const data = JSON.parse(buffer);
+        if (data.type === 'result' && data.result && !responseContent) {
+          responseContent = data.result;
+        }
+      } catch (e) {
+        // Ignore
+      }
+    }
+
     if (code === 0 && !hasError && responseContent.trim()) {
       // Save successful response to database
       history.push({ role: 'assistant', content: responseContent.trim() });
@@ -168,7 +236,7 @@ app.post('/api/chat', authenticateApiKey, (req: Request, res: Response) => {
         content: responseContent.trim(),
         sessionId: activeSessionId
       })}\n\n`);
-    } else if (!hasError) {
+    } else if (!hasError && !responseContent) {
       res.write(`data: ${JSON.stringify({
         type: 'error',
         message: `Claude process exited with code ${code}`
