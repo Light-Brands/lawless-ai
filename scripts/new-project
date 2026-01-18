@@ -1,0 +1,164 @@
+#!/bin/bash
+set -e
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+print_step() { echo -e "${BLUE}==>${NC} $1"; }
+print_success() { echo -e "${GREEN}✓${NC} $1"; }
+print_error() { echo -e "${RED}✗${NC} $1"; }
+
+AI_CONFIG_REPO="https://github.com/TechNickAI/ai-coding-config.git"
+
+if [ -z "$1" ]; then
+    echo "Usage: new-project <project-name> [directory]"
+    echo ""
+    echo "Creates a new Next.js project with full ai-coding-config"
+    echo ""
+    echo "Examples:"
+    echo "  new-project my-app"
+    echo "  new-project my-app ~/code"
+    exit 1
+fi
+
+PROJECT_NAME="$1"
+BASE_DIR="${2:-.}"
+PROJECT_DIR="$BASE_DIR/$PROJECT_NAME"
+TEMP_DIR=$(mktemp -d)
+
+if [ -d "$PROJECT_DIR" ]; then
+    print_error "Directory $PROJECT_DIR already exists"
+    exit 1
+fi
+
+echo ""
+echo "🚀 Creating new project: $PROJECT_NAME"
+echo ""
+
+# Step 1: Clone ai-coding-config
+print_step "Cloning ai-coding-config..."
+git clone --depth 1 "$AI_CONFIG_REPO" "$TEMP_DIR/ai-config" --quiet
+print_success "Cloned ai-coding-config"
+
+# Step 2: Create Next.js project
+print_step "Creating Next.js project..."
+npx create-next-app@latest "$PROJECT_DIR" \
+    --typescript \
+    --tailwind \
+    --eslint \
+    --app \
+    --src-dir \
+    --import-alias "@/*" \
+    --use-npm \
+    --yes
+print_success "Next.js project created"
+
+cd "$PROJECT_DIR"
+
+# Step 3: Copy EVERYTHING from ai-coding-config (except .git)
+print_step "Copying all ai-coding-config files..."
+rm -rf "$TEMP_DIR/ai-config/.git"
+cp -r "$TEMP_DIR/ai-config/"* ./ 2>/dev/null || true
+cp -r "$TEMP_DIR/ai-config/".* ./ 2>/dev/null || true
+print_success "Copied all files"
+
+# Step 4: Create CLAUDE.md symlink if not exists
+[ ! -L CLAUDE.md ] && [ -f AGENTS.md ] && ln -sf AGENTS.md CLAUDE.md
+print_success "Ensured CLAUDE.md → AGENTS.md"
+
+# Step 5: Add Vercel config
+print_step "Adding Vercel configuration..."
+cat > vercel.json << 'EOF'
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "nextjs",
+  "buildCommand": "npm run build",
+  "devCommand": "npm run dev",
+  "installCommand": "npm install",
+  "regions": ["iad1"],
+  "functions": {
+    "src/app/api/**/*.ts": {
+      "maxDuration": 30
+    }
+  }
+}
+EOF
+print_success "Created vercel.json"
+
+# Step 6: Update .gitignore for Next.js
+print_step "Updating .gitignore..."
+cat >> .gitignore << 'EOF'
+
+# Next.js
+.next/
+next-env.d.ts
+tsconfig.tsbuildinfo
+
+# Vercel
+.vercel
+
+# Claude Code local
+.claude/settings.local.json
+.claude/sessions/
+EOF
+print_success "Updated .gitignore"
+
+# Step 7: Create .env.example
+cat > .env.example << 'EOF'
+# Database
+DATABASE_URL=
+
+# Auth
+NEXTAUTH_URL=http://localhost:3000
+NEXTAUTH_SECRET=
+
+# API Keys
+# OPENAI_API_KEY=
+# ANTHROPIC_API_KEY=
+EOF
+print_success "Created .env.example"
+
+# Step 8: Create update script
+cat > update-ai-config.sh << 'EOF'
+#!/bin/bash
+set -e
+TEMP=$(mktemp -d)
+git clone --depth 1 https://github.com/TechNickAI/ai-coding-config.git "$TEMP/ai-config" --quiet
+rm -rf "$TEMP/ai-config/.git"
+cp -r "$TEMP/ai-config/"* ./ 2>/dev/null || true
+cp -r "$TEMP/ai-config/".* ./ 2>/dev/null || true
+rm -rf "$TEMP"
+echo "✓ Updated to latest ai-coding-config"
+EOF
+chmod +x update-ai-config.sh
+print_success "Created update-ai-config.sh"
+
+# Cleanup
+rm -rf "$TEMP_DIR"
+
+# Step 9: Commit
+print_step "Committing..."
+git add -A
+git commit -m "Initial commit: Next.js + ai-coding-config
+
+- Next.js 14+ with TypeScript, Tailwind, App Router
+- Full ai-coding-config (all files from repo)
+- Vercel deployment ready
+- Run ./update-ai-config.sh to sync latest"
+print_success "Done"
+
+echo ""
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
+echo -e "${GREEN}✨ Project ready: $PROJECT_NAME${NC}"
+echo ""
+echo "   cd $PROJECT_NAME"
+echo "   npm run dev"
+echo ""
+echo "   Update: ./update-ai-config.sh"
+echo "   Deploy: vercel"
+echo ""
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
