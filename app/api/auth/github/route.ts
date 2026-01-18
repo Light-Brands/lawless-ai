@@ -12,8 +12,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'GitHub OAuth not configured' }, { status: 500 });
   }
 
-  // Request repo scope for read/write access
-  const scope = 'repo user:email';
+  // Request repo scope for read/write access, delete_repo for deletion
+  const scope = 'repo delete_repo user:email';
 
   const githubAuthUrl = new URL('https://github.com/login/oauth/authorize');
   githubAuthUrl.searchParams.set('client_id', GITHUB_CLIENT_ID);
