@@ -59,6 +59,11 @@ interface ReadmeData {
   htmlUrl: string;
 }
 
+interface Branch {
+  name: string;
+  protected: boolean;
+}
+
 interface RepoBrowserProps {
   repo: RepoData;
   tree: TreeNode[];
@@ -68,6 +73,7 @@ interface RepoBrowserProps {
   currentPath: string;
   view: string;
   selectedBranch: string;
+  branches: Branch[];
   contentsLoading: boolean;
   onNavigate: (path: string, isFile?: boolean) => void;
   onOpenWorkspace: () => void;
@@ -83,6 +89,7 @@ export default function RepoBrowser({
   currentPath,
   view,
   selectedBranch,
+  branches,
   contentsLoading,
   onNavigate,
   onOpenWorkspace,
@@ -96,6 +103,7 @@ export default function RepoBrowser({
         repo={repo}
         currentPath={currentPath}
         selectedBranch={selectedBranch}
+        branches={branches}
         onNavigate={onNavigate}
         onOpenWorkspace={onOpenWorkspace}
         onBranchChange={onBranchChange}

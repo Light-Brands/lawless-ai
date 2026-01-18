@@ -64,6 +64,11 @@ interface User {
   avatar: string;
 }
 
+interface Branch {
+  name: string;
+  protected: boolean;
+}
+
 const LightningIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
     <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
@@ -92,6 +97,18 @@ const LogoutIcon = () => (
   </svg>
 );
 
+const IntegrationsIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 2v4"/>
+    <path d="m6.8 15-3.5 2"/>
+    <path d="m20.7 17-3.5-2"/>
+    <path d="M6.8 9 3.3 7"/>
+    <path d="m20.7 7-3.5 2"/>
+    <path d="m9 22 3-8 3 8"/>
+    <path d="M8 6a4 4 0 1 0 8 0"/>
+  </svg>
+);
+
 export default function RepoBrowserPage() {
   const params = useParams();
   const router = useRouter();
@@ -113,6 +130,7 @@ export default function RepoBrowserPage() {
   const [contentsLoading, setContentsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedBranch, setSelectedBranch] = useState<string>('');
+  const [branches, setBranches] = useState<Branch[]>([]);
 
   useEffect(() => {
     checkAuthAndLoadData();
@@ -136,19 +154,21 @@ export default function RepoBrowserPage() {
 
       setUser(authData.user);
 
-      // Load repo data, tree, and initial contents in parallel
-      const [repoRes, treeRes, contentsRes, readmeRes] = await Promise.all([
+      // Load repo data, tree, branches, and initial contents in parallel
+      const [repoRes, treeRes, contentsRes, readmeRes, branchesRes] = await Promise.all([
         fetch(`/api/github/repo?owner=${owner}&repo=${repo}`),
         fetch(`/api/github/tree?owner=${owner}&repo=${repo}`),
         fetch(`/api/github/contents?owner=${owner}&repo=${repo}&path=${currentPath}`),
         fetch(`/api/github/readme?owner=${owner}&repo=${repo}`),
+        fetch(`/api/github/branches?repo=${owner}/${repo}`),
       ]);
 
-      const [repoResult, treeResult, contentsResult, readmeResult] = await Promise.all([
+      const [repoResult, treeResult, contentsResult, readmeResult, branchesResult] = await Promise.all([
         repoRes.json(),
         treeRes.json(),
         contentsRes.json(),
         readmeRes.json(),
+        branchesRes.json(),
       ]);
 
       if (repoResult.error) {
@@ -158,6 +178,7 @@ export default function RepoBrowserPage() {
 
       setRepoData(repoResult.repo);
       setSelectedBranch(repoResult.repo.defaultBranch);
+      setBranches(branchesResult.branches || []);
       setTree(treeResult.tree || []);
 
       if (contentsResult.type === 'dir') {
@@ -222,6 +243,49 @@ export default function RepoBrowserPage() {
     router.push(`/workspace/${owner}/${repo}`);
   }
 
+  async function handleBranchChange(newBranch: string) {
+    if (newBranch === selectedBranch) return;
+
+    setSelectedBranch(newBranch);
+    setContentsLoading(true);
+
+    try {
+      // Reload tree and contents for the new branch
+      const [treeRes, contentsRes, readmeRes] = await Promise.all([
+        fetch(`/api/github/tree?owner=${owner}&repo=${repo}&ref=${newBranch}`),
+        fetch(`/api/github/contents?owner=${owner}&repo=${repo}&path=&ref=${newBranch}`),
+        fetch(`/api/github/readme?owner=${owner}&repo=${repo}&ref=${newBranch}`),
+      ]);
+
+      const [treeResult, contentsResult, readmeResult] = await Promise.all([
+        treeRes.json(),
+        contentsRes.json(),
+        readmeRes.json(),
+      ]);
+
+      setTree(treeResult.tree || []);
+
+      if (contentsResult.type === 'dir') {
+        setContents(contentsResult.contents || []);
+        setFileData(null);
+      }
+
+      setReadme(readmeResult.readme || null);
+
+      // Navigate to root of the new branch
+      const params = new URLSearchParams();
+      if (newBranch !== repoData?.defaultBranch) {
+        params.set('ref', newBranch);
+      }
+      const queryString = params.toString();
+      router.push(`/repos/${owner}/${repo}${queryString ? `?${queryString}` : ''}`);
+    } catch (err) {
+      setError('Failed to load branch');
+    } finally {
+      setContentsLoading(false);
+    }
+  }
+
   if (loading) {
     return (
       <div className="repo-browser-page">
@@ -273,6 +337,10 @@ export default function RepoBrowserPage() {
                 <RepoListIcon />
                 <span>Repos</span>
               </Link>
+              <Link href="/integrations" className="repo-browser-nav-btn">
+                <IntegrationsIcon />
+                <span>Integrations</span>
+              </Link>
               <div className="repo-browser-user">
                 <img src={user.avatar} alt={user.login} className="repo-browser-avatar" />
                 <span className="repo-browser-username">{user.login}</span>
@@ -296,10 +364,11 @@ export default function RepoBrowserPage() {
           currentPath={currentPath}
           view={view}
           selectedBranch={selectedBranch}
+          branches={branches}
           contentsLoading={contentsLoading}
           onNavigate={navigateTo}
           onOpenWorkspace={handleOpenWorkspace}
-          onBranchChange={setSelectedBranch}
+          onBranchChange={handleBranchChange}
         />
       )}
     </div>

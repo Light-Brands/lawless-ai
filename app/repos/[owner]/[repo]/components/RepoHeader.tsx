@@ -19,10 +19,16 @@ interface RepoData {
   };
 }
 
+interface Branch {
+  name: string;
+  protected: boolean;
+}
+
 interface RepoHeaderProps {
   repo: RepoData;
   currentPath: string;
   selectedBranch: string;
+  branches: Branch[];
   onNavigate: (path: string, isFile?: boolean) => void;
   onOpenWorkspace: () => void;
   onBranchChange: (branch: string) => void;
@@ -78,6 +84,7 @@ export default function RepoHeader({
   repo,
   currentPath,
   selectedBranch,
+  branches,
   onNavigate,
   onOpenWorkspace,
   onBranchChange,
@@ -142,7 +149,15 @@ export default function RepoHeader({
             onChange={(e) => onBranchChange(e.target.value)}
             className="repo-branch-select"
           >
-            <option value={repo.defaultBranch}>{repo.defaultBranch}</option>
+            {branches.length > 0 ? (
+              branches.map((branch) => (
+                <option key={branch.name} value={branch.name}>
+                  {branch.name}{branch.name === repo.defaultBranch ? ' (default)' : ''}
+                </option>
+              ))
+            ) : (
+              <option value={repo.defaultBranch}>{repo.defaultBranch}</option>
+            )}
           </select>
         </div>
         <Breadcrumb
