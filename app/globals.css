@@ -46,6 +46,12 @@
 /* Confirmation modal */
 @import './styles/confirmation-modal.css';
 
+/* Credentials modal (for sensitive info like passwords) */
+@import './styles/credentials-modal.css';
+
+/* Toast notifications */
+@import './styles/toast.css';
+
 /* SQL Editor panel */
 @import './styles/sql-editor.css';
 
