@@ -2,10 +2,34 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import { ReadTool, WriteTool, EditTool, BashTool, GlobTool, GrepTool, TaskTool, ToolStatus } from '@/app/components/tools';
+
+// Content block types
+interface TextBlock {
+  type: 'text';
+  content: string;
+}
+
+interface ThinkingBlock {
+  type: 'thinking';
+  content: string;
+  collapsed: boolean;
+}
+
+interface ToolUseBlock {
+  type: 'tool_use';
+  id: string;
+  tool: string;
+  input: Record<string, unknown>;
+  status: ToolStatus;
+  output?: string;
+}
+
+type ContentBlock = TextBlock | ThinkingBlock | ToolUseBlock;
 
 interface Message {
   role: 'user' | 'assistant';
-  content: string;
+  content: ContentBlock[];
 }
 
 interface GitStatus {
@@ -45,6 +69,144 @@ const SendIcon = () => (
   </svg>
 );
 
+const ChevronIcon = ({ expanded }: { expanded: boolean }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="14"
+    height="14"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    style={{ transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 200ms' }}
+  >
+    <path d="m6 9 6 6 6-6"/>
+  </svg>
+);
+
+// Render a tool card based on the tool type
+function ToolCardRenderer({ block }: { block: ToolUseBlock }) {
+  const { tool, input, status, output } = block;
+
+  switch (tool) {
+    case 'Read':
+      return (
+        <ReadTool
+          filePath={(input.file_path as string) || 'unknown'}
+          content={output}
+          status={status}
+          startLine={input.offset as number}
+          endLine={input.limit as number}
+        />
+      );
+
+    case 'Write':
+      return (
+        <WriteTool
+          filePath={(input.file_path as string) || 'unknown'}
+          content={(input.content as string) || output}
+          status={status}
+        />
+      );
+
+    case 'Edit':
+      return (
+        <EditTool
+          filePath={(input.file_path as string) || 'unknown'}
+          oldContent={(input.old_string as string) || ''}
+          newContent={(input.new_string as string) || ''}
+          status={status}
+        />
+      );
+
+    case 'Bash':
+      return (
+        <BashTool
+          command={(input.command as string) || ''}
+          output={output}
+          status={status}
+          description={input.description as string}
+        />
+      );
+
+    case 'Glob':
+      return (
+        <GlobTool
+          pattern={(input.pattern as string) || ''}
+          path={input.path as string}
+          files={output ? output.split('\n').filter(Boolean) : []}
+          status={status}
+        />
+      );
+
+    case 'Grep':
+      // Parse grep output into matches
+      const matches = output
+        ? output.split('\n').filter(Boolean).map(line => {
+            const match = line.match(/^(.+?):(\d+):(.*)$/);
+            if (match) {
+              return { file: match[1], line: parseInt(match[2]), content: match[3] };
+            }
+            return { file: 'unknown', line: 0, content: line };
+          })
+        : [];
+
+      return (
+        <GrepTool
+          pattern={(input.pattern as string) || ''}
+          path={input.path as string}
+          fileType={input.type as string}
+          matches={matches}
+          status={status}
+        />
+      );
+
+    case 'Task':
+      return (
+        <TaskTool
+          description={(input.description as string) || ''}
+          agentType={input.subagent_type as string}
+          status={status}
+          result={output}
+        />
+      );
+
+    default:
+      // Generic tool display
+      return (
+        <div className="tool-card generic">
+          <div className="tool-card-header">
+            <span className="tool-card-label">{tool}</span>
+            <span className="tool-card-status">{status}</span>
+          </div>
+          {output && (
+            <div className="tool-card-body">
+              <pre>{output}</pre>
+            </div>
+          )}
+        </div>
+      );
+  }
+}
+
+// Thinking block component
+function ThinkingBlockRenderer({ block, onToggle }: { block: ThinkingBlock; onToggle: () => void }) {
+  return (
+    <div className={`thinking-block ${block.collapsed ? 'collapsed' : ''}`}>
+      <button className="thinking-block-header" onClick={onToggle}>
+        <span className="thinking-block-icon">💭</span>
+        <span className="thinking-block-label">Thinking</span>
+        <ChevronIcon expanded={!block.collapsed} />
+      </button>
+      {!block.collapsed && (
+        <div className="thinking-block-content">
+          {block.content}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function WorkspacePage() {
   const params = useParams();
   const router = useRouter();
@@ -66,11 +228,9 @@ export default function WorkspacePage() {
   }, [messages]);
 
   useEffect(() => {
-    // Load initial git status
     loadGitStatus();
   }, [repoFullName]);
 
-  // Detect mobile screen
   useEffect(() => {
     const checkMobile = () => {
       setIsMobile(window.innerWidth <= 768);
@@ -98,8 +258,13 @@ export default function WorkspacePage() {
 
     const userMessage = input.trim();
     setInput('');
-    setMessages((prev) => [...prev, { role: 'user', content: userMessage }]);
+
+    // Add user message
+    setMessages((prev) => [...prev, { role: 'user', content: [{ type: 'text', content: userMessage }] }]);
     setLoading(true);
+
+    // Add empty assistant message that we'll populate
+    setMessages((prev) => [...prev, { role: 'assistant', content: [] }]);
 
     try {
       const response = await fetch('/api/workspace/chat', {
@@ -118,9 +283,7 @@ export default function WorkspacePage() {
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
-      let assistantMessage = '';
-
-      setMessages((prev) => [...prev, { role: 'assistant', content: '' }]);
+      const toolBlocks = new Map<string, number>(); // Map tool ID to index in content array
 
       while (true) {
         const { done, value } = await reader.read();
@@ -133,17 +296,71 @@ export default function WorkspacePage() {
           if (line.startsWith('data: ')) {
             try {
               const data = JSON.parse(line.slice(6));
-              if (data.type === 'chunk' && data.content) {
-                assistantMessage += data.content;
-                setMessages((prev) => {
-                  const newMessages = [...prev];
-                  newMessages[newMessages.length - 1] = {
-                    role: 'assistant',
-                    content: assistantMessage,
-                  };
-                  return newMessages;
-                });
-              }
+
+              setMessages((prev) => {
+                const newMessages = [...prev];
+                const lastMessage = newMessages[newMessages.length - 1];
+                if (lastMessage.role !== 'assistant') return prev;
+
+                const content = [...lastMessage.content];
+
+                switch (data.type) {
+                  case 'text':
+                  case 'chunk': {
+                    // Append to last text block or create new one
+                    const lastBlock = content[content.length - 1];
+                    if (lastBlock && lastBlock.type === 'text') {
+                      lastBlock.content += data.content;
+                    } else {
+                      content.push({ type: 'text', content: data.content });
+                    }
+                    break;
+                  }
+
+                  case 'thinking': {
+                    content.push({
+                      type: 'thinking',
+                      content: data.content,
+                      collapsed: true,
+                    });
+                    break;
+                  }
+
+                  case 'tool_use': {
+                    const toolBlock: ToolUseBlock = {
+                      type: 'tool_use',
+                      id: data.id,
+                      tool: data.tool,
+                      input: data.input || {},
+                      status: 'running',
+                    };
+                    content.push(toolBlock);
+                    toolBlocks.set(data.id, content.length - 1);
+                    break;
+                  }
+
+                  case 'tool_result': {
+                    const toolIndex = toolBlocks.get(data.id);
+                    if (toolIndex !== undefined && content[toolIndex]?.type === 'tool_use') {
+                      const block = content[toolIndex] as ToolUseBlock;
+                      block.status = data.success ? 'success' : 'error';
+                      block.output = data.output;
+                    }
+                    break;
+                  }
+
+                  case 'error': {
+                    content.push({
+                      type: 'text',
+                      content: `Error: ${data.message}`,
+                    });
+                    break;
+                  }
+                }
+
+                newMessages[newMessages.length - 1] = { ...lastMessage, content };
+                return newMessages;
+              });
             } catch (e) {
               // Ignore parse errors
             }
@@ -155,13 +372,28 @@ export default function WorkspacePage() {
       loadGitStatus();
     } catch (err) {
       console.error('Chat error:', err);
-      setMessages((prev) => [
-        ...prev,
-        { role: 'assistant', content: 'Error: Failed to get response' },
-      ]);
+      setMessages((prev) => {
+        const newMessages = [...prev];
+        const lastMessage = newMessages[newMessages.length - 1];
+        if (lastMessage.role === 'assistant') {
+          lastMessage.content.push({ type: 'text', content: 'Error: Failed to get response' });
+        }
+        return newMessages;
+      });
     } finally {
       setLoading(false);
     }
+  }
+
+  function toggleThinking(messageIndex: number, blockIndex: number) {
+    setMessages((prev) => {
+      const newMessages = [...prev];
+      const block = newMessages[messageIndex].content[blockIndex];
+      if (block.type === 'thinking') {
+        block.collapsed = !block.collapsed;
+      }
+      return newMessages;
+    });
   }
 
   async function handleCommit() {
@@ -221,6 +453,35 @@ export default function WorkspacePage() {
 
   const changesCount = (gitStatus?.modified.length || 0) + (gitStatus?.added.length || 0) + (gitStatus?.untracked.length || 0) + (gitStatus?.deleted.length || 0);
 
+  // Render message content blocks
+  function renderContent(content: ContentBlock[], messageIndex: number) {
+    return content.map((block, blockIndex) => {
+      switch (block.type) {
+        case 'text':
+          return (
+            <div key={blockIndex} className="workspace-text-block">
+              {block.content}
+            </div>
+          );
+
+        case 'thinking':
+          return (
+            <ThinkingBlockRenderer
+              key={blockIndex}
+              block={block}
+              onToggle={() => toggleThinking(messageIndex, blockIndex)}
+            />
+          );
+
+        case 'tool_use':
+          return <ToolCardRenderer key={blockIndex} block={block} />;
+
+        default:
+          return null;
+      }
+    });
+  }
+
   return (
     <div className="workspace-page">
       {/* Header */}
@@ -270,10 +531,12 @@ export default function WorkspacePage() {
                 <div className="workspace-message-header">
                   {msg.role === 'user' ? 'You' : 'Claude'}
                 </div>
-                <div className="workspace-message-content">{msg.content}</div>
+                <div className="workspace-message-content">
+                  {renderContent(msg.content, i)}
+                </div>
               </div>
             ))}
-            {loading && (
+            {loading && messages[messages.length - 1]?.content.length === 0 && (
               <div className="workspace-thinking">
                 <div className="thinking-dots">
                   <span></span><span></span><span></span>

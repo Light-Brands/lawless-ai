@@ -439,6 +439,7 @@ app.post('/api/workspace/chat', authenticateApiKey, (req: Request, res: Response
 
   let responseContent = '';
   let buffer = '';
+  const toolResults: Map<string, { tool: string; input: unknown }> = new Map();
 
   claude.stdout.on('data', (chunk: Buffer) => {
     buffer += chunk.toString();
@@ -451,29 +452,94 @@ app.post('/api/workspace/chat', authenticateApiKey, (req: Request, res: Response
       try {
         const data = JSON.parse(line);
 
+        // Handle assistant message with content blocks
         if (data.type === 'assistant' && data.message?.content) {
           for (const content of data.message.content) {
+            // Text content
             if (content.type === 'text' && content.text) {
               responseContent += content.text;
               res.write(`data: ${JSON.stringify({
-                type: 'chunk',
+                type: 'text',
                 content: content.text,
+                sessionId: activeSessionId
+              })}\n\n`);
+            }
+
+            // Thinking/reasoning content
+            if (content.type === 'thinking' && content.thinking) {
+              res.write(`data: ${JSON.stringify({
+                type: 'thinking',
+                content: content.thinking,
+                sessionId: activeSessionId
+              })}\n\n`);
+            }
+
+            // Tool use - Claude is calling a tool
+            if (content.type === 'tool_use') {
+              const toolId = content.id || `tool_${Date.now()}`;
+              toolResults.set(toolId, { tool: content.name, input: content.input });
+
+              res.write(`data: ${JSON.stringify({
+                type: 'tool_use',
+                id: toolId,
+                tool: content.name,
+                input: content.input,
                 sessionId: activeSessionId
               })}\n\n`);
             }
           }
         }
 
+        // Handle tool result
+        if (data.type === 'content_block_delta' && data.delta?.type === 'tool_result') {
+          const toolId = data.id || data.tool_use_id;
+          const toolInfo = toolResults.get(toolId);
+
+          res.write(`data: ${JSON.stringify({
+            type: 'tool_result',
+            id: toolId,
+            tool: toolInfo?.tool || 'unknown',
+            output: data.delta.content || '',
+            success: !data.is_error,
+            sessionId: activeSessionId
+          })}\n\n`);
+        }
+
+        // Handle direct tool_result type
+        if (data.type === 'tool_result') {
+          const toolId = data.tool_use_id || data.id;
+          const toolInfo = toolResults.get(toolId);
+
+          res.write(`data: ${JSON.stringify({
+            type: 'tool_result',
+            id: toolId,
+            tool: toolInfo?.tool || 'unknown',
+            output: typeof data.content === 'string' ? data.content : JSON.stringify(data.content),
+            success: !data.is_error,
+            sessionId: activeSessionId
+          })}\n\n`);
+        }
+
+        // Handle final result
         if (data.type === 'result' && data.result && !responseContent) {
           responseContent = data.result;
           res.write(`data: ${JSON.stringify({
-            type: 'chunk',
+            type: 'text',
             content: data.result,
             sessionId: activeSessionId
           })}\n\n`);
         }
+
+        // Handle error
+        if (data.type === 'error' || data.is_error) {
+          res.write(`data: ${JSON.stringify({
+            type: 'error',
+            message: data.message || data.error || 'Unknown error',
+            sessionId: activeSessionId
+          })}\n\n`);
+        }
       } catch (e) {
-        // Ignore parse errors
+        // Ignore parse errors for incomplete JSON
       }
     }
   });
@@ -483,13 +549,11 @@ app.post('/api/workspace/chat', authenticateApiKey, (req: Request, res: Response
   });
 
   claude.on('close', (code: number | null) => {
-    if (responseContent) {
-      res.write(`data: ${JSON.stringify({
-        type: 'done',
-        content: responseContent.trim(),
-        sessionId: activeSessionId
-      })}\n\n`);
-    }
+    res.write(`data: ${JSON.stringify({
+      type: 'done',
+      content: responseContent.trim(),
+      sessionId: activeSessionId
+    })}\n\n`);
     res.end();
   });
 

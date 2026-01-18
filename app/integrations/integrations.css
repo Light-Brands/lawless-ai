@@ -188,6 +188,18 @@
   color: var(--color-text-primary);
 }
 
+.integrations-nav-btn.demo-btn {
+  background: rgba(168, 85, 247, 0.1);
+  border-color: rgba(168, 85, 247, 0.3);
+  color: var(--color-primary-400);
+}
+
+.integrations-nav-btn.demo-btn:hover {
+  background: rgba(168, 85, 247, 0.2);
+  border-color: rgba(168, 85, 247, 0.4);
+  color: var(--color-primary-300);
+}
+
 .integrations-user,
 .vercel-user,
 .supabase-user {

@@ -1,0 +1,213 @@
+/* ============================================================================
+   Confirmation Modal
+   ============================================================================ */
+
+.confirmation-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: var(--space-4);
+}
+
+.confirmation-modal {
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-surface-glass-border);
+  border-radius: var(--radius-xl);
+  padding: var(--space-6);
+  max-width: 440px;
+  width: 100%;
+  position: relative;
+  animation: modal-appear 0.2s ease-out;
+}
+
+@keyframes modal-appear {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.confirmation-modal-close {
+  position: absolute;
+  top: var(--space-4);
+  right: var(--space-4);
+  background: transparent;
+  border: none;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  padding: var(--space-1);
+  border-radius: var(--radius-md);
+  transition: all var(--transition-fast);
+}
+
+.confirmation-modal-close:hover:not(:disabled) {
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-secondary);
+}
+
+.confirmation-modal-close:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.confirmation-modal-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto var(--space-4);
+}
+
+.confirmation-modal-icon.danger {
+  background: var(--color-error-soft);
+  color: var(--color-error);
+}
+
+.confirmation-modal-icon.warning {
+  background: var(--color-warning-soft);
+  color: var(--color-warning);
+}
+
+.confirmation-modal-title {
+  font-size: 1.25rem;
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+  text-align: center;
+  margin-bottom: var(--space-2);
+}
+
+.confirmation-modal-message {
+  font-size: 0.95rem;
+  color: var(--color-text-secondary);
+  text-align: center;
+  line-height: 1.5;
+  margin-bottom: var(--space-5);
+}
+
+.confirmation-modal-input-section {
+  margin-bottom: var(--space-5);
+}
+
+.confirmation-modal-label {
+  display: block;
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-2);
+}
+
+.confirmation-modal-label strong {
+  color: var(--color-text-primary);
+  font-family: var(--font-mono);
+  background: var(--color-bg-tertiary);
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+}
+
+.confirmation-modal-input {
+  width: 100%;
+  padding: var(--space-3);
+  background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-surface-glass-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text-primary);
+  font-size: 1rem;
+  font-family: var(--font-mono);
+  transition: border-color var(--transition-fast);
+}
+
+.confirmation-modal-input:focus {
+  outline: none;
+  border-color: var(--color-error);
+}
+
+.confirmation-modal-input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.confirmation-modal-input::placeholder {
+  color: var(--color-text-muted);
+}
+
+.confirmation-modal-actions {
+  display: flex;
+  gap: var(--space-3);
+}
+
+.confirmation-modal-btn {
+  flex: 1;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  font-size: 0.95rem;
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+}
+
+.confirmation-modal-btn.cancel {
+  background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-surface-glass-border);
+  color: var(--color-text-secondary);
+}
+
+.confirmation-modal-btn.cancel:hover:not(:disabled) {
+  background: var(--color-surface-glass);
+  color: var(--color-text-primary);
+}
+
+.confirmation-modal-btn.confirm {
+  border: none;
+  color: white;
+}
+
+.confirmation-modal-btn.confirm.danger {
+  background: var(--color-error);
+}
+
+.confirmation-modal-btn.confirm.danger:hover:not(:disabled) {
+  background: #dc2626;
+}
+
+.confirmation-modal-btn.confirm.warning {
+  background: var(--color-warning);
+}
+
+.confirmation-modal-btn.confirm.warning:hover:not(:disabled) {
+  background: #d97706;
+}
+
+.confirmation-modal-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.confirmation-modal-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid transparent;
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}

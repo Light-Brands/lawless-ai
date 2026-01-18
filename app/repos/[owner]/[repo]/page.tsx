@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import RepoBrowser from './components/RepoBrowser';
+import ConfirmationModal from '@/app/components/ConfirmationModal';
 
 interface RepoData {
   id: number;
@@ -157,6 +158,11 @@ export default function RepoBrowserPage() {
   const [selectedSupabaseProject, setSelectedSupabaseProject] = useState<{ projectRef: string; projectName: string } | null>(null);
   const [creatingVercel, setCreatingVercel] = useState(false);
   const [creatingSupabase, setCreatingSupabase] = useState(false);
+
+  // Delete and settings state
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isTogglingVisibility, setIsTogglingVisibility] = useState(false);
 
   useEffect(() => {
     checkAuthAndLoadData();
@@ -505,6 +511,53 @@ export default function RepoBrowserPage() {
     }
   }
 
+  async function handleDeleteRepo() {
+    setIsDeleting(true);
+    try {
+      const res = await fetch(`/api/github/repos/${owner}/${repo}`, {
+        method: 'DELETE',
+      });
+
+      if (res.ok) {
+        router.push('/repos');
+      } else {
+        const data = await res.json();
+        alert(`Failed to delete repository: ${data.error || 'Unknown error'}`);
+      }
+    } catch (err) {
+      alert('Failed to delete repository');
+    } finally {
+      setIsDeleting(false);
+      setShowDeleteModal(false);
+    }
+  }
+
+  async function handleToggleVisibility() {
+    if (!repoData) return;
+
+    setIsTogglingVisibility(true);
+    try {
+      const newVisibility = repoData.private ? 'public' : 'private';
+      const res = await fetch(`/api/github/repos/${owner}/${repo}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ visibility: newVisibility }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setRepoData(prev => prev ? { ...prev, private: data.repo.private } : null);
+      } else {
+        const data = await res.json();
+        alert(`Failed to change visibility: ${data.error || 'Unknown error'}`);
+      }
+    } catch (err) {
+      alert('Failed to change visibility');
+    } finally {
+      setIsTogglingVisibility(false);
+    }
+  }
+
   if (loading) {
     return (
       <div className="repo-browser-page">
@@ -598,8 +651,25 @@ export default function RepoBrowserPage() {
           onSupabaseProjectChange={handleSupabaseProjectChange}
           creatingVercel={creatingVercel}
           creatingSupabase={creatingSupabase}
+          onDeleteRepo={() => setShowDeleteModal(true)}
+          onToggleVisibility={handleToggleVisibility}
+          isTogglingVisibility={isTogglingVisibility}
         />
       )}
+
+      {/* Delete Repository Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={showDeleteModal}
+        title="Delete Repository"
+        message={`This will permanently delete the repository "${owner}/${repo}" and all its contents. This action cannot be undone.`}
+        confirmText={repo}
+        confirmLabel="Delete Repository"
+        variant="danger"
+        requireTypedConfirmation={true}
+        onConfirm={handleDeleteRepo}
+        onCancel={() => setShowDeleteModal(false)}
+        isLoading={isDeleting}
+      />
     </div>
   );
 }

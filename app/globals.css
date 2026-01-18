@@ -39,3 +39,9 @@
 
 /* New project creation page */
 @import './styles/new-project.css';
+
+/* Tool cards for Claude CLI-style display */
+@import './styles/tool-cards.css';
+
+/* Confirmation modal */
+@import './styles/confirmation-modal.css';

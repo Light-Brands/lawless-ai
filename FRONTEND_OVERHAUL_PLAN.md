@@ -459,36 +459,52 @@ function useStreamingMessage() {
 - [x] Breadcrumb navigation
 - [x] README preview with markdown
 - [x] Responsive scrolling fixes
+- [x] Integrations page (Vercel, Supabase connections with org/team selection)
+- [x] TypeScript interfaces for all stream event types (`app/types/stream.ts`)
+- [x] Base `ToolCard` component with expand/collapse
+- [x] `CodeBlock` component with syntax highlighting
+- [x] `DiffView` component for edits
+- [x] `StatusIndicator` component
+- [x] Demo page for components (`/demo/tools`)
+- [x] `ReadTool` - Display file contents with collapsing
+- [x] `WriteTool` - Show new file being created
+- [x] `EditTool` - Before/after diff view
+- [x] `BashTool` - Command + streaming output
+- [x] `GlobTool` - File search results list
+- [x] `GrepTool` - Content search with matches highlighted
+- [x] `TaskTool` - Sub-agent status display
 
 ### In Progress
-- [ ] Integrations page (Vercel, Supabase connections)
+- [ ] Add keyboard shortcuts (expand all, collapse all)
+- [ ] Mobile responsive adjustments for tool cards
+- [ ] Performance optimization (virtualization for long outputs)
 
 ### Week 1: Backend & Data Layer
 1. [ ] SSH to Oracle, capture sample `stream-json` output from Claude CLI
-2. [ ] Document all event types and structures
+2. [x] Document all event types and structures
 3. [ ] Modify `backend/src/server.ts` to parse and emit structured events
-4. [ ] Create TypeScript interfaces for all event types
+4. [x] Create TypeScript interfaces for all event types
 5. [ ] Test SSE stream with new structured format
 
-### Week 2: Core Components
-1. [ ] Create base `ToolCard` component with expand/collapse
-2. [ ] Create `CodeBlock` component with syntax highlighting
-3. [ ] Create `DiffView` component for edits
-4. [ ] Create `StatusIndicator` component
-5. [ ] Set up component storybook or test page
+### Week 2: Core Components (COMPLETED)
+1. [x] Create base `ToolCard` component with expand/collapse
+2. [x] Create `CodeBlock` component with syntax highlighting
+3. [x] Create `DiffView` component for edits
+4. [x] Create `StatusIndicator` component
+5. [x] Set up component demo page
 
-### Week 3: Tool-Specific Components
-1. [ ] `ReadTool` - Display file contents with collapsing
-2. [ ] `WriteTool` - Show new file being created
-3. [ ] `EditTool` - Before/after diff view
-4. [ ] `BashTool` - Command + streaming output
-5. [ ] `GlobTool` - File search results list
-6. [ ] `GrepTool` - Content search with matches highlighted
+### Week 3: Tool-Specific Components (COMPLETED)
+1. [x] `ReadTool` - Display file contents with collapsing
+2. [x] `WriteTool` - Show new file being created
+3. [x] `EditTool` - Before/after diff view
+4. [x] `BashTool` - Command + streaming output
+5. [x] `GlobTool` - File search results list
+6. [x] `GrepTool` - Content search with matches highlighted
 
 ### Week 4: Integration & Polish
-1. [ ] Integrate components into chat message flow
-2. [ ] Handle streaming updates (tool starts, completes)
-3. [ ] Add thinking/reasoning collapsible sections
+1. [x] Integrate components into chat message flow
+2. [x] Handle streaming updates (tool starts, completes)
+3. [x] Add thinking/reasoning collapsible sections
 4. [ ] Add keyboard shortcuts (expand all, collapse all)
 5. [ ] Mobile responsive adjustments
 6. [ ] Performance optimization (virtualization for long outputs)

@@ -99,6 +99,9 @@ interface RepoBrowserProps {
   onSupabaseProjectChange: (projectRef: string) => void;
   creatingVercel: boolean;
   creatingSupabase: boolean;
+  onDeleteRepo: () => void;
+  onToggleVisibility: () => void;
+  isTogglingVisibility: boolean;
 }
 
 export default function RepoBrowser({
@@ -125,6 +128,9 @@ export default function RepoBrowser({
   onSupabaseProjectChange,
   creatingVercel,
   creatingSupabase,
+  onDeleteRepo,
+  onToggleVisibility,
+  isTogglingVisibility,
 }: RepoBrowserProps) {
   const isViewingFile = view === 'blob' && fileData;
 
@@ -148,6 +154,9 @@ export default function RepoBrowser({
         onSupabaseProjectChange={onSupabaseProjectChange}
         creatingVercel={creatingVercel}
         creatingSupabase={creatingSupabase}
+        onDeleteRepo={onDeleteRepo}
+        onToggleVisibility={onToggleVisibility}
+        isTogglingVisibility={isTogglingVisibility}
       />
 
       <div className="repo-browser-content">

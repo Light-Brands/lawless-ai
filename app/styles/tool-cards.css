@@ -1,0 +1,781 @@
+/**
+ * Tool Cards - Claude Code CLI-style tool display components
+ */
+
+/* ============================================================================
+   Tool Card Base
+   ============================================================================ */
+
+.tool-card {
+  background: var(--color-surface-glass);
+  border: 1px solid var(--color-surface-glass-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  margin: var(--space-3) 0;
+  transition: border-color var(--transition-fast);
+}
+
+.tool-card:hover {
+  border-color: var(--color-surface-glass-border-hover);
+}
+
+.tool-card.success {
+  border-left: 3px solid var(--color-success);
+}
+
+.tool-card.error {
+  border-left: 3px solid var(--color-error);
+}
+
+.tool-card.running {
+  border-left: 3px solid var(--color-primary-500);
+}
+
+/* Tool Card Header */
+.tool-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-4);
+  background: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid var(--color-surface-glass-border);
+  cursor: pointer;
+  width: 100%;
+  border: none;
+  color: inherit;
+  text-align: left;
+  transition: background-color var(--transition-fast);
+}
+
+.tool-card-header:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.tool-card.collapsed .tool-card-header {
+  border-bottom: none;
+}
+
+.tool-card-header-left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.tool-card-icon {
+  font-size: 1rem;
+}
+
+.tool-card-label {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.tool-card-header-right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex: 1;
+  min-width: 0;
+  margin-left: var(--space-4);
+}
+
+.tool-card-title {
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+}
+
+.tool-card-subtitle {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+/* Tool Card Status */
+.tool-card-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+}
+
+.tool-card-status.success {
+  color: var(--color-success);
+}
+
+.tool-card-status.error {
+  color: var(--color-error);
+}
+
+.tool-card-status.running {
+  color: var(--color-primary-500);
+}
+
+.tool-card-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(168, 85, 247, 0.2);
+  border-top-color: var(--color-primary-500);
+  border-radius: 50%;
+  animation: tool-card-spin 1s linear infinite;
+}
+
+@keyframes tool-card-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Tool Card Body */
+.tool-card-body {
+  max-height: 500px;
+  overflow: auto;
+}
+
+/* ============================================================================
+   Code Block
+   ============================================================================ */
+
+.code-block {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.5;
+  background: var(--color-bg-primary);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.code-block-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-2) var(--space-3);
+  background: rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid var(--color-surface-glass-border);
+}
+
+.code-block-filename {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+.code-block-copy {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-1);
+  background: transparent;
+  border: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-fast);
+}
+
+.code-block-copy:hover {
+  color: var(--color-text-primary);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.code-block-content {
+  display: flex;
+  overflow-x: auto;
+}
+
+.code-block-line-numbers {
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-3) 0;
+  padding-right: var(--space-3);
+  padding-left: var(--space-3);
+  background: rgba(255, 255, 255, 0.02);
+  border-right: 1px solid var(--color-surface-glass-border);
+  text-align: right;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.code-block-line-number {
+  color: var(--color-text-muted);
+  font-size: 12px;
+  line-height: 1.5;
+  min-width: 2.5em;
+}
+
+.code-block-line-number.highlighted {
+  color: var(--color-primary-400);
+  background: rgba(168, 85, 247, 0.1);
+}
+
+.code-block-pre {
+  flex: 1;
+  margin: 0;
+  padding: var(--space-3);
+  overflow-x: auto;
+}
+
+.code-block-pre code {
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+}
+
+.code-block-expand {
+  display: block;
+  width: 100%;
+  padding: var(--space-2);
+  background: rgba(255, 255, 255, 0.02);
+  border: none;
+  border-top: 1px solid var(--color-surface-glass-border);
+  color: var(--color-text-tertiary);
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.code-block-expand:hover {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--color-text-secondary);
+}
+
+/* ============================================================================
+   Diff View
+   ============================================================================ */
+
+.diff-view {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.5;
+  background: var(--color-bg-primary);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.diff-view-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-2) var(--space-3);
+  background: rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid var(--color-surface-glass-border);
+}
+
+.diff-view-filename {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+.diff-view-stats {
+  display: flex;
+  gap: var(--space-2);
+  font-size: 0.75rem;
+}
+
+.diff-stat.added {
+  color: var(--color-success);
+}
+
+.diff-stat.removed {
+  color: var(--color-error);
+}
+
+.diff-view-content {
+  overflow-x: auto;
+}
+
+.diff-line {
+  display: flex;
+  min-height: 1.5em;
+}
+
+.diff-line.added {
+  background: rgba(46, 160, 67, 0.12);
+}
+
+.diff-line.removed {
+  background: rgba(248, 81, 73, 0.12);
+}
+
+.diff-line:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.diff-line.added:hover {
+  background: rgba(46, 160, 67, 0.18);
+}
+
+.diff-line.removed:hover {
+  background: rgba(248, 81, 73, 0.18);
+}
+
+.diff-line-numbers {
+  display: flex;
+  flex-shrink: 0;
+  border-right: 1px solid var(--color-surface-glass-border);
+}
+
+.diff-line-num {
+  width: 3em;
+  padding: 0 var(--space-2);
+  text-align: right;
+  color: var(--color-text-muted);
+  font-size: 12px;
+  user-select: none;
+}
+
+.diff-line-num.old {
+  background: rgba(255, 255, 255, 0.02);
+  border-right: 1px solid var(--color-surface-glass-border);
+}
+
+.diff-line-marker {
+  width: 1.5em;
+  padding: 0 var(--space-1);
+  text-align: center;
+  font-weight: var(--font-weight-bold);
+  user-select: none;
+}
+
+.diff-line.added .diff-line-marker {
+  color: var(--color-success);
+}
+
+.diff-line.removed .diff-line-marker {
+  color: var(--color-error);
+}
+
+.diff-line-content {
+  flex: 1;
+  padding: 0 var(--space-3);
+  white-space: pre;
+}
+
+/* ============================================================================
+   Status Indicator
+   ============================================================================ */
+
+.status-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.status-indicator-dot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.status-indicator.size-sm .status-indicator-dot {
+  width: 12px;
+  height: 12px;
+}
+
+.status-indicator.size-md .status-indicator-dot {
+  width: 16px;
+  height: 16px;
+}
+
+.status-indicator.size-lg .status-indicator-dot {
+  width: 20px;
+  height: 20px;
+}
+
+.status-indicator.pending .status-indicator-dot {
+  color: var(--color-text-muted);
+}
+
+.status-indicator.running .status-indicator-dot {
+  color: var(--color-primary-500);
+}
+
+.status-indicator.success .status-indicator-dot {
+  color: var(--color-success);
+}
+
+.status-indicator.error .status-indicator-dot {
+  color: var(--color-error);
+}
+
+.status-indicator-spinner {
+  width: 100%;
+  height: 100%;
+  border: 2px solid rgba(168, 85, 247, 0.2);
+  border-top-color: var(--color-primary-500);
+  border-radius: 50%;
+  animation: tool-card-spin 1s linear infinite;
+}
+
+.status-indicator-dot svg {
+  width: 100%;
+  height: 100%;
+}
+
+.status-indicator-label {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+/* ============================================================================
+   Tool Content Shared Styles
+   ============================================================================ */
+
+.tool-content-loading {
+  padding: var(--space-4);
+  color: var(--color-text-tertiary);
+  font-size: 0.875rem;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.tool-content-error {
+  padding: var(--space-4);
+  color: var(--color-error);
+  font-size: 0.875rem;
+}
+
+/* ============================================================================
+   Bash Tool Specific
+   ============================================================================ */
+
+.bash-tool-content {
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+
+.bash-tool-command {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background: var(--color-bg-primary);
+  border-bottom: 1px solid var(--color-surface-glass-border);
+}
+
+.bash-tool-prompt {
+  color: var(--color-success);
+  font-weight: var(--font-weight-bold);
+  user-select: none;
+}
+
+.bash-tool-cmd {
+  color: var(--color-text-primary);
+  word-break: break-all;
+}
+
+.bash-tool-running {
+  padding: var(--space-3);
+  display: flex;
+  align-items: center;
+}
+
+.bash-tool-cursor {
+  width: 8px;
+  height: 1.2em;
+  background: var(--color-text-primary);
+  animation: cursor-blink 1s step-end infinite;
+}
+
+@keyframes cursor-blink {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+
+.bash-tool-output {
+  max-height: 300px;
+  overflow: auto;
+  background: var(--color-bg-primary);
+}
+
+.bash-tool-output pre {
+  margin: 0;
+  padding: var(--space-3);
+  color: var(--color-text-secondary);
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.bash-tool-exit-code {
+  padding: var(--space-2) var(--space-3);
+  font-size: 0.75rem;
+  background: rgba(255, 255, 255, 0.02);
+  border-top: 1px solid var(--color-surface-glass-border);
+}
+
+.bash-tool-exit-code.warning {
+  color: var(--color-warning);
+}
+
+.bash-tool-exit-code.error {
+  color: var(--color-error);
+}
+
+/* ============================================================================
+   Glob Tool Specific
+   ============================================================================ */
+
+.glob-tool-content {
+  padding: var(--space-3);
+}
+
+.glob-tool-count {
+  font-size: 0.75rem;
+  color: var(--color-text-tertiary);
+  margin-bottom: var(--space-2);
+}
+
+.glob-tool-files {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.glob-tool-file {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+}
+
+.glob-tool-file:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.glob-tool-file svg {
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+
+.glob-tool-filepath {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ============================================================================
+   Grep Tool Specific
+   ============================================================================ */
+
+.grep-tool-content {
+  padding: var(--space-3);
+}
+
+.grep-tool-count {
+  font-size: 0.75rem;
+  color: var(--color-text-tertiary);
+  margin-bottom: var(--space-3);
+}
+
+.grep-tool-results {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.grep-tool-file-group {
+  border: 1px solid var(--color-surface-glass-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.grep-tool-filename {
+  padding: var(--space-2) var(--space-3);
+  background: rgba(255, 255, 255, 0.02);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  border-bottom: 1px solid var(--color-surface-glass-border);
+}
+
+.grep-tool-matches {
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+
+.grep-tool-match {
+  display: flex;
+  padding: var(--space-1) var(--space-3);
+  border-bottom: 1px solid var(--color-surface-glass-border);
+}
+
+.grep-tool-match:last-child {
+  border-bottom: none;
+}
+
+.grep-tool-match:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.grep-tool-line-num {
+  flex-shrink: 0;
+  width: 3em;
+  margin-right: var(--space-3);
+  color: var(--color-text-muted);
+  text-align: right;
+}
+
+.grep-tool-line-content {
+  color: var(--color-text-secondary);
+  white-space: pre;
+  overflow-x: auto;
+}
+
+/* ============================================================================
+   Write Tool Specific
+   ============================================================================ */
+
+.write-tool-content {
+  padding: 0;
+}
+
+.write-tool-badge {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-success-soft);
+  color: var(--color-success);
+  font-size: 0.75rem;
+  font-weight: var(--font-weight-medium);
+}
+
+.write-tool-badge-icon {
+  font-weight: var(--font-weight-bold);
+}
+
+/* ============================================================================
+   Task Tool Specific
+   ============================================================================ */
+
+.task-tool-running {
+  padding: var(--space-4);
+}
+
+.task-tool-status {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-text-tertiary);
+  font-size: 0.875rem;
+}
+
+.task-tool-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(168, 85, 247, 0.2);
+  border-top-color: var(--color-primary-500);
+  border-radius: 50%;
+  animation: tool-card-spin 1s linear infinite;
+}
+
+.task-tool-result {
+  padding: var(--space-3);
+  max-height: 300px;
+  overflow: auto;
+}
+
+.task-tool-result pre {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  white-space: pre-wrap;
+}
+
+/* ============================================================================
+   Thinking Block
+   ============================================================================ */
+
+.thinking-block {
+  background: var(--color-surface-glass);
+  border: 1px solid var(--color-surface-glass-border);
+  border-radius: var(--radius-md);
+  margin: var(--space-3) 0;
+  overflow: hidden;
+}
+
+.thinking-block-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  background: transparent;
+  border: none;
+  color: var(--color-text-tertiary);
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.thinking-block-header:hover {
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--color-text-secondary);
+}
+
+.thinking-block-icon {
+  font-size: 0.875rem;
+}
+
+.thinking-block-label {
+  flex: 1;
+  text-align: left;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: var(--font-weight-medium);
+}
+
+.thinking-block-content {
+  padding: var(--space-3);
+  padding-top: 0;
+  color: var(--color-text-tertiary);
+  font-size: 0.875rem;
+  line-height: 1.6;
+  font-style: italic;
+}
+
+.thinking-block.collapsed .thinking-block-content {
+  display: none;
+}
+
+/* ============================================================================
+   Workspace Text Block
+   ============================================================================ */
+
+.workspace-text-block {
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.6;
+}
+
+.workspace-text-block + .workspace-text-block {
+  margin-top: 0;
+}
+
+.workspace-text-block + .tool-card,
+.tool-card + .workspace-text-block {
+  margin-top: var(--space-3);
+}
+
+.workspace-text-block + .thinking-block,
+.thinking-block + .workspace-text-block {
+  margin-top: var(--space-2);
+}

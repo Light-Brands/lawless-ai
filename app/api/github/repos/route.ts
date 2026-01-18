@@ -253,14 +253,19 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { name, description, isPrivate, template } = body;
+    const { name, description, isPrivate, template, org } = body;
 
     if (!name) {
       return NextResponse.json({ error: 'Repository name is required' }, { status: 400 });
     }
 
+    // Use different endpoint for org vs personal repos
+    const apiUrl = org
+      ? `https://api.github.com/orgs/${org}/repos`
+      : 'https://api.github.com/user/repos';
+
     // Create the repository
-    const createResponse = await fetch('https://api.github.com/user/repos', {
+    const createResponse = await fetch(apiUrl, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,

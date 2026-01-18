@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { name, framework, gitRepository, environmentVariables } = body;
+    const { name, framework, gitRepository, environmentVariables, teamId } = body;
 
     if (!name) {
       return NextResponse.json({ error: 'Project name is required' }, { status: 400 });
@@ -84,8 +84,13 @@ export async function POST(request: NextRequest) {
       };
     }
 
+    // Add teamId query param if creating under a team
+    const apiUrl = teamId
+      ? `https://api.vercel.com/v9/projects?teamId=${teamId}`
+      : 'https://api.vercel.com/v9/projects';
+
     // Create the project
-    const createResponse = await fetch('https://api.vercel.com/v9/projects', {
+    const createResponse = await fetch(apiUrl, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
