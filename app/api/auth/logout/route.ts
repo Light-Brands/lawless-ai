@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  const response = NextResponse.redirect(APP_URL);
+  const response = NextResponse.redirect(`${APP_URL}/login`);
 
   // Clear legacy auth cookies
   response.cookies.delete('github_token');

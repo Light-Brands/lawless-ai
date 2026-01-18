@@ -29,29 +29,35 @@ function getAppUrl(request: NextRequest): string {
 
 export async function GET(request: NextRequest) {
   const APP_URL = getAppUrl(request);
+  const { searchParams } = new URL(request.url);
+  const next = searchParams.get('next') || '/repos';
 
   // If Supabase is configured, use Supabase Auth
   if (USE_SUPABASE_AUTH) {
     const supabase = await createClient();
 
+    // Include the 'next' path in the callback URL
+    const callbackUrl = new URL('/api/auth/callback', APP_URL);
+    callbackUrl.searchParams.set('next', next);
+
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'github',
       options: {
-        redirectTo: `${APP_URL}/api/auth/callback`,
+        redirectTo: callbackUrl.toString(),
         scopes: 'repo delete_repo user:email read:org',
       },
     });
 
     if (error) {
       console.error('Supabase OAuth error:', error);
-      return NextResponse.redirect(`${APP_URL}?error=oauth_failed`);
+      return NextResponse.redirect(`${APP_URL}/login?error=oauth_failed`);
     }
 
     if (data.url) {
       return NextResponse.redirect(data.url);
     }
 
-    return NextResponse.redirect(`${APP_URL}?error=oauth_failed`);
+    return NextResponse.redirect(`${APP_URL}/login?error=oauth_failed`);
   }
 
   // Legacy: Direct GitHub OAuth (when Supabase is not configured)

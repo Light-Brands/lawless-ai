@@ -1,39 +1,47 @@
 import { NextResponse, type NextRequest } from 'next/server';
+import { updateSession } from '@/lib/supabase/middleware';
 
-// Routes that don't require PIN verification
+// Routes that don't require authentication
 const PUBLIC_ROUTES = [
-  '/api/auth/pin',
+  '/login',
+  '/api/auth',
   '/api/health',
   '/_next',
   '/favicon.ico',
   '/icons',
   '/manifest.json',
   '/version.json',
+  '/sw.js',
 ];
+
+// Check if a path is a public route
+function isPublicRoute(pathname: string): boolean {
+  return PUBLIC_ROUTES.some(route => pathname.startsWith(route));
+}
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Skip middleware for public routes
-  if (PUBLIC_ROUTES.some(route => pathname.startsWith(route))) {
+  // Skip middleware for public routes and static assets
+  if (isPublicRoute(pathname)) {
     return NextResponse.next();
   }
 
-  // Check PIN verification for all other routes
-  const pinVerified = request.cookies.get('pin_verified')?.value === 'true';
+  // Update Supabase session and check authentication
+  const { supabaseResponse, user } = await updateSession(request);
 
-  // If PIN is required and not verified, block API routes
-  if (!pinVerified && process.env.APP_PIN) {
-    if (pathname.startsWith('/api/')) {
-      return NextResponse.json(
-        { error: 'PIN verification required' },
-        { status: 401 }
-      );
+  // If user is not authenticated, redirect to login
+  if (!user) {
+    const loginUrl = new URL('/login', request.url);
+    // Add the original path as redirect target
+    if (pathname !== '/') {
+      loginUrl.searchParams.set('next', pathname);
     }
-    // For pages, PinGate component handles the PIN entry UI
+    return NextResponse.redirect(loginUrl);
   }
 
-  return NextResponse.next();
+  // User is authenticated - continue with the request
+  return supabaseResponse;
 }
 
 export const config = {

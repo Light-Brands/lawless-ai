@@ -3,7 +3,8 @@ import { Space_Grotesk, JetBrains_Mono } from 'next/font/google';
 import './globals.css';
 import { ToastProvider } from './components/Toast';
 import MobileBottomNav from './components/MobileBottomNav';
-import PinGate from './components/PinGate';
+import { AuthProvider } from './contexts/AuthContext';
+import AuthGate from './components/AuthGate';
 
 const spaceGrotesk = Space_Grotesk({
   subsets: ['latin'],
@@ -54,12 +55,14 @@ export default function RootLayout({
         />
       </head>
       <body className={`${spaceGrotesk.variable} ${jetbrainsMono.variable}`}>
-        <PinGate>
-          <ToastProvider>
-            {children}
-            <MobileBottomNav />
-          </ToastProvider>
-        </PinGate>
+        <AuthProvider>
+          <AuthGate>
+            <ToastProvider>
+              {children}
+              <MobileBottomNav />
+            </ToastProvider>
+          </AuthGate>
+        </AuthProvider>
       </body>
     </html>
   );

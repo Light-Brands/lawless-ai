@@ -3,7 +3,8 @@
 import { useState, useEffect, useRef, FormEvent, KeyboardEvent } from 'react';
 import { marked } from 'marked';
 import hljs from 'highlight.js';
-import { createClient } from '@/lib/supabase/client';
+import { useAuth } from '@/app/contexts/AuthContext';
+import UserMenu from '@/app/components/UserMenu';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -134,12 +135,6 @@ const SearchIcon = () => (
   </svg>
 );
 
-interface GitHubUser {
-  login: string;
-  name: string;
-  avatar: string;
-}
-
 interface Repo {
   id: number;
   name: string;
@@ -153,6 +148,7 @@ interface Branch {
 }
 
 export default function Home() {
+  const { user } = useAuth();
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
@@ -160,7 +156,6 @@ export default function Home() {
   const [showWelcome, setShowWelcome] = useState(true);
   const [serverStatus, setServerStatus] = useState<'ok' | 'error'>('ok');
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [githubUser, setGithubUser] = useState<GitHubUser | null>(null);
   const [repos, setRepos] = useState<Repo[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [selectedRepo, setSelectedRepo] = useState<Repo | null>(null);
@@ -181,49 +176,11 @@ export default function Home() {
   const repoDropdownRef = useRef<HTMLDivElement>(null);
   const branchDropdownRef = useRef<HTMLDivElement>(null);
 
-  // Handle Supabase auth code if present in URL
-  useEffect(() => {
-    async function handleAuthCode() {
-      const params = new URLSearchParams(window.location.search);
-      const code = params.get('code');
-      const error = params.get('error');
-
-      if (error) {
-        console.error('Auth error:', error, params.get('error_description'));
-        // Clear the URL params
-        window.history.replaceState({}, '', window.location.pathname);
-        return;
-      }
-
-      if (code) {
-        try {
-          const supabase = createClient();
-          const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
-
-          if (exchangeError) {
-            console.error('Code exchange error:', exchangeError);
-          } else if (data.session) {
-            console.log('Session established successfully');
-            // Refresh auth status
-            checkGitHubAuth();
-          }
-        } catch (err) {
-          console.error('Failed to exchange code:', err);
-        }
-
-        // Clear the URL params
-        window.history.replaceState({}, '', window.location.pathname);
-      }
-    }
-
-    handleAuthCode();
-  }, []);
-
   // Initialize session on mount
   useEffect(() => {
     createSession();
     checkServerStatus();
-    checkGitHubAuth();
+    loadRepos();
 
     // Register service worker for PWA with update handling
     if ('serviceWorker' in navigator) {
@@ -272,19 +229,6 @@ export default function Home() {
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
-
-  async function checkGitHubAuth() {
-    try {
-      const response = await fetch('/api/auth/status');
-      const data = await response.json();
-      if (data.authenticated) {
-        setGithubUser(data.user);
-        loadRepos();
-      }
-    } catch (error) {
-      console.error('Failed to check GitHub auth:', error);
-    }
-  }
 
   async function loadRepos() {
     try {
@@ -690,25 +634,15 @@ export default function Home() {
                 <span>New Chat</span>
               </button>
             )}
-            {githubUser ? (
-              <a
-                href="/repos"
-                className="github-btn"
-                title="My Repositories"
-              >
-                <GitHubIcon />
-                <span>Repos</span>
-              </a>
-            ) : (
-              <a
-                href="/api/auth/github"
-                className="github-btn"
-                title="Login with GitHub"
-              >
-                <GitHubIcon />
-                <span>GitHub</span>
-              </a>
-            )}
+            <a
+              href="/repos"
+              className="github-btn"
+              title="My Repositories"
+            >
+              <GitHubIcon />
+              <span>Repos</span>
+            </a>
+            <UserMenu />
           </div>
         </header>
 
@@ -826,7 +760,7 @@ export default function Home() {
             </div>
             <div className="input-footer">
               {/* Mobile: Show connect prompt when logged in but no repo selected */}
-              {githubUser && isMobile && !selectedRepo && (
+              {user && isMobile && !selectedRepo && (
                 <button
                   type="button"
                   className="mobile-repo-prompt"
@@ -839,14 +773,14 @@ export default function Home() {
               )}
 
               {/* Mobile: Show workspace indicator when repo is selected */}
-              {githubUser && isMobile && selectedRepo && workspaceReady && (
+              {user && isMobile && selectedRepo && workspaceReady && (
                 <div className="mobile-workspace-indicator">
                   <CheckIcon />
                   <span>{selectedRepo.name} / {selectedBranch}</span>
                 </div>
               )}
 
-              {githubUser && (
+              {user && (
                 <div className="workspace-selector">
                   {/* Mobile: Simplified selector that opens bottom sheet */}
                   {isMobile ? (

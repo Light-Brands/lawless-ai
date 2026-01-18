@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useAuth } from '@/app/contexts/AuthContext';
 
 interface Repo {
   id: number;
@@ -14,12 +15,6 @@ interface Repo {
   defaultBranch: string;
   updatedAt: string;
   htmlUrl: string;
-}
-
-interface User {
-  login: string;
-  name: string;
-  avatar: string;
 }
 
 // Language colors matching GitHub
@@ -128,15 +123,15 @@ const DatabaseIcon = () => (
 
 export default function ReposPage() {
   const router = useRouter();
+  const { user, signOut } = useAuth();
   const [repos, setRepos] = useState<Repo[]>([]);
   const [filteredRepos, setFilteredRepos] = useState<Repo[]>([]);
-  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
-    checkAuthAndLoadRepos();
+    loadRepos();
   }, []);
 
   useEffect(() => {
@@ -153,18 +148,8 @@ export default function ReposPage() {
     }
   }, [searchQuery, repos]);
 
-  async function checkAuthAndLoadRepos() {
+  async function loadRepos() {
     try {
-      const authRes = await fetch('/api/auth/status');
-      const authData = await authRes.json();
-
-      if (!authData.authenticated) {
-        router.push('/');
-        return;
-      }
-
-      setUser(authData.user);
-
       const reposRes = await fetch('/api/github/repos');
       const reposData = await reposRes.json();
 
@@ -201,9 +186,8 @@ export default function ReposPage() {
     router.push(`/repos/${owner}/${repoName}`);
   }
 
-  async function handleLogout() {
-    await fetch('/api/auth/logout', { method: 'POST' });
-    router.push('/');
+  function handleLogout() {
+    signOut();
   }
 
   function formatDate(dateString: string): string {
