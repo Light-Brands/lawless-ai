@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import '@xterm/xterm/css/xterm.css';
@@ -14,6 +14,15 @@ interface User {
   login: string;
   name: string;
   avatar: string;
+}
+
+interface TerminalSession {
+  id: string;
+  name: string;
+  createdAt: Date;
+  connected: boolean;
+  terminal?: any;
+  ws?: WebSocket;
 }
 
 const HomeIcon = () => (
@@ -30,12 +39,27 @@ const TerminalIcon = () => (
   </svg>
 );
 
+const PlusIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="12" x2="12" y1="5" y2="19"/>
+    <line x1="5" x2="19" y1="12" y2="12"/>
+  </svg>
+);
+
 const RefreshIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
     <path d="M3 3v5h5"/>
     <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/>
     <path d="M16 16h5v5"/>
+  </svg>
+);
+
+const TrashIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M3 6h18"/>
+    <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/>
+    <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
   </svg>
 );
 
@@ -55,19 +79,41 @@ const WorkspaceIcon = () => (
   </svg>
 );
 
+const MessageIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+  </svg>
+);
+
+const SidebarIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect width="18" height="18" x="3" y="3" rx="2"/>
+    <path d="M9 3v18"/>
+  </svg>
+);
+
+function generateSessionId(): string {
+  return `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+}
+
+function generateSessionName(index: number): string {
+  return `Session ${index + 1}`;
+}
+
 export default function TerminalPage() {
   const params = useParams();
   const router = useRouter();
-  const terminalRef = useRef<HTMLDivElement>(null);
-  const terminalInstance = useRef<any>(null);
-  const fitAddon = useRef<any>(null);
-  const wsRef = useRef<WebSocket | null>(null);
+  const terminalContainerRef = useRef<HTMLDivElement>(null);
+  const fitAddons = useRef<Map<string, any>>(new Map());
+  const terminals = useRef<Map<string, any>>(new Map());
+  const websockets = useRef<Map<string, WebSocket>>(new Map());
 
   const [user, setUser] = useState<User | null>(null);
-  const [connected, setConnected] = useState(false);
-  const [connecting, setConnecting] = useState(true);
+  const [sessions, setSessions] = useState<TerminalSession[]>([]);
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [backendWsUrl, setBackendWsUrl] = useState<string>('ws://localhost:3001');
   const [error, setError] = useState<string | null>(null);
-  const [sessionId, setSessionId] = useState<string | null>(null);
 
   const repoPath = Array.isArray(params.repo) ? params.repo.join('/') : params.repo;
 
@@ -84,6 +130,15 @@ export default function TerminalPage() {
         }
 
         setUser(data.user);
+
+        // Fetch WebSocket URL
+        try {
+          const configRes = await fetch('/api/terminal/config');
+          const config = await configRes.json();
+          setBackendWsUrl(config.wsUrl);
+        } catch (e) {
+          console.error('Failed to fetch terminal config, using default');
+        }
       } catch (err) {
         router.push('/');
       }
@@ -91,13 +146,59 @@ export default function TerminalPage() {
     checkAuth();
   }, [router]);
 
-  // Initialize terminal
+  // Load saved sessions from localStorage
   useEffect(() => {
+    if (!repoPath) return;
+
+    const savedSessions = localStorage.getItem(`terminal_sessions_${repoPath.replace('/', '_')}`);
+    if (savedSessions) {
+      try {
+        const parsed = JSON.parse(savedSessions);
+        const restoredSessions: TerminalSession[] = parsed.map((s: any) => ({
+          ...s,
+          createdAt: new Date(s.createdAt),
+          connected: false,
+        }));
+        setSessions(restoredSessions);
+        if (restoredSessions.length > 0) {
+          setActiveSessionId(restoredSessions[0].id);
+        }
+      } catch (e) {
+        console.error('Failed to parse saved sessions');
+      }
+    }
+  }, [repoPath]);
+
+  // Save sessions to localStorage
+  useEffect(() => {
+    if (!repoPath || sessions.length === 0) return;
+
+    const toSave = sessions.map(s => ({
+      id: s.id,
+      name: s.name,
+      createdAt: s.createdAt.toISOString(),
+    }));
+    localStorage.setItem(`terminal_sessions_${repoPath.replace('/', '_')}`, JSON.stringify(toSave));
+  }, [sessions, repoPath]);
+
+  // Initialize terminal for active session
+  useEffect(() => {
+    if (!user || !repoPath || !activeSessionId || !terminalContainerRef.current) return;
+
+    // Check if terminal already exists for this session
+    if (terminals.current.has(activeSessionId)) {
+      // Just refit and show the existing terminal
+      const existingTerm = terminals.current.get(activeSessionId);
+      const fit = fitAddons.current.get(activeSessionId);
+      if (fit) {
+        setTimeout(() => fit.fit(), 100);
+      }
+      return;
+    }
+
     let mounted = true;
 
     async function initTerminal() {
-      if (!terminalRef.current || !user || !repoPath) return;
-
       // Dynamically import xterm modules
       const xtermModule = await import('@xterm/xterm');
       const fitModule = await import('@xterm/addon-fit');
@@ -107,7 +208,7 @@ export default function TerminalPage() {
       FitAddon = fitModule.FitAddon;
       WebLinksAddon = webLinksModule.WebLinksAddon;
 
-      if (!mounted) return;
+      if (!mounted || !terminalContainerRef.current) return;
 
       // Create terminal
       const term = new Terminal({
@@ -147,87 +248,75 @@ export default function TerminalPage() {
       term.loadAddon(fit);
       term.loadAddon(webLinks);
 
-      term.open(terminalRef.current);
+      // Clear container and open terminal
+      terminalContainerRef.current.innerHTML = '';
+      term.open(terminalContainerRef.current);
       fit.fit();
 
-      terminalInstance.current = term;
-      fitAddon.current = fit;
+      terminals.current.set(activeSessionId!, term);
+      fitAddons.current.set(activeSessionId!, fit);
 
       // Connect to WebSocket
-      connectWebSocket(term);
+      connectWebSocket(activeSessionId!, term);
 
-      // Handle resize
-      const handleResize = () => {
-        if (fitAddon.current) {
-          fitAddon.current.fit();
-          if (wsRef.current?.readyState === WebSocket.OPEN) {
-            wsRef.current.send(JSON.stringify({
+      // Handle input
+      term.onData((data: string) => {
+        const ws = websockets.current.get(activeSessionId!);
+        if (ws?.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ type: 'input', data }));
+        }
+      });
+    }
+
+    initTerminal();
+
+    return () => {
+      mounted = false;
+    };
+  }, [user, repoPath, activeSessionId, backendWsUrl]);
+
+  // Handle resize
+  useEffect(() => {
+    const handleResize = () => {
+      if (activeSessionId) {
+        const fit = fitAddons.current.get(activeSessionId);
+        const term = terminals.current.get(activeSessionId);
+        const ws = websockets.current.get(activeSessionId);
+
+        if (fit && term) {
+          fit.fit();
+          if (ws?.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({
               type: 'resize',
               cols: term.cols,
               rows: term.rows,
             }));
           }
         }
-      };
-
-      window.addEventListener('resize', handleResize);
-
-      // Handle input
-      term.onData((data: string) => {
-        if (wsRef.current?.readyState === WebSocket.OPEN) {
-          wsRef.current.send(JSON.stringify({ type: 'input', data }));
-        }
-      });
-
-      return () => {
-        window.removeEventListener('resize', handleResize);
-      };
-    }
-
-    if (user && repoPath) {
-      initTerminal();
-    }
-
-    return () => {
-      mounted = false;
-      if (wsRef.current) {
-        wsRef.current.close();
-      }
-      if (terminalInstance.current) {
-        terminalInstance.current.dispose();
       }
     };
-  }, [user, repoPath]);
 
-  async function connectWebSocket(term: any) {
-    // Fetch WebSocket URL from server (uses existing BACKEND_URL config)
-    let backendWsUrl = 'ws://localhost:3001';
-    try {
-      const configRes = await fetch('/api/terminal/config');
-      const config = await configRes.json();
-      backendWsUrl = config.wsUrl;
-    } catch (e) {
-      console.error('Failed to fetch terminal config, using default');
-    }
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [activeSessionId]);
 
-    const wsUrl = `${backendWsUrl}/ws/terminal?repo=${encodeURIComponent(repoPath!)}`;
+  const connectWebSocket = useCallback((sessionId: string, term: any) => {
+    const wsUrl = `${backendWsUrl}/ws/terminal?repo=${encodeURIComponent(repoPath!)}&session=${sessionId}`;
 
-    console.log('Connecting to WebSocket:', wsUrl);
-    term.writeln(`\x1b[90mConnecting to ${wsUrl}...\x1b[0m`);
-
-    setConnecting(true);
-    setError(null);
+    term.writeln(`\x1b[90mConnecting to server...\x1b[0m`);
 
     const ws = new WebSocket(wsUrl);
-    wsRef.current = ws;
+    websockets.current.set(sessionId, ws);
 
     ws.onopen = () => {
-      console.log('WebSocket connected');
-      term.writeln('\x1b[32mWebSocket connected!\x1b[0m');
-      setConnecting(false);
-      setConnected(true);
-      if (fitAddon.current && term) {
-        fitAddon.current.fit();
+      term.writeln('\x1b[32mConnected!\x1b[0m');
+      setSessions(prev => prev.map(s =>
+        s.id === sessionId ? { ...s, connected: true } : s
+      ));
+
+      const fit = fitAddons.current.get(sessionId);
+      if (fit && term) {
+        fit.fit();
         ws.send(JSON.stringify({
           type: 'resize',
           cols: term.cols,
@@ -242,7 +331,6 @@ export default function TerminalPage() {
 
         switch (msg.type) {
           case 'connected':
-            setSessionId(msg.sessionId);
             term.writeln(`\x1b[32m${msg.message}\x1b[0m`);
             term.writeln('\x1b[90mStarting Claude CLI...\x1b[0m\r\n');
             break;
@@ -263,52 +351,122 @@ export default function TerminalPage() {
     };
 
     ws.onclose = (event) => {
-      console.log('WebSocket disconnected:', event.code, event.reason);
-      setConnected(false);
-      setConnecting(false);
-      term.writeln(`\r\n\x1b[33mDisconnected from server (code: ${event.code})\x1b[0m`);
+      setSessions(prev => prev.map(s =>
+        s.id === sessionId ? { ...s, connected: false } : s
+      ));
+      term.writeln(`\r\n\x1b[33mDisconnected (code: ${event.code})\x1b[0m`);
       if (event.code === 1006) {
         term.writeln('\x1b[31mConnection failed - is the backend server running?\x1b[0m');
-        term.writeln(`\x1b[90mTried to connect to: ${wsUrl}\x1b[0m`);
       }
     };
 
-    ws.onerror = (err) => {
-      console.error('WebSocket error:', err);
-      term.writeln('\r\n\x1b[31mWebSocket error - check console for details\x1b[0m');
-      setError('Failed to connect to terminal server. Check that the backend is running and accessible.');
-      setConnecting(false);
+    ws.onerror = () => {
+      term.writeln('\r\n\x1b[31mWebSocket error\x1b[0m');
+      setError('Failed to connect to terminal server');
     };
-  }
+  }, [backendWsUrl, repoPath]);
 
-  function handleReconnect() {
-    if (terminalInstance.current) {
-      terminalInstance.current.clear();
-      connectWebSocket(terminalInstance.current);
-    }
-  }
+  const createNewSession = useCallback(() => {
+    const newSession: TerminalSession = {
+      id: generateSessionId(),
+      name: generateSessionName(sessions.length),
+      createdAt: new Date(),
+      connected: false,
+    };
+    setSessions(prev => [...prev, newSession]);
+    setActiveSessionId(newSession.id);
+  }, [sessions.length]);
 
-  function handleDisconnect() {
-    if (wsRef.current) {
-      wsRef.current.close();
+  const deleteSession = useCallback((sessionId: string) => {
+    // Close WebSocket if exists
+    const ws = websockets.current.get(sessionId);
+    if (ws) {
+      ws.close();
+      websockets.current.delete(sessionId);
     }
-  }
 
-  function handleRestartClaude() {
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({ type: 'restart' }));
+    // Dispose terminal if exists
+    const term = terminals.current.get(sessionId);
+    if (term) {
+      term.dispose();
+      terminals.current.delete(sessionId);
     }
-  }
+
+    fitAddons.current.delete(sessionId);
+
+    // Remove from state
+    setSessions(prev => {
+      const updated = prev.filter(s => s.id !== sessionId);
+      // If we're deleting the active session, switch to another
+      if (activeSessionId === sessionId && updated.length > 0) {
+        setActiveSessionId(updated[0].id);
+      } else if (updated.length === 0) {
+        setActiveSessionId(null);
+      }
+      return updated;
+    });
+  }, [activeSessionId]);
+
+  const switchSession = useCallback((sessionId: string) => {
+    if (sessionId === activeSessionId) return;
+
+    // Hide current terminal
+    if (terminalContainerRef.current) {
+      terminalContainerRef.current.innerHTML = '';
+    }
+
+    setActiveSessionId(sessionId);
+
+    // Show the terminal for the new session if it exists
+    setTimeout(() => {
+      const term = terminals.current.get(sessionId);
+      const fit = fitAddons.current.get(sessionId);
+
+      if (term && terminalContainerRef.current) {
+        terminalContainerRef.current.innerHTML = '';
+        term.open(terminalContainerRef.current);
+        if (fit) {
+          fit.fit();
+        }
+      }
+    }, 50);
+  }, [activeSessionId]);
+
+  const reconnectSession = useCallback((sessionId: string) => {
+    const term = terminals.current.get(sessionId);
+    if (term) {
+      term.clear();
+      connectWebSocket(sessionId, term);
+    }
+  }, [connectWebSocket]);
+
+  const restartClaude = useCallback(() => {
+    if (!activeSessionId) return;
+    const ws = websockets.current.get(activeSessionId);
+    if (ws?.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: 'restart' }));
+    }
+  }, [activeSessionId]);
+
+  const activeSession = sessions.find(s => s.id === activeSessionId);
+
+  // Auto-create first session if none exist
+  useEffect(() => {
+    if (user && repoPath && sessions.length === 0) {
+      createNewSession();
+    }
+  }, [user, repoPath, sessions.length, createNewSession]);
 
   return (
     <div className="terminal-page">
       <style jsx global>{`
         .terminal-page {
-          min-height: 100vh;
+          height: 100vh;
           display: flex;
           flex-direction: column;
           background: #0d1117;
           color: #c9d1d9;
+          overflow: hidden;
         }
 
         .terminal-header {
@@ -318,6 +476,7 @@ export default function TerminalPage() {
           padding: 0.75rem 1rem;
           background: #161b22;
           border-bottom: 1px solid #30363d;
+          flex-shrink: 0;
         }
 
         .terminal-header-left {
@@ -343,38 +502,6 @@ export default function TerminalPage() {
           border-radius: 6px;
           font-family: monospace;
           font-size: 0.875rem;
-        }
-
-        .terminal-status {
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-          font-size: 0.8rem;
-        }
-
-        .status-dot {
-          width: 8px;
-          height: 8px;
-          border-radius: 50%;
-        }
-
-        .status-dot.connected {
-          background: #3fb950;
-          box-shadow: 0 0 8px rgba(63, 185, 80, 0.5);
-        }
-
-        .status-dot.connecting {
-          background: #d29922;
-          animation: pulse 1.5s infinite;
-        }
-
-        .status-dot.disconnected {
-          background: #f85149;
-        }
-
-        @keyframes pulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.4; }
         }
 
         .terminal-header-right {
@@ -409,16 +536,6 @@ export default function TerminalPage() {
 
         .terminal-btn.primary:hover {
           background: #2ea043;
-          border-color: #2ea043;
-        }
-
-        .terminal-btn.danger {
-          color: #f85149;
-        }
-
-        .terminal-btn.danger:hover {
-          background: rgba(248, 81, 73, 0.1);
-          border-color: #f85149;
         }
 
         .home-link {
@@ -440,28 +557,233 @@ export default function TerminalPage() {
           color: #c9d1d9;
         }
 
+        .terminal-main {
+          flex: 1;
+          display: flex;
+          overflow: hidden;
+          min-height: 0;
+        }
+
+        .terminal-sidebar {
+          width: 280px;
+          background: #161b22;
+          border-right: 1px solid #30363d;
+          display: flex;
+          flex-direction: column;
+          flex-shrink: 0;
+          transition: margin-left 0.2s ease;
+        }
+
+        .terminal-sidebar.collapsed {
+          margin-left: -280px;
+        }
+
+        .terminal-sidebar-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 1rem;
+          border-bottom: 1px solid #30363d;
+        }
+
+        .terminal-sidebar-title {
+          font-size: 0.875rem;
+          font-weight: 600;
+          color: #c9d1d9;
+        }
+
+        .terminal-sidebar-actions {
+          display: flex;
+          gap: 0.5rem;
+        }
+
+        .sidebar-btn {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 28px;
+          height: 28px;
+          background: transparent;
+          border: 1px solid #30363d;
+          border-radius: 6px;
+          color: #8b949e;
+          cursor: pointer;
+          transition: all 0.15s;
+        }
+
+        .sidebar-btn:hover {
+          background: #21262d;
+          color: #c9d1d9;
+          border-color: #8b949e;
+        }
+
+        .sidebar-btn.primary {
+          background: #238636;
+          border-color: #238636;
+          color: white;
+        }
+
+        .sidebar-btn.primary:hover {
+          background: #2ea043;
+        }
+
+        .terminal-sessions {
+          flex: 1;
+          overflow-y: auto;
+          padding: 0.5rem;
+        }
+
+        .terminal-session-item {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+          padding: 0.75rem;
+          margin-bottom: 0.25rem;
+          background: transparent;
+          border: 1px solid transparent;
+          border-radius: 8px;
+          cursor: pointer;
+          transition: all 0.15s;
+          width: 100%;
+          text-align: left;
+        }
+
+        .terminal-session-item:hover {
+          background: #21262d;
+        }
+
+        .terminal-session-item.active {
+          background: #21262d;
+          border-color: #58a6ff;
+        }
+
+        .session-icon {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 32px;
+          height: 32px;
+          background: #30363d;
+          border-radius: 6px;
+          flex-shrink: 0;
+        }
+
+        .terminal-session-item.active .session-icon {
+          background: #58a6ff;
+          color: #0d1117;
+        }
+
+        .session-info {
+          flex: 1;
+          min-width: 0;
+        }
+
+        .session-name {
+          font-size: 0.875rem;
+          font-weight: 500;
+          color: #c9d1d9;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        .session-meta {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          font-size: 0.75rem;
+          color: #8b949e;
+          margin-top: 2px;
+        }
+
+        .session-status {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+        }
+
+        .status-dot {
+          width: 6px;
+          height: 6px;
+          border-radius: 50%;
+        }
+
+        .status-dot.connected {
+          background: #3fb950;
+        }
+
+        .status-dot.disconnected {
+          background: #8b949e;
+        }
+
+        .session-delete {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 24px;
+          height: 24px;
+          background: transparent;
+          border: none;
+          border-radius: 4px;
+          color: #8b949e;
+          cursor: pointer;
+          opacity: 0;
+          transition: all 0.15s;
+        }
+
+        .terminal-session-item:hover .session-delete {
+          opacity: 1;
+        }
+
+        .session-delete:hover {
+          background: rgba(248, 81, 73, 0.2);
+          color: #f85149;
+        }
+
+        .terminal-content {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          min-width: 0;
+          min-height: 0;
+        }
+
+        .terminal-content-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 0.5rem 1rem;
+          background: #0d1117;
+          border-bottom: 1px solid #30363d;
+          flex-shrink: 0;
+        }
+
+        .terminal-content-title {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          font-size: 0.875rem;
+          color: #c9d1d9;
+        }
+
+        .terminal-content-actions {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+        }
+
         .terminal-container {
           flex: 1;
           padding: 0.5rem;
           overflow: hidden;
-          display: flex;
-          flex-direction: column;
           min-height: 0;
         }
 
         .terminal-wrapper {
-          flex: 1;
+          height: 100%;
           border-radius: 8px;
           overflow: hidden;
           background: #0d1117;
-          display: flex;
-          flex-direction: column;
-          min-height: 0;
-        }
-
-        .terminal-wrapper > div {
-          flex: 1;
-          min-height: 0;
         }
 
         .terminal-wrapper .xterm {
@@ -475,17 +797,6 @@ export default function TerminalPage() {
 
         .terminal-wrapper .xterm-viewport {
           overflow-y: auto !important;
-        }
-
-        .error-banner {
-          display: flex;
-          align-items: center;
-          gap: 0.75rem;
-          padding: 0.75rem 1rem;
-          background: rgba(248, 81, 73, 0.1);
-          border-bottom: 1px solid rgba(248, 81, 73, 0.3);
-          color: #f85149;
-          font-size: 0.875rem;
         }
 
         .loading-screen {
@@ -509,6 +820,32 @@ export default function TerminalPage() {
         @keyframes spin {
           to { transform: rotate(360deg); }
         }
+
+        .empty-sessions {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          height: 100%;
+          gap: 1rem;
+          color: #8b949e;
+        }
+
+        .empty-sessions-icon {
+          width: 64px;
+          height: 64px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: #21262d;
+          border-radius: 12px;
+        }
+
+        .empty-sessions-icon svg {
+          width: 32px;
+          height: 32px;
+          opacity: 0.5;
+        }
       `}</style>
 
       {!user ? (
@@ -523,6 +860,13 @@ export default function TerminalPage() {
               <Link href="/repos" className="home-link" title="Back to Repos">
                 <HomeIcon />
               </Link>
+              <button
+                className="terminal-btn"
+                onClick={() => setSidebarOpen(!sidebarOpen)}
+                title={sidebarOpen ? 'Hide sidebar' : 'Show sidebar'}
+              >
+                <SidebarIcon />
+              </button>
               <div className="terminal-logo">
                 <TerminalIcon />
                 <span>Claude Terminal</span>
@@ -534,29 +878,6 @@ export default function TerminalPage() {
             </div>
 
             <div className="terminal-header-right">
-              <div className="terminal-status">
-                <span className={`status-dot ${connected ? 'connected' : connecting ? 'connecting' : 'disconnected'}`} />
-                <span>{connected ? 'Connected' : connecting ? 'Connecting...' : 'Disconnected'}</span>
-              </div>
-
-              {connected && (
-                <button className="terminal-btn" onClick={handleRestartClaude} title="Restart Claude CLI">
-                  <RefreshIcon />
-                  Restart Claude
-                </button>
-              )}
-
-              {connected ? (
-                <button className="terminal-btn danger" onClick={handleDisconnect}>
-                  <DisconnectIcon />
-                  Disconnect
-                </button>
-              ) : (
-                <button className="terminal-btn primary" onClick={handleReconnect}>
-                  Reconnect
-                </button>
-              )}
-
               <Link href={`/workspace/${repoPath}`} className="terminal-btn">
                 <WorkspaceIcon />
                 Workspace UI
@@ -564,18 +885,109 @@ export default function TerminalPage() {
             </div>
           </header>
 
-          {error && (
-            <div className="error-banner">
-              <span>{error}</span>
-              <button className="terminal-btn" onClick={handleReconnect}>
-                Retry
-              </button>
-            </div>
-          )}
+          <div className="terminal-main">
+            <aside className={`terminal-sidebar ${!sidebarOpen ? 'collapsed' : ''}`}>
+              <div className="terminal-sidebar-header">
+                <span className="terminal-sidebar-title">Sessions ({sessions.length})</span>
+                <div className="terminal-sidebar-actions">
+                  <button
+                    className="sidebar-btn primary"
+                    onClick={createNewSession}
+                    title="New session"
+                  >
+                    <PlusIcon />
+                  </button>
+                </div>
+              </div>
+              <div className="terminal-sessions">
+                {sessions.map(session => (
+                  <div
+                    key={session.id}
+                    className={`terminal-session-item ${session.id === activeSessionId ? 'active' : ''}`}
+                    onClick={() => switchSession(session.id)}
+                  >
+                    <div className="session-icon">
+                      <MessageIcon />
+                    </div>
+                    <div className="session-info">
+                      <div className="session-name">{session.name}</div>
+                      <div className="session-meta">
+                        <span className="session-status">
+                          <span className={`status-dot ${session.connected ? 'connected' : 'disconnected'}`} />
+                          {session.connected ? 'Connected' : 'Disconnected'}
+                        </span>
+                      </div>
+                    </div>
+                    <button
+                      className="session-delete"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deleteSession(session.id);
+                      }}
+                      title="Delete session"
+                    >
+                      <TrashIcon />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </aside>
 
-          <div className="terminal-container">
-            <div className="terminal-wrapper">
-              <div ref={terminalRef} style={{ height: '100%' }} />
+            <div className="terminal-content">
+              {activeSession ? (
+                <>
+                  <div className="terminal-content-header">
+                    <div className="terminal-content-title">
+                      <MessageIcon />
+                      <span>{activeSession.name}</span>
+                      <span className={`status-dot ${activeSession.connected ? 'connected' : 'disconnected'}`} />
+                    </div>
+                    <div className="terminal-content-actions">
+                      {activeSession.connected ? (
+                        <>
+                          <button className="terminal-btn" onClick={restartClaude}>
+                            <RefreshIcon />
+                            Restart Claude
+                          </button>
+                          <button
+                            className="terminal-btn"
+                            onClick={() => {
+                              const ws = websockets.current.get(activeSessionId!);
+                              if (ws) ws.close();
+                            }}
+                          >
+                            <DisconnectIcon />
+                            Disconnect
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          className="terminal-btn primary"
+                          onClick={() => reconnectSession(activeSessionId!)}
+                        >
+                          Reconnect
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  <div className="terminal-container">
+                    <div className="terminal-wrapper">
+                      <div ref={terminalContainerRef} style={{ height: '100%' }} />
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="empty-sessions">
+                  <div className="empty-sessions-icon">
+                    <TerminalIcon />
+                  </div>
+                  <p>No sessions yet</p>
+                  <button className="terminal-btn primary" onClick={createNewSession}>
+                    <PlusIcon />
+                    Create Session
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </>
