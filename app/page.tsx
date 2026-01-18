@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, FormEvent, KeyboardEvent } from 'react';
 import { marked } from 'marked';
 import hljs from 'highlight.js';
+import { createClient } from '@/lib/supabase/client';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -179,6 +180,44 @@ export default function Home() {
   const currentAssistantMessageRef = useRef<string>('');
   const repoDropdownRef = useRef<HTMLDivElement>(null);
   const branchDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Handle Supabase auth code if present in URL
+  useEffect(() => {
+    async function handleAuthCode() {
+      const params = new URLSearchParams(window.location.search);
+      const code = params.get('code');
+      const error = params.get('error');
+
+      if (error) {
+        console.error('Auth error:', error, params.get('error_description'));
+        // Clear the URL params
+        window.history.replaceState({}, '', window.location.pathname);
+        return;
+      }
+
+      if (code) {
+        try {
+          const supabase = createClient();
+          const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+
+          if (exchangeError) {
+            console.error('Code exchange error:', exchangeError);
+          } else if (data.session) {
+            console.log('Session established successfully');
+            // Refresh auth status
+            checkGitHubAuth();
+          }
+        } catch (err) {
+          console.error('Failed to exchange code:', err);
+        }
+
+        // Clear the URL params
+        window.history.replaceState({}, '', window.location.pathname);
+      }
+    }
+
+    handleAuthCode();
+  }, []);
 
   // Initialize session on mount
   useEffect(() => {
