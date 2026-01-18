@@ -50,20 +50,17 @@ pm2 --version
 
 # Step 5: Setup application
 echo -e "${YELLOW}[5/7] Setting up application...${NC}"
-APP_DIR="$HOME/lawless-ai-backend"
+APP_DIR="$HOME/lawless-ai"
 
 if [ -d "$APP_DIR" ]; then
   cd "$APP_DIR"
-  git pull origin main
+  git fetch origin main
+  git reset --hard origin/main
 else
   git clone https://github.com/Light-Brands/lawless-ai.git "$APP_DIR"
-  cd "$APP_DIR/backend"
 fi
 
-# Navigate to backend directory if we're in the main repo
-if [ -d "backend" ]; then
-  cd backend
-fi
+cd "$APP_DIR/backend"
 
 # Install dependencies and build
 npm install
@@ -88,7 +85,7 @@ fi
 # Step 7: Start with PM2
 echo -e "${YELLOW}[7/7] Starting application with PM2...${NC}"
 pm2 delete lawless-backend 2>/dev/null || true
-pm2 start dist/server.js --name lawless-backend
+pm2 start ecosystem.config.js
 pm2 save
 
 # Setup PM2 to start on boot

@@ -110,12 +110,36 @@ const authenticateApiKey = (req: Request, res: Response, next: NextFunction): vo
   next();
 };
 
+// Get git commit SHA for version tracking
+function getGitCommit(): string {
+  try {
+    return execSync('git rev-parse --short HEAD', { cwd: path.join(__dirname, '..'), encoding: 'utf-8' }).trim();
+  } catch {
+    return 'unknown';
+  }
+}
+
+const GIT_COMMIT = getGitCommit();
+
 // Health check endpoint
 app.get('/health', (_req: Request, res: Response) => {
   res.json({
     status: 'ok',
     timestamp: new Date().toISOString(),
-    version: '1.0.0'
+    version: '1.0.0',
+    commit: GIT_COMMIT
+  });
+});
+
+// Version endpoint - detailed deployment info
+app.get('/version', (_req: Request, res: Response) => {
+  res.json({
+    version: '1.0.0',
+    commit: GIT_COMMIT,
+    node: process.version,
+    uptime: process.uptime(),
+    memory: process.memoryUsage(),
+    timestamp: new Date().toISOString()
   });
 });
 
@@ -1115,6 +1139,45 @@ app.post('/api/workspace/git/push', authenticateApiKey, (req: Request, res: Resp
 
 // Terminal Session API Endpoints
 
+// Migrate legacy workspace to new structure if needed
+function migrateWorkspaceIfNeeded(repoFullName: string): boolean {
+  const basePath = getWorkspaceBasePath(repoFullName);
+  const mainPath = getMainRepoPath(repoFullName);
+  const worktreesDir = getWorktreesDir(repoFullName);
+
+  // Already migrated or new structure
+  if (fs.existsSync(mainPath)) {
+    return true;
+  }
+
+  // Check for old structure (repo cloned directly in base path)
+  const oldGitPath = path.join(basePath, '.git');
+  if (fs.existsSync(oldGitPath)) {
+    console.log(`Migrating workspace for ${repoFullName} to new structure...`);
+    try {
+      // Move to temp location
+      const tempPath = basePath + '_migration_temp';
+      fs.renameSync(basePath, tempPath);
+
+      // Create new structure
+      fs.mkdirSync(basePath, { recursive: true });
+      fs.mkdirSync(worktreesDir, { recursive: true });
+
+      // Move old repo to main/
+      fs.renameSync(tempPath, mainPath);
+
+      console.log(`Migration complete for ${repoFullName}`);
+      return true;
+    } catch (error) {
+      console.error(`Migration failed for ${repoFullName}:`, error);
+      return false;
+    }
+  }
+
+  // No workspace exists
+  return false;
+}
+
 // Create a new terminal session with worktree
 app.post('/api/terminal/session/create', authenticateApiKey, (req: Request, res: Response) => {
   const { repoFullName, sessionId, baseBranch = 'main' } = req.body;
@@ -1124,9 +1187,11 @@ app.post('/api/terminal/session/create', authenticateApiKey, (req: Request, res:
     return;
   }
 
+  // Auto-migrate legacy workspace structure if needed
+  const migrated = migrateWorkspaceIfNeeded(repoFullName);
   const mainRepoPath = getMainRepoPath(repoFullName);
 
-  if (!fs.existsSync(mainRepoPath)) {
+  if (!migrated && !fs.existsSync(mainRepoPath)) {
     res.status(400).json({ error: 'Workspace not found. Please set up the repository first.' });
     return;
   }
