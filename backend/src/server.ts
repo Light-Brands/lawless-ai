@@ -998,6 +998,10 @@ wss.on('connection', (ws: WebSocket, req) => {
             ptyProcess.write('claude --dangerously-skip-permissions\r');
           }, 500);
           break;
+        case 'ping':
+          // Respond to keep-alive ping
+          ws.send(JSON.stringify({ type: 'pong' }));
+          break;
       }
     } catch (e) {
       // If not JSON, treat as raw input

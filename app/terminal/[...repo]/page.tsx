@@ -110,6 +110,7 @@ export default function TerminalPage() {
   const fitAddons = useRef<Map<string, any>>(new Map());
   const terminals = useRef<Map<string, any>>(new Map());
   const websockets = useRef<Map<string, WebSocket>>(new Map());
+  const pingIntervals = useRef<Map<string, NodeJS.Timeout>>(new Map());
   const initializedSessions = useRef<Set<string>>(new Set());
   const sessionOutputs = useRef<Map<string, string[]>>(new Map());
 
@@ -265,6 +266,14 @@ export default function TerminalPage() {
           rows: term.rows,
         }));
       }
+
+      // Start keep-alive ping every 30 seconds
+      const pingInterval = setInterval(() => {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ type: 'ping' }));
+        }
+      }, 30000);
+      pingIntervals.current.set(sessionId, pingInterval);
     };
 
     ws.onmessage = (event) => {
@@ -306,6 +315,9 @@ export default function TerminalPage() {
             term.writeln(exitMsg);
             captureOutput(exitMsg + '\n');
             break;
+          case 'pong':
+            // Keep-alive response received, connection is healthy
+            break;
         }
       } catch (e) {
         term.write(event.data);
@@ -314,6 +326,13 @@ export default function TerminalPage() {
     };
 
     ws.onclose = (event) => {
+      // Clear keep-alive ping interval
+      const pingInterval = pingIntervals.current.get(sessionId);
+      if (pingInterval) {
+        clearInterval(pingInterval);
+        pingIntervals.current.delete(sessionId);
+      }
+
       setSessions(prev => prev.map(s =>
         s.id === sessionId ? { ...s, connected: false } : s
       ));
@@ -456,6 +475,13 @@ export default function TerminalPage() {
   }, [sessions.length]);
 
   const deleteSession = useCallback((sessionId: string) => {
+    // Clear ping interval if exists
+    const pingInterval = pingIntervals.current.get(sessionId);
+    if (pingInterval) {
+      clearInterval(pingInterval);
+      pingIntervals.current.delete(sessionId);
+    }
+
     // Close WebSocket if exists
     const ws = websockets.current.get(sessionId);
     if (ws) {
