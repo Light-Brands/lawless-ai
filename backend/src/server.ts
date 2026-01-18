@@ -1,6 +1,6 @@
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
-import { spawn, ChildProcessWithoutNullStreams } from 'child_process';
+import { spawn, ChildProcessWithoutNullStreams, execSync } from 'child_process';
 import Database from 'better-sqlite3';
 import { v4 as uuidv4 } from 'uuid';
 import path from 'path';
@@ -8,6 +8,7 @@ import dotenv from 'dotenv';
 import http from 'http';
 import { WebSocketServer, WebSocket } from 'ws';
 import * as pty from 'node-pty';
+import fs from 'fs';
 
 dotenv.config();
 
@@ -112,14 +113,11 @@ const authenticateApiKey = (req: Request, res: Response, next: NextFunction): vo
 
 // Get git commit SHA for version tracking
 function getGitCommit(): string {
-  const repoRoot = path.join(__dirname, '..', '..');
   try {
     // __dirname is backend/dist, so go up two levels to repo root
-    const commit = execSync('git rev-parse --short HEAD', { cwd: repoRoot, encoding: 'utf-8' }).trim();
-    console.log(`Git commit resolved: ${commit} (from ${repoRoot})`);
-    return commit;
-  } catch (e: any) {
-    console.error(`Git commit lookup failed: ${e.message} (cwd: ${repoRoot})`);
+    const repoRoot = path.join(__dirname, '..', '..');
+    return execSync('git rev-parse --short HEAD', { cwd: repoRoot, encoding: 'utf-8' }).trim();
+  } catch {
     return 'unknown';
   }
 }
@@ -401,9 +399,6 @@ app.get('/api/sessions', authenticateApiKey, (req: Request, res: Response) => {
 });
 
 // Ensure data directory exists
-import fs from 'fs';
-import { execSync } from 'child_process';
-
 const dataDir = path.dirname(dbPath);
 if (!fs.existsSync(dataDir)) {
   fs.mkdirSync(dataDir, { recursive: true });
