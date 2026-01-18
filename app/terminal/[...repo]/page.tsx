@@ -444,18 +444,33 @@ export default function TerminalPage() {
           flex: 1;
           padding: 0.5rem;
           overflow: hidden;
+          display: flex;
+          flex-direction: column;
+          min-height: 0;
         }
 
         .terminal-wrapper {
-          height: 100%;
+          flex: 1;
           border-radius: 8px;
           overflow: hidden;
           background: #0d1117;
+          display: flex;
+          flex-direction: column;
+          min-height: 0;
+        }
+
+        .terminal-wrapper > div {
+          flex: 1;
+          min-height: 0;
         }
 
         .terminal-wrapper .xterm {
-          height: 100%;
+          height: 100% !important;
           padding: 0.5rem;
+        }
+
+        .terminal-wrapper .xterm-screen {
+          height: 100% !important;
         }
 
         .terminal-wrapper .xterm-viewport {
