@@ -205,8 +205,8 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Fetch user's repositories (including private)
-    const response = await fetch('https://api.github.com/user/repos?per_page=100&sort=updated', {
+    // Fetch user's repositories including org repos
+    const response = await fetch('https://api.github.com/user/repos?per_page=100&sort=updated&affiliation=owner,collaborator,organization_member', {
       headers: {
         'Authorization': `Bearer ${token}`,
         'Accept': 'application/vnd.github.v3+json',
