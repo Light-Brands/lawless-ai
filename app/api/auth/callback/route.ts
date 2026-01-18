@@ -71,18 +71,30 @@ export async function GET(request: NextRequest) {
   );
 
   // Exchange code for session - cookies will be set on the response
+  console.log('Attempting to exchange code for session...');
+  console.log('Code:', code?.substring(0, 10) + '...');
+
   const { data: sessionData, error: sessionError } = await supabase.auth.exchangeCodeForSession(code);
 
   if (sessionError) {
     console.error('Session exchange error:', sessionError);
-    return NextResponse.redirect(`${APP_URL}/login?error=auth_failed`);
+    console.error('Error details:', JSON.stringify(sessionError, null, 2));
+    return NextResponse.redirect(`${APP_URL}/login?error=auth_failed&details=${encodeURIComponent(sessionError.message)}`);
   }
+
+  console.log('Session exchange successful');
+  console.log('Session exists:', !!sessionData?.session);
+  console.log('User exists:', !!sessionData?.user);
 
   const { session, user } = sessionData;
 
   if (!session || !user) {
+    console.error('No session or user after exchange');
     return NextResponse.redirect(`${APP_URL}/login?error=no_session`);
   }
+
+  console.log('User ID:', user.id);
+  console.log('User email:', user.email);
 
   // Get GitHub identity and access token from the session
   const githubIdentity = user.identities?.find(i => i.provider === 'github');

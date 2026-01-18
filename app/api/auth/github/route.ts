@@ -40,6 +40,10 @@ export async function GET(request: NextRequest) {
     const callbackUrl = new URL('/api/auth/callback', APP_URL);
     callbackUrl.searchParams.set('next', next);
 
+    console.log('Starting OAuth flow');
+    console.log('APP_URL:', APP_URL);
+    console.log('Callback URL:', callbackUrl.toString());
+
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'github',
       options: {
@@ -50,13 +54,16 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error('Supabase OAuth error:', error);
+      console.error('Error details:', JSON.stringify(error, null, 2));
       return NextResponse.redirect(`${APP_URL}/login?error=oauth_failed`);
     }
 
     if (data.url) {
+      console.log('Redirecting to:', data.url);
       return NextResponse.redirect(data.url);
     }
 
+    console.error('No OAuth URL returned');
     return NextResponse.redirect(`${APP_URL}/login?error=oauth_failed`);
   }
 
