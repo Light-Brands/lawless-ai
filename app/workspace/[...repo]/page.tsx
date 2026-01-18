@@ -3,6 +3,10 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ReadTool, WriteTool, EditTool, BashTool, GlobTool, GrepTool, TaskTool, ToolStatus } from '@/app/components/tools';
+import SlashAutocomplete from '@/app/components/SlashAutocomplete';
+import CommandDictionary from '@/app/components/CommandDictionary';
+import { DictionaryItem } from '@/app/data/command-dictionary';
+import '@/app/styles/command-dictionary.css';
 
 // Content block types
 interface TextBlock {
@@ -128,6 +132,13 @@ const SidebarIcon = () => (
 const MessageIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+  </svg>
+);
+
+const BookIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
   </svg>
 );
 
@@ -291,8 +302,14 @@ export default function WorkspacePage() {
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [sessionsLoading, setSessionsLoading] = useState(true);
+  const [sessionsError, setSessionsError] = useState<string | null>(null);
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
+
+  // Dictionary and autocomplete state
+  const [showDictionary, setShowDictionary] = useState(false);
+  const [showAutocomplete, setShowAutocomplete] = useState(false);
+  const [autocompleteIndex, setAutocompleteIndex] = useState(0);
 
   // Store messages per session
   const sessionMessages = useRef<Map<string, Message[]>>(new Map());
@@ -323,27 +340,36 @@ export default function WorkspacePage() {
 
   async function loadSessions() {
     setSessionsLoading(true);
+    setSessionsError(null);
     try {
       const [owner, repo] = repoFullName.split('/');
       const response = await fetch(`/api/workspace/sessions/${owner}/${repo}`);
       const data = await response.json();
 
+      if (!response.ok) {
+        // Backend is unavailable - work in local mode
+        console.warn('Sessions API unavailable, working in local mode');
+        setSessionsError(data.details || data.error || 'Backend unavailable');
+        setSessions([]);
+        return;
+      }
+
       if (data.sessions) {
         setSessions(data.sessions);
+        setSessionsError(null);
         // If no active session and sessions exist, select the first one
         if (data.sessions.length > 0 && !activeSessionId) {
           const firstSession = data.sessions[0];
           setActiveSessionId(firstSession.sessionId);
           loadSessionMessages(firstSession.sessionId);
-        } else if (data.sessions.length === 0) {
-          // Auto-create first session
-          await createNewSession();
         }
+        // Don't auto-create session if there are none - let user do it manually
       }
-    } catch (err) {
-      console.error('Failed to load sessions:', err);
-      // If loading fails, create a new session
-      await createNewSession();
+    } catch (err: any) {
+      console.warn('Failed to load sessions, working in local mode:', err.message);
+      setSessionsError(err.message || 'Failed to connect to backend');
+      setSessions([]);
+      // Don't try to create a session - just work locally
     } finally {
       setSessionsLoading(false);
     }
@@ -379,6 +405,12 @@ export default function WorkspacePage() {
   }
 
   const createNewSession = useCallback(async () => {
+    // If we already know the backend is down, don't try
+    if (sessionsError) {
+      console.warn('Backend unavailable, cannot create session');
+      return;
+    }
+
     const sessionId = generateSessionId();
     const sessionName = generateSessionName(sessions.length);
 
@@ -396,7 +428,8 @@ export default function WorkspacePage() {
 
       if (!response.ok) {
         const error = await response.json();
-        console.error('Failed to create session:', error);
+        console.warn('Failed to create session:', error);
+        setSessionsError(error.details || error.error || 'Failed to create session');
         return;
       }
 
@@ -418,10 +451,12 @@ export default function WorkspacePage() {
       setActiveSessionId(newSession.sessionId);
       setMessages([]);
       sessionMessages.current.set(newSession.sessionId, []);
-    } catch (err) {
-      console.error('Error creating session:', err);
+      setSessionsError(null);
+    } catch (err: any) {
+      console.warn('Error creating session:', err.message);
+      setSessionsError(err.message || 'Failed to create session');
     }
-  }, [sessions.length, repoFullName]);
+  }, [sessions.length, repoFullName, sessionsError]);
 
   const deleteSession = useCallback(async (sessionId: string) => {
     try {
@@ -479,6 +514,35 @@ export default function WorkspacePage() {
 
     setEditingSessionId(null);
     setEditingName('');
+  }, []);
+
+  // Handle input change with autocomplete detection
+  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setInput(value);
+
+    // Show autocomplete when input starts with "/" and has content after
+    if (value.startsWith('/')) {
+      setShowAutocomplete(true);
+      setAutocompleteIndex(0);
+    } else {
+      setShowAutocomplete(false);
+    }
+  }, []);
+
+  // Handle autocomplete item selection
+  const handleAutocompleteSelect = useCallback((item: DictionaryItem) => {
+    // Replace input with selected command
+    const usage = item.usage || `/${item.name}`;
+    setInput(usage.endsWith(']') ? usage.replace(/\[.*\]/, '') : usage);
+    setShowAutocomplete(false);
+    setAutocompleteIndex(0);
+  }, []);
+
+  // Close autocomplete
+  const handleAutocompleteClose = useCallback(() => {
+    setShowAutocomplete(false);
+    setAutocompleteIndex(0);
   }, []);
 
   async function loadGitStatus() {
@@ -943,15 +1007,17 @@ export default function WorkspacePage() {
       {/* Session Sidebar */}
       <aside className={`workspace-sidebar ${!sidebarOpen ? 'collapsed' : ''}`}>
         <div className="sidebar-header">
-          <span className="sidebar-title">Sessions ({sessions.length})</span>
+          <span className="sidebar-title">Sessions {!sessionsError && `(${sessions.length})`}</span>
           <div className="sidebar-actions">
-            <button
-              className="sidebar-btn primary"
-              onClick={createNewSession}
-              title="New session"
-            >
-              <PlusIcon />
-            </button>
+            {!sessionsError && (
+              <button
+                className="sidebar-btn primary"
+                onClick={createNewSession}
+                title="New session"
+              >
+                <PlusIcon />
+              </button>
+            )}
           </div>
         </div>
         <div className="sessions-list">
@@ -959,9 +1025,33 @@ export default function WorkspacePage() {
             <div style={{ padding: '1rem', color: '#8b949e', textAlign: 'center' }}>
               Loading sessions...
             </div>
+          ) : sessionsError ? (
+            <div style={{ padding: '1rem', color: '#8b949e', textAlign: 'center', fontSize: '0.875rem' }}>
+              <div style={{ marginBottom: '0.5rem', color: '#f0883e' }}>
+                Sessions unavailable
+              </div>
+              <div style={{ fontSize: '0.75rem', opacity: 0.8 }}>
+                Backend server not reachable. You can still chat below.
+              </div>
+            </div>
           ) : sessions.length === 0 ? (
             <div style={{ padding: '1rem', color: '#8b949e', textAlign: 'center' }}>
-              No sessions yet
+              <div>No sessions yet</div>
+              <button
+                onClick={createNewSession}
+                style={{
+                  marginTop: '0.5rem',
+                  padding: '0.5rem 1rem',
+                  background: '#238636',
+                  border: 'none',
+                  borderRadius: '6px',
+                  color: 'white',
+                  cursor: 'pointer',
+                  fontSize: '0.875rem',
+                }}
+              >
+                Create Session
+              </button>
             </div>
           ) : (
             sessions.map(session => (
@@ -1081,6 +1171,14 @@ export default function WorkspacePage() {
               <span className="terminal-btn-label">Terminal</span>
             </button>
             <button
+              onClick={() => setShowDictionary(true)}
+              className="dictionary-btn"
+              title="Command Dictionary"
+            >
+              <BookIcon />
+              <span className="dictionary-btn-label">Commands</span>
+            </button>
+            <button
               onClick={() => setShowGitPanel(!showGitPanel)}
               className={`workspace-git-btn ${hasChanges ? 'has-changes' : ''} ${showGitPanel ? 'active' : ''}`}
             >
@@ -1136,12 +1234,22 @@ export default function WorkspacePage() {
 
             {/* Input */}
             <form onSubmit={handleSubmit} className="workspace-input-form">
-              <div className="workspace-input-wrapper">
+              <div className="workspace-input-wrapper" style={{ position: 'relative' }}>
+                {showAutocomplete && (
+                  <SlashAutocomplete
+                    searchTerm={input}
+                    isVisible={showAutocomplete}
+                    onSelect={handleAutocompleteSelect}
+                    onClose={handleAutocompleteClose}
+                    selectedIndex={autocompleteIndex}
+                    onSelectedIndexChange={setAutocompleteIndex}
+                  />
+                )}
                 <input
                   type="text"
                   value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  placeholder={activeSession ? "Ask Claude to edit code..." : "Select or create a session to start..."}
+                  onChange={handleInputChange}
+                  placeholder={activeSession ? "Ask Claude to edit code... (type / for commands)" : "Select or create a session to start..."}
                   className="workspace-input"
                   disabled={loading || !activeSessionId}
                 />
@@ -1332,6 +1440,16 @@ export default function WorkspacePage() {
             </div>
           </div>
         )}
+
+        {/* Command Dictionary Modal */}
+        <CommandDictionary
+          isOpen={showDictionary}
+          onClose={() => setShowDictionary(false)}
+          onSelect={(item) => {
+            handleAutocompleteSelect(item);
+            setShowDictionary(false);
+          }}
+        />
       </div>
     </div>
   );
