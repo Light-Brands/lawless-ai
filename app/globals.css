@@ -2871,11 +2871,12 @@ body::before {
    ============================================================================ */
 
 .workspace-page {
-  min-height: 100vh;
-  min-height: 100dvh;
+  height: 100vh;
+  height: 100dvh;
   background: var(--color-bg-primary);
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .workspace-header {
@@ -2996,6 +2997,7 @@ body::before {
   flex: 1;
   display: flex;
   overflow: hidden;
+  min-height: 0;
 }
 
 .workspace-chat {
@@ -3003,16 +3005,22 @@ body::before {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .workspace-messages {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 16px;
   display: flex;
   flex-direction: column;
   gap: 16px;
+  min-height: 0;
   -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+  touch-action: pan-y;
 }
 
 .workspace-empty {
