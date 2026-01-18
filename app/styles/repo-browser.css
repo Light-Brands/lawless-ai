@@ -424,6 +424,21 @@
   background: var(--color-bg-secondary);
 }
 
+.repo-integration-selector.creating {
+  opacity: 0.7;
+}
+
+.repo-integration-creating {
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
 /* Browser content layout */
 .repo-browser-content {
   display: flex;

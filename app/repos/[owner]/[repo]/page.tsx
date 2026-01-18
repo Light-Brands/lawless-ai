@@ -155,6 +155,8 @@ export default function RepoBrowserPage() {
   const [supabaseProjects, setSupabaseProjects] = useState<SupabaseProject[]>([]);
   const [selectedVercelProject, setSelectedVercelProject] = useState<{ projectId: string; projectName: string } | null>(null);
   const [selectedSupabaseProject, setSelectedSupabaseProject] = useState<{ projectRef: string; projectName: string } | null>(null);
+  const [creatingVercel, setCreatingVercel] = useState(false);
+  const [creatingSupabase, setCreatingSupabase] = useState(false);
 
   useEffect(() => {
     checkAuthAndLoadData();
@@ -373,6 +375,48 @@ export default function RepoBrowserPage() {
       return;
     }
 
+    // Handle create new
+    if (projectId === '__create_new__') {
+      setCreatingVercel(true);
+      try {
+        // Create a new Vercel project linked to this repo
+        const res = await fetch('/api/integrations/vercel/projects', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: repo,
+            framework: 'nextjs',
+            gitRepository: { repo: repoFullName },
+          }),
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          const newProject = { id: data.project.id, name: data.project.name };
+
+          // Add to projects list
+          setVercelProjects(prev => [...prev, newProject]);
+
+          // Select and link it
+          const selection = { projectId: newProject.id, projectName: newProject.name };
+          setSelectedVercelProject(selection);
+          await fetch('/api/repos/integrations', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ repo: repoFullName, vercel: selection }),
+          });
+        } else {
+          const error = await res.json();
+          alert(`Failed to create Vercel project: ${error.error || 'Unknown error'}`);
+        }
+      } catch (err) {
+        alert('Failed to create Vercel project');
+      } finally {
+        setCreatingVercel(false);
+      }
+      return;
+    }
+
     const project = vercelProjects.find(p => p.id === projectId);
     if (project) {
       const selection = { projectId: project.id, projectName: project.name };
@@ -396,6 +440,56 @@ export default function RepoBrowserPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ repo: repoFullName, supabase: null }),
       });
+      return;
+    }
+
+    // Handle create new
+    if (projectRef === '__create_new__') {
+      setCreatingSupabase(true);
+      try {
+        // Create a new Supabase project
+        const res = await fetch('/api/integrations/supabase/projects', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: repo,
+            region: 'us-east-1',
+          }),
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          const newProject = {
+            id: data.project.id,
+            name: data.project.name,
+            ref: data.project.ref,
+          };
+
+          // Show the database password to the user
+          if (data.project.dbPassword) {
+            alert(`Database created!\n\nIMPORTANT - Save your database password:\n${data.project.dbPassword}\n\nThis won't be shown again.`);
+          }
+
+          // Add to projects list
+          setSupabaseProjects(prev => [...prev, newProject]);
+
+          // Select and link it
+          const selection = { projectRef: newProject.ref, projectName: newProject.name };
+          setSelectedSupabaseProject(selection);
+          await fetch('/api/repos/integrations', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ repo: repoFullName, supabase: selection }),
+          });
+        } else {
+          const error = await res.json();
+          alert(`Failed to create Supabase database: ${error.error || 'Unknown error'}`);
+        }
+      } catch (err) {
+        alert('Failed to create Supabase database');
+      } finally {
+        setCreatingSupabase(false);
+      }
       return;
     }
 
@@ -502,6 +596,8 @@ export default function RepoBrowserPage() {
           selectedSupabaseProject={selectedSupabaseProject}
           onVercelProjectChange={handleVercelProjectChange}
           onSupabaseProjectChange={handleSupabaseProjectChange}
+          creatingVercel={creatingVercel}
+          creatingSupabase={creatingSupabase}
         />
       )}
     </div>

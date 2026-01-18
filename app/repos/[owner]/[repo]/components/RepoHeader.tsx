@@ -51,6 +51,8 @@ interface RepoHeaderProps {
   selectedSupabaseProject: { projectRef: string; projectName: string } | null;
   onVercelProjectChange: (projectId: string) => void;
   onSupabaseProjectChange: (projectRef: string) => void;
+  creatingVercel: boolean;
+  creatingSupabase: boolean;
 }
 
 const StarIcon = () => (
@@ -132,6 +134,8 @@ export default function RepoHeader({
   selectedSupabaseProject,
   onVercelProjectChange,
   onSupabaseProjectChange,
+  creatingVercel,
+  creatingSupabase,
 }: RepoHeaderProps) {
   return (
     <div className="repo-header">
@@ -206,38 +210,52 @@ export default function RepoHeader({
         </div>
 
         {vercelConnected && (
-          <div className={`repo-integration-selector ${selectedVercelProject ? 'has-selection' : ''}`}>
+          <div className={`repo-integration-selector ${selectedVercelProject ? 'has-selection' : ''} ${creatingVercel ? 'creating' : ''}`}>
             <VercelIcon />
-            <select
-              value={selectedVercelProject?.projectId || ''}
-              onChange={(e) => onVercelProjectChange(e.target.value)}
-              className="repo-integration-select"
-            >
-              <option value="">No Vercel project</option>
-              {vercelProjects.map((project) => (
-                <option key={project.id} value={project.id}>
-                  {project.name}
-                </option>
-              ))}
-            </select>
+            {creatingVercel ? (
+              <span className="repo-integration-creating">Creating...</span>
+            ) : (
+              <select
+                value={selectedVercelProject?.projectId || ''}
+                onChange={(e) => onVercelProjectChange(e.target.value)}
+                className="repo-integration-select"
+                disabled={creatingVercel}
+              >
+                <option value="">No Vercel project</option>
+                <option value="__create_new__">+ Create & link new...</option>
+                {vercelProjects.length > 0 && <option disabled>───────────</option>}
+                {vercelProjects.map((project) => (
+                  <option key={project.id} value={project.id}>
+                    {project.name}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
         )}
 
         {supabaseConnected && (
-          <div className={`repo-integration-selector ${selectedSupabaseProject ? 'has-selection' : ''}`}>
+          <div className={`repo-integration-selector ${selectedSupabaseProject ? 'has-selection' : ''} ${creatingSupabase ? 'creating' : ''}`}>
             <SupabaseIcon />
-            <select
-              value={selectedSupabaseProject?.projectRef || ''}
-              onChange={(e) => onSupabaseProjectChange(e.target.value)}
-              className="repo-integration-select"
-            >
-              <option value="">No Supabase database</option>
-              {supabaseProjects.map((project) => (
-                <option key={project.ref} value={project.ref}>
-                  {project.name}
-                </option>
-              ))}
-            </select>
+            {creatingSupabase ? (
+              <span className="repo-integration-creating">Creating...</span>
+            ) : (
+              <select
+                value={selectedSupabaseProject?.projectRef || ''}
+                onChange={(e) => onSupabaseProjectChange(e.target.value)}
+                className="repo-integration-select"
+                disabled={creatingSupabase}
+              >
+                <option value="">No Supabase database</option>
+                <option value="__create_new__">+ Create & link new...</option>
+                {supabaseProjects.length > 0 && <option disabled>───────────</option>}
+                {supabaseProjects.map((project) => (
+                  <option key={project.ref} value={project.ref}>
+                    {project.name}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
         )}
 

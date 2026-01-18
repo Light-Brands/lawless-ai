@@ -343,7 +343,8 @@ export async function POST(request: NextRequest) {
     const hasError = results.some(r => r.status === 'error');
     const allSkipped = results.every(r => r.status === 'skipped');
 
-    return NextResponse.json({
+    // Auto-link integrations to the repo
+    const response = NextResponse.json({
       success: !hasError && !allSkipped,
       results,
       summary: {
@@ -352,6 +353,52 @@ export async function POST(request: NextRequest) {
         vercel: vercelProject,
       },
     });
+
+    // Save repo integrations to cookie if we have a GitHub repo
+    if (githubRepo) {
+      const existingIntegrations = request.cookies.get('repo_integrations')?.value;
+      let integrations: Record<string, { vercel?: { projectId: string; projectName: string }; supabase?: { projectRef: string; projectName: string } }> = {};
+
+      if (existingIntegrations) {
+        try {
+          integrations = JSON.parse(existingIntegrations);
+        } catch {
+          integrations = {};
+        }
+      }
+
+      // Initialize repo entry
+      if (!integrations[githubRepo.fullName]) {
+        integrations[githubRepo.fullName] = {};
+      }
+
+      // Link Vercel project
+      if (vercelProject) {
+        integrations[githubRepo.fullName].vercel = {
+          projectId: vercelProject.id,
+          projectName: vercelProject.name,
+        };
+      }
+
+      // Link Supabase project
+      if (supabaseProject) {
+        integrations[githubRepo.fullName].supabase = {
+          projectRef: supabaseProject.ref,
+          projectName: name,
+        };
+      }
+
+      // Save to cookie
+      response.cookies.set('repo_integrations', JSON.stringify(integrations), {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 60 * 60 * 24 * 365, // 1 year
+        path: '/',
+      });
+    }
+
+    return response;
   } catch (error) {
     console.error('Project creation error:', error);
     return NextResponse.json({ error: 'Failed to create project' }, { status: 500 });

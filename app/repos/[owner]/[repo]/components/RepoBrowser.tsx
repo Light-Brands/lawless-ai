@@ -97,6 +97,8 @@ interface RepoBrowserProps {
   selectedSupabaseProject: { projectRef: string; projectName: string } | null;
   onVercelProjectChange: (projectId: string) => void;
   onSupabaseProjectChange: (projectRef: string) => void;
+  creatingVercel: boolean;
+  creatingSupabase: boolean;
 }
 
 export default function RepoBrowser({
@@ -121,6 +123,8 @@ export default function RepoBrowser({
   selectedSupabaseProject,
   onVercelProjectChange,
   onSupabaseProjectChange,
+  creatingVercel,
+  creatingSupabase,
 }: RepoBrowserProps) {
   const isViewingFile = view === 'blob' && fileData;
 
@@ -142,6 +146,8 @@ export default function RepoBrowser({
         selectedSupabaseProject={selectedSupabaseProject}
         onVercelProjectChange={onVercelProjectChange}
         onSupabaseProjectChange={onSupabaseProjectChange}
+        creatingVercel={creatingVercel}
+        creatingSupabase={creatingSupabase}
       />
 
       <div className="repo-browser-content">
