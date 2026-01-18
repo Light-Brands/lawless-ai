@@ -41,7 +41,7 @@ export async function GET(
         latestDeployments: project.latestDeployments?.map((d: any) => ({
           id: d.id,
           url: d.url,
-          state: d.state,
+          state: d.state || d.readyState,
           createdAt: d.createdAt,
           target: d.target,
         })),
