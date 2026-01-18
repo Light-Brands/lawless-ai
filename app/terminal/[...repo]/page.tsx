@@ -199,9 +199,18 @@ export default function TerminalPage() {
     };
   }, [user, repoPath]);
 
-  function connectWebSocket(term: any) {
-    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_WS_URL || 'ws://localhost:3001';
-    const wsUrl = `${backendUrl}/ws/terminal?repo=${encodeURIComponent(repoPath!)}`;
+  async function connectWebSocket(term: any) {
+    // Fetch WebSocket URL from server (uses existing BACKEND_URL config)
+    let backendWsUrl = 'ws://localhost:3001';
+    try {
+      const configRes = await fetch('/api/terminal/config');
+      const config = await configRes.json();
+      backendWsUrl = config.wsUrl;
+    } catch (e) {
+      console.error('Failed to fetch terminal config, using default');
+    }
+
+    const wsUrl = `${backendWsUrl}/ws/terminal?repo=${encodeURIComponent(repoPath!)}`;
 
     console.log('Connecting to WebSocket:', wsUrl);
     term.writeln(`\x1b[90mConnecting to ${wsUrl}...\x1b[0m`);
