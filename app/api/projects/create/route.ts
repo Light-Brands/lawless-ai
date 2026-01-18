@@ -466,10 +466,21 @@ function getTemplateFiles(projectName: string, supabaseUrl?: string, supabaseKey
     "typescript": "^5"
   }
 }`,
-    // AI Coding Configuration Files
+    // AI Coding Configuration Files (from TechNickAI/ai-coding-config)
     'AGENTS.md': `# Project Context for AI Assistants
 
 ${projectName} - A full-stack application built with Next.js and Supabase.
+
+## Full AI Coding Setup
+
+This project includes base AI rules. For the complete setup with all commands, agents, 
+skills, and personalities from [ai-coding-config](https://github.com/TechNickAI/ai-coding-config):
+
+\`\`\`bash
+curl -fsSL https://raw.githubusercontent.com/TechNickAI/ai-coding-config/main/scripts/bootstrap.sh | bash
+\`\`\`
+
+Then run \`/ai-coding-config\` in Claude Code or Cursor.
 
 ## Always Apply Rules
 
@@ -851,6 +862,20 @@ A full-stack application built with Next.js and Supabase.
 3. Copy \`.env.local.example\` to \`.env.local\` and fill in your Supabase credentials
 4. Run the development server: \`npm run dev\`
 
+## AI Coding Setup
+
+This project includes base AI coding configurations. For the full setup with all rules, commands, and personalities:
+
+\`\`\`bash
+# Bootstrap ai-coding-config (run from project root)
+curl -fsSL https://raw.githubusercontent.com/TechNickAI/ai-coding-config/main/scripts/bootstrap.sh | bash
+\`\`\`
+
+Then in Claude Code or Cursor:
+- Run \`/ai-coding-config\` to complete interactive setup
+- Choose your AI personality
+- Select additional rules for your project
+
 ## Tech Stack
 
 - **Framework**: Next.js 14
@@ -867,6 +892,7 @@ A full-stack application built with Next.js and Supabase.
 
 - [Next.js Documentation](https://nextjs.org/docs)
 - [Supabase Documentation](https://supabase.com/docs)
+- [AI Coding Config](https://github.com/TechNickAI/ai-coding-config)
 `,
   };
 }
