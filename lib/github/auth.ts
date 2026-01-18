@@ -18,7 +18,7 @@ export async function getGitHubToken(request: NextRequest): Promise<string | nul
         .select('access_token')
         .eq('user_id', user.id)
         .eq('provider', 'github')
-        .single();
+        .single() as { data: { access_token: string } | null };
 
       if (connection?.access_token && process.env.ENCRYPTION_KEY) {
         try {
