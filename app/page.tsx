@@ -481,22 +481,29 @@ export default function Home() {
             try {
               const data = JSON.parse(line.slice(6));
 
-              if (data.type === 'chunk') {
+              if (data.type === 'chunk' || data.type === 'text') {
                 currentAssistantMessageRef.current += data.content;
                 setMessages(prev => {
                   const newMessages = [...prev];
-                  const lastMessage = newMessages[newMessages.length - 1];
-                  if (lastMessage.role === 'assistant') {
-                    lastMessage.content = currentAssistantMessageRef.current;
+                  const lastIdx = newMessages.length - 1;
+                  if (newMessages[lastIdx]?.role === 'assistant') {
+                    // Create new object to ensure React detects the change
+                    newMessages[lastIdx] = {
+                      ...newMessages[lastIdx],
+                      content: currentAssistantMessageRef.current,
+                    };
                   }
                   return newMessages;
                 });
               } else if (data.type === 'error') {
                 setMessages(prev => {
                   const newMessages = [...prev];
-                  const lastMessage = newMessages[newMessages.length - 1];
-                  if (lastMessage.role === 'assistant') {
-                    lastMessage.content = `Error: ${data.content}`;
+                  const lastIdx = newMessages.length - 1;
+                  if (newMessages[lastIdx]?.role === 'assistant') {
+                    newMessages[lastIdx] = {
+                      ...newMessages[lastIdx],
+                      content: `Error: ${data.message || data.content || 'Unknown error'}`,
+                    };
                   }
                   return newMessages;
                 });
@@ -511,9 +518,12 @@ export default function Home() {
       console.error('Send message error:', error);
       setMessages(prev => {
         const newMessages = [...prev];
-        const lastMessage = newMessages[newMessages.length - 1];
-        if (lastMessage.role === 'assistant') {
-          lastMessage.content = 'Failed to get response. Please try again.';
+        const lastIdx = newMessages.length - 1;
+        if (newMessages[lastIdx]?.role === 'assistant') {
+          newMessages[lastIdx] = {
+            ...newMessages[lastIdx],
+            content: 'Failed to get response. Please try again.',
+          };
         }
         return newMessages;
       });
