@@ -838,3 +838,247 @@
   }
 }
 
+/* ============================================================================
+   Mobile Workspace Optimizations
+   ============================================================================ */
+
+@media (max-width: 768px) {
+  /* Account for bottom navigation */
+  .workspace-page {
+    height: calc(100dvh - var(--mobile-bottom-nav-height-safe));
+  }
+
+  /* Improve header for mobile */
+  .workspace-header {
+    padding: 10px 12px;
+    gap: 8px;
+  }
+
+  .workspace-header-left {
+    gap: 8px;
+  }
+
+  .workspace-back-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+  }
+
+  .workspace-title h1 {
+    font-size: 14px;
+  }
+
+  .workspace-owner {
+    font-size: 11px;
+  }
+
+  /* Hide branch indicator on small screens */
+  .workspace-header-left > div:last-child {
+    display: none;
+  }
+
+  /* Compact header buttons */
+  .workspace-terminal-btn,
+  .workspace-git-btn,
+  .dictionary-btn {
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+
+  /* Messages container adjustments */
+  .workspace-messages {
+    padding: 12px;
+    gap: 12px;
+  }
+
+  .workspace-message {
+    padding: 12px;
+  }
+
+  .workspace-message-content {
+    font-size: 14px;
+  }
+
+  /* Input area adjustments */
+  .workspace-input-form {
+    padding: 10px 12px;
+    padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .workspace-input {
+    padding: 12px 14px;
+    font-size: 16px;
+    border-radius: 10px;
+  }
+
+  .workspace-send-btn {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+  }
+
+  /* Mobile sessions drawer */
+  .workspace-sidebar {
+    width: 85%;
+    max-width: 320px;
+    box-shadow: 0 0 40px rgba(0, 0, 0, 0.5);
+  }
+
+  .session-item {
+    padding: 12px;
+    min-height: 56px;
+  }
+
+  .session-delete {
+    opacity: 1;
+    width: 32px;
+    height: 32px;
+  }
+}
+
+/* Floating Action Button for mobile quick actions */
+.workspace-fab {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .workspace-fab {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: fixed;
+    right: 16px;
+    bottom: calc(var(--mobile-bottom-nav-height-safe) + 80px);
+    width: 56px;
+    height: 56px;
+    background: var(--gradient-primary);
+    border: none;
+    border-radius: 50%;
+    color: white;
+    cursor: pointer;
+    box-shadow: 0 4px 20px rgba(168, 85, 247, 0.4);
+    z-index: 50;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .workspace-fab:active {
+    transform: scale(0.95);
+    box-shadow: 0 2px 10px rgba(168, 85, 247, 0.3);
+  }
+
+  .workspace-fab svg {
+    width: 24px;
+    height: 24px;
+  }
+
+  /* FAB Menu when open */
+  .workspace-fab-menu {
+    position: fixed;
+    right: 16px;
+    bottom: calc(var(--mobile-bottom-nav-height-safe) + 150px);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    z-index: 49;
+    animation: fabMenuSlideUp 0.2s ease-out;
+  }
+
+  @keyframes fabMenuSlideUp {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .workspace-fab-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: var(--color-bg-elevated);
+    border: 1px solid var(--color-surface-glass-border);
+    border-radius: 12px;
+    color: var(--color-text-primary);
+    font-size: 14px;
+    font-weight: 500;
+    white-space: nowrap;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .workspace-fab-item:active {
+    background: var(--color-surface-glass-hover);
+    transform: scale(0.98);
+  }
+
+  .workspace-fab-item svg {
+    width: 18px;
+    height: 18px;
+    color: var(--color-primary-400);
+  }
+}
+
+/* Mobile tabs for workspace panels */
+.workspace-mobile-tabs {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .workspace-mobile-tabs {
+    display: flex;
+    padding: 8px 12px;
+    gap: 8px;
+    background: var(--color-bg-secondary);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .workspace-mobile-tab {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    background: var(--color-surface-glass);
+    border: 1px solid var(--color-surface-glass-border);
+    border-radius: 20px;
+    color: var(--color-text-tertiary);
+    font-size: 13px;
+    font-weight: 500;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    flex-shrink: 0;
+  }
+
+  .workspace-mobile-tab.active {
+    background: var(--gradient-primary-soft);
+    border-color: rgba(168, 85, 247, 0.3);
+    color: var(--color-primary-300);
+  }
+
+  .workspace-mobile-tab svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  .workspace-mobile-tab-badge {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    background: var(--color-warning);
+    border-radius: 9px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #000;
+  }
+}
+

@@ -587,3 +587,195 @@
 .databases-empty p {
   font-size: 14px;
 }
+
+/* ============================================================================
+   Mobile Optimizations for Databases Page
+   ============================================================================ */
+
+@media (max-width: 768px) {
+  .databases-page {
+    height: calc(100dvh - var(--mobile-bottom-nav-height-safe));
+  }
+
+  .databases-header-content {
+    padding: 12px 16px;
+    gap: 12px;
+  }
+
+  .databases-header-left {
+    gap: 12px;
+  }
+
+  .databases-logo-text {
+    display: none;
+  }
+
+  .databases-header-right {
+    gap: 8px;
+  }
+
+  .databases-nav-btn {
+    display: none;
+  }
+
+  .databases-user {
+    padding: 4px 8px 4px 4px;
+  }
+
+  .databases-avatar {
+    width: 28px;
+    height: 28px;
+  }
+
+  .databases-username {
+    display: none;
+  }
+
+  .databases-logout-btn {
+    padding: 10px;
+    min-width: 40px;
+    min-height: 40px;
+  }
+
+  .databases-main {
+    padding: 20px 16px 80px;
+  }
+
+  .databases-hero {
+    margin-bottom: 24px;
+  }
+
+  .databases-hero-icon {
+    width: 48px;
+    height: 48px;
+    margin-bottom: 16px;
+  }
+
+  .databases-hero h1 {
+    font-size: 24px;
+  }
+
+  .databases-hero p {
+    font-size: 14px;
+  }
+
+  .databases-search-container {
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .databases-search {
+    max-width: none;
+    width: 100%;
+    padding: 14px 16px;
+    min-height: 48px;
+  }
+
+  .databases-search input {
+    font-size: 16px;
+  }
+
+  .databases-search-right {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .databases-new-btn {
+    padding: 12px 16px;
+    font-size: 14px;
+  }
+
+  .databases-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .database-card {
+    padding: 16px;
+    border-radius: 14px;
+  }
+
+  .database-card:active {
+    transform: scale(0.98);
+    background: rgba(52, 211, 153, 0.08);
+  }
+
+  .database-card-arrow {
+    opacity: 1;
+    transform: none;
+    color: var(--color-text-muted);
+  }
+
+  .database-card-title h3 {
+    font-size: 15px;
+  }
+
+  .database-card-region {
+    font-size: 12px;
+    margin-bottom: 12px;
+  }
+
+  .database-card-footer {
+    font-size: 12px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .database-ref {
+    font-size: 11px;
+  }
+
+  .databases-empty {
+    padding: 60px 20px;
+  }
+
+  .databases-connect {
+    padding: 40px 20px;
+    margin: 40px auto;
+  }
+
+  .databases-connect-icon {
+    width: 64px;
+    height: 64px;
+  }
+
+  .databases-connect h2 {
+    font-size: 20px;
+  }
+
+  .databases-connect p {
+    font-size: 14px;
+  }
+
+  .databases-connect-btn {
+    padding: 12px 20px;
+    font-size: 14px;
+    width: 100%;
+    justify-content: center;
+  }
+
+  .databases-error {
+    padding: 12px 16px;
+    font-size: 13px;
+    border-radius: 10px;
+  }
+}
+
+@media (max-width: 380px) {
+  .databases-main {
+    padding: 16px 12px 80px;
+  }
+
+  .databases-hero h1 {
+    font-size: 20px;
+  }
+
+  .database-card {
+    padding: 14px;
+  }
+
+  .databases-new-btn span {
+    display: none;
+  }
+}

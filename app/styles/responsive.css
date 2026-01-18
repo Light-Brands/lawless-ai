@@ -1,6 +1,21 @@
 /* ============================================================================
-   Responsive Design
+   Responsive Design - Mobile First Approach
    ============================================================================ */
+
+/* Base mobile adjustments for bottom navigation */
+@media (max-width: 768px) {
+  /* Account for bottom navigation on all pages */
+  .app,
+  .chat-container,
+  .main-content {
+    padding-bottom: var(--mobile-bottom-nav-height-safe);
+  }
+
+  /* Ensure messages don't get hidden behind bottom nav */
+  .messages-container {
+    padding-bottom: calc(var(--space-4) + var(--mobile-bottom-nav-height-safe));
+  }
+}
 
 /* Tablet landscape and smaller desktops */
 @media (max-width: 1024px) {

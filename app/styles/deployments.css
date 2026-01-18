@@ -584,3 +584,191 @@
 .deployments-empty p {
   font-size: 14px;
 }
+
+/* ============================================================================
+   Mobile Optimizations for Deployments Page
+   ============================================================================ */
+
+@media (max-width: 768px) {
+  .deployments-page {
+    height: calc(100dvh - var(--mobile-bottom-nav-height-safe));
+  }
+
+  .deployments-header-content {
+    padding: 12px 16px;
+    gap: 12px;
+  }
+
+  .deployments-header-left {
+    gap: 12px;
+  }
+
+  .deployments-logo-text {
+    display: none;
+  }
+
+  .deployments-header-right {
+    gap: 8px;
+  }
+
+  .deployments-nav-btn {
+    display: none;
+  }
+
+  .deployments-user {
+    padding: 4px 8px 4px 4px;
+  }
+
+  .deployments-avatar {
+    width: 28px;
+    height: 28px;
+  }
+
+  .deployments-username {
+    display: none;
+  }
+
+  .deployments-logout-btn {
+    padding: 10px;
+    min-width: 40px;
+    min-height: 40px;
+  }
+
+  .deployments-main {
+    padding: 20px 16px 80px;
+  }
+
+  .deployments-hero {
+    margin-bottom: 24px;
+  }
+
+  .deployments-hero-icon {
+    width: 48px;
+    height: 48px;
+    margin-bottom: 16px;
+  }
+
+  .deployments-hero h1 {
+    font-size: 24px;
+  }
+
+  .deployments-hero p {
+    font-size: 14px;
+  }
+
+  .deployments-search-container {
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .deployments-search {
+    max-width: none;
+    width: 100%;
+    padding: 14px 16px;
+    min-height: 48px;
+  }
+
+  .deployments-search input {
+    font-size: 16px;
+  }
+
+  .deployments-search-right {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .deployments-new-btn {
+    padding: 12px 16px;
+    font-size: 14px;
+  }
+
+  .deployments-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .deployment-card {
+    padding: 16px;
+    border-radius: 14px;
+  }
+
+  .deployment-card:active {
+    transform: scale(0.98);
+    background: rgba(168, 85, 247, 0.08);
+  }
+
+  .deployment-card-arrow {
+    opacity: 1;
+    transform: none;
+    color: var(--color-text-muted);
+  }
+
+  .deployment-card-title h3 {
+    font-size: 15px;
+  }
+
+  .deployment-card-repo {
+    font-size: 12px;
+    margin-bottom: 12px;
+  }
+
+  .deployment-card-footer {
+    font-size: 12px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .deployments-empty {
+    padding: 60px 20px;
+  }
+
+  .deployments-connect {
+    padding: 40px 20px;
+    margin: 40px auto;
+  }
+
+  .deployments-connect-icon {
+    width: 64px;
+    height: 64px;
+  }
+
+  .deployments-connect h2 {
+    font-size: 20px;
+  }
+
+  .deployments-connect p {
+    font-size: 14px;
+  }
+
+  .deployments-connect-btn {
+    padding: 12px 20px;
+    font-size: 14px;
+    width: 100%;
+    justify-content: center;
+  }
+
+  .deployments-error {
+    padding: 12px 16px;
+    font-size: 13px;
+    border-radius: 10px;
+  }
+}
+
+@media (max-width: 380px) {
+  .deployments-main {
+    padding: 16px 12px 80px;
+  }
+
+  .deployments-hero h1 {
+    font-size: 20px;
+  }
+
+  .deployment-card {
+    padding: 14px;
+  }
+
+  .deployments-new-btn span {
+    display: none;
+  }
+}

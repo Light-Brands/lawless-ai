@@ -19,6 +19,9 @@
 /* Mobile menu and overlay */
 @import './styles/mobile-menu.css';
 
+/* Mobile bottom navigation */
+@import './styles/mobile-bottom-nav.css';
+
 /* Responsive breakpoints and media queries */
 @import './styles/responsive.css';
 
@@ -60,3 +63,6 @@
 
 /* Databases page */
 @import './styles/databases.css';
+
+/* Tools hub page */
+@import './styles/tools.css';

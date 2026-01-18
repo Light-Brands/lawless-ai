@@ -1055,6 +1055,167 @@ export default function TerminalPage() {
           height: 32px;
           opacity: 0.5;
         }
+
+        /* Mobile Optimizations */
+        @media (max-width: 768px) {
+          .terminal-page {
+            height: calc(100dvh - var(--mobile-bottom-nav-height-safe, 56px));
+          }
+
+          .terminal-header {
+            padding: 0.5rem 0.75rem;
+            gap: 0.5rem;
+          }
+
+          .terminal-header-left {
+            gap: 0.5rem;
+          }
+
+          .terminal-logo span {
+            display: none;
+          }
+
+          .terminal-repo {
+            font-size: 0.75rem;
+            padding: 0.25rem 0.5rem;
+            max-width: 120px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+          }
+
+          .terminal-btn {
+            padding: 0.5rem;
+            font-size: 0.75rem;
+          }
+
+          .terminal-btn span,
+          .terminal-btn:not(.primary) svg + span {
+            display: none;
+          }
+
+          .home-link {
+            width: 40px;
+            height: 40px;
+          }
+
+          .terminal-sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            z-index: 50;
+            transform: translateX(0);
+            width: 85%;
+            max-width: 320px;
+            box-shadow: 0 0 40px rgba(0, 0, 0, 0.5);
+          }
+
+          .terminal-sidebar.collapsed {
+            transform: translateX(-100%);
+            margin-left: 0;
+          }
+
+          .terminal-session-item {
+            padding: 0.875rem;
+            min-height: 56px;
+          }
+
+          .session-delete {
+            opacity: 1;
+            width: 36px;
+            height: 36px;
+          }
+
+          .terminal-content-header {
+            flex-wrap: wrap;
+            padding: 0.5rem;
+            gap: 0.5rem;
+          }
+
+          .terminal-content-title {
+            flex: 1;
+            min-width: 0;
+            font-size: 0.8rem;
+          }
+
+          .branch-badge {
+            font-size: 0.65rem;
+            padding: 1px 6px;
+          }
+
+          .terminal-content-actions {
+            width: 100%;
+            justify-content: flex-end;
+          }
+
+          .terminal-content-actions .terminal-btn {
+            flex: 1;
+            justify-content: center;
+          }
+
+          .terminal-container {
+            padding: 0.25rem;
+          }
+
+          .terminal-wrapper .xterm {
+            padding: 0.25rem;
+            font-size: 12px;
+          }
+        }
+
+        /* Touch-friendly keyboard toolbar for mobile */
+        .terminal-mobile-toolbar {
+          display: none;
+        }
+
+        @media (max-width: 768px) {
+          .terminal-mobile-toolbar {
+            display: flex;
+            gap: 0.5rem;
+            padding: 0.5rem;
+            background: #161b22;
+            border-top: 1px solid #30363d;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+          }
+
+          .terminal-mobile-toolbar button {
+            padding: 0.5rem 0.75rem;
+            background: #21262d;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            color: #c9d1d9;
+            font-family: monospace;
+            font-size: 0.8rem;
+            white-space: nowrap;
+            cursor: pointer;
+            flex-shrink: 0;
+          }
+
+          .terminal-mobile-toolbar button:active {
+            background: #30363d;
+          }
+        }
+
+        /* Landscape mode optimizations */
+        @media (max-height: 500px) and (orientation: landscape) {
+          .terminal-header {
+            padding: 0.25rem 0.5rem;
+          }
+
+          .terminal-content-header {
+            padding: 0.25rem 0.5rem;
+          }
+
+          .terminal-sidebar-header {
+            padding: 0.5rem;
+          }
+
+          .terminal-session-item {
+            padding: 0.5rem;
+          }
+        }
       `}</style>
 
       {!user ? (
