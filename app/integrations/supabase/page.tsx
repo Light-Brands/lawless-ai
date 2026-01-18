@@ -7,6 +7,7 @@ import TableTree from './components/TableTree';
 import TableBrowser from './components/TableBrowser';
 import SQLEditor from './components/SQLEditor';
 import RowEditor from './components/RowEditor';
+import ConfirmationModal from '@/app/components/ConfirmationModal';
 import '../integrations.css';
 
 interface User {
@@ -91,6 +92,14 @@ const SQLIcon = () => (
   </svg>
 );
 
+const TrashIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M3 6h18"/>
+    <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/>
+    <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
+  </svg>
+);
+
 export default function SupabasePage() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
@@ -106,6 +115,8 @@ export default function SupabasePage() {
   const [showSQLEditor, setShowSQLEditor] = useState(false);
   const [showRowEditor, setShowRowEditor] = useState(false);
   const [editingRow, setEditingRow] = useState<Record<string, any> | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     checkAuthAndLoadData();
@@ -297,6 +308,41 @@ export default function SupabasePage() {
     }
   }, [selectedTable, selectedProject]);
 
+  async function handleDeleteProject() {
+    if (!selectedProject) return;
+
+    setIsDeleting(true);
+    try {
+      const res = await fetch(`/api/integrations/supabase/projects/${selectedProject.ref}`, {
+        method: 'DELETE',
+      });
+
+      if (res.ok) {
+        // Remove from local state
+        setProjects(prev => prev.filter(p => p.id !== selectedProject.id));
+
+        // Select next project or clear
+        const remaining = projects.filter(p => p.id !== selectedProject.id);
+        if (remaining.length > 0) {
+          setSelectedProject(remaining[0]);
+          await loadTables(remaining[0].ref);
+        } else {
+          setSelectedProject(null);
+          setTables([]);
+          setTableData(null);
+        }
+      } else {
+        const data = await res.json();
+        alert(`Failed to delete database: ${data.error || 'Unknown error'}`);
+      }
+    } catch (err) {
+      alert('Failed to delete database');
+    } finally {
+      setIsDeleting(false);
+      setShowDeleteModal(false);
+    }
+  }
+
   async function handleLogout() {
     await fetch('/api/auth/logout', { method: 'POST' });
     router.push('/');
@@ -401,21 +447,30 @@ export default function SupabasePage() {
               <span className="supabase-sidebar-title">Tables</span>
               <span className="supabase-sidebar-count">{tables.length}</span>
             </div>
-            {projects.length > 1 && (
-              <div className="supabase-project-select">
-                <select
-                  value={selectedProject?.id || ''}
-                  onChange={(e) => {
-                    const project = projects.find(p => p.id === e.target.value);
-                    if (project) handleSelectProject(project);
-                  }}
+            {projects.length > 0 && (
+              <div className="supabase-project-select-wrapper">
+                <div className="supabase-project-select">
+                  <select
+                    value={selectedProject?.id || ''}
+                    onChange={(e) => {
+                      const project = projects.find(p => p.id === e.target.value);
+                      if (project) handleSelectProject(project);
+                    }}
+                  >
+                    {projects.map(project => (
+                      <option key={project.id} value={project.id}>
+                        {project.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <button
+                  className="supabase-project-delete-btn"
+                  onClick={() => setShowDeleteModal(true)}
+                  title="Delete database"
                 >
-                  {projects.map(project => (
-                    <option key={project.id} value={project.id}>
-                      {project.name}
-                    </option>
-                  ))}
-                </select>
+                  <TrashIcon />
+                </button>
               </div>
             )}
             <TableTree
@@ -471,6 +526,20 @@ export default function SupabasePage() {
           }}
         />
       )}
+
+      {/* Delete Database Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={showDeleteModal}
+        title="Delete Supabase Database"
+        message={`This will permanently delete the database "${selectedProject?.name}" and all its data. This action cannot be undone.`}
+        confirmText={selectedProject?.name || ''}
+        confirmLabel="Delete Database"
+        variant="danger"
+        requireTypedConfirmation={true}
+        onConfirm={handleDeleteProject}
+        onCancel={() => setShowDeleteModal(false)}
+        isLoading={isDeleting}
+      />
     </div>
   );
 }

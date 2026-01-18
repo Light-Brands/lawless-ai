@@ -21,7 +21,9 @@ body {
   color: var(--color-text-primary);
   line-height: 1.6;
   min-height: 100vh;
-  overflow: hidden;
+  /* Allow scrolling by default - pages that need fixed layouts should handle it themselves */
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 /* Ambient Background */

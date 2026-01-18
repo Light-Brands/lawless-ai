@@ -6,6 +6,7 @@ import Link from 'next/link';
 import ProjectTree from './components/ProjectTree';
 import DeploymentList from './components/DeploymentList';
 import BuildLogsViewer from './components/BuildLogsViewer';
+import ConfirmationModal from '@/app/components/ConfirmationModal';
 import '../integrations.css';
 
 interface User {
@@ -108,6 +109,8 @@ export default function VercelPage() {
   const [logsLoading, setLogsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showLogs, setShowLogs] = useState(false);
+  const [projectToDelete, setProjectToDelete] = useState<Project | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     checkAuthAndLoadData();
@@ -262,6 +265,36 @@ export default function VercelPage() {
     }
   }
 
+  async function handleDeleteProject() {
+    if (!projectToDelete) return;
+
+    setIsDeleting(true);
+    try {
+      const res = await fetch(`/api/integrations/vercel/projects/${projectToDelete.id}`, {
+        method: 'DELETE',
+      });
+
+      if (res.ok) {
+        // Remove from local state
+        setProjects(prev => prev.filter(p => p.id !== projectToDelete.id));
+
+        // Clear selection if it was the deleted project
+        if (selectedProject?.id === projectToDelete.id) {
+          setSelectedProject(null);
+          setDeployments([]);
+        }
+      } else {
+        const data = await res.json();
+        alert(`Failed to delete project: ${data.error || 'Unknown error'}`);
+      }
+    } catch (err) {
+      alert('Failed to delete project');
+    } finally {
+      setIsDeleting(false);
+      setProjectToDelete(null);
+    }
+  }
+
   async function handleLogout() {
     await fetch('/api/auth/logout', { method: 'POST' });
     router.push('/');
@@ -357,6 +390,7 @@ export default function VercelPage() {
               projects={projects}
               selectedProject={selectedProject}
               onSelectProject={handleSelectProject}
+              onDeleteProject={setProjectToDelete}
             />
           </aside>
 
@@ -383,6 +417,20 @@ export default function VercelPage() {
           </div>
         </div>
       </main>
+
+      {/* Delete Project Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={!!projectToDelete}
+        title="Delete Vercel Project"
+        message={`This will permanently delete the project "${projectToDelete?.name}" and all its deployments. This action cannot be undone.`}
+        confirmText={projectToDelete?.name || ''}
+        confirmLabel="Delete Project"
+        variant="danger"
+        requireTypedConfirmation={true}
+        onConfirm={handleDeleteProject}
+        onCancel={() => setProjectToDelete(null)}
+        isLoading={isDeleting}
+      />
     </div>
   );
 }

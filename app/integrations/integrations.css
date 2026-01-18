@@ -906,9 +906,16 @@
   border-radius: 10px;
 }
 
-.supabase-project-select {
+.supabase-project-select-wrapper {
   padding: 12px 16px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.supabase-project-select {
+  flex: 1;
 }
 
 .supabase-project-select select {
@@ -920,6 +927,27 @@
   color: var(--color-text-primary);
   font-size: 14px;
   cursor: pointer;
+}
+
+.supabase-project-delete-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.supabase-project-delete-btn:hover {
+  background: var(--color-error-soft);
+  border-color: var(--color-error);
+  color: var(--color-error);
 }
 
 /* Tree Components */
@@ -973,14 +1001,29 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 12px;
+  padding: 4px;
+  padding-left: 12px;
   background: transparent;
   border: none;
   border-radius: 8px;
   color: var(--color-text-secondary);
   font-size: 14px;
+  text-align: left;
+}
+
+.project-tree-item-main {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  background: transparent;
+  border: none;
+  color: inherit;
+  font-size: inherit;
   cursor: pointer;
   text-align: left;
+  min-width: 0;
 }
 
 .project-tree-item:hover,
@@ -993,6 +1036,31 @@
 .table-tree-item.selected {
   background: rgba(168, 85, 247, 0.15);
   color: var(--color-primary-300);
+}
+
+.project-tree-item-delete {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  opacity: 0;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.project-tree-item:hover .project-tree-item-delete {
+  opacity: 1;
+}
+
+.project-tree-item-delete:hover {
+  background: var(--color-error-soft);
+  color: var(--color-error);
 }
 
 .project-tree-item-icon {
