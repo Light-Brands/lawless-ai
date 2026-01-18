@@ -4277,6 +4277,9 @@ body::before {
   border: 1px solid var(--color-surface-glass-border);
   border-radius: var(--radius-xl);
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 280px);
 }
 
 .readme-header {
@@ -4296,6 +4299,9 @@ body::before {
 
 .readme-content {
   padding: var(--space-6);
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
 }
 
 /* Markdown body styles */
