@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getGitHubToken } from '@/lib/github/auth';
 
 export const runtime = 'nodejs';
 
@@ -8,7 +9,7 @@ interface RouteParams {
 
 // Delete a repository
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
-  const token = request.cookies.get('github_token')?.value;
+  const token = await getGitHubToken(request);
   const { owner, repo } = await params;
 
   if (!token) {
@@ -77,7 +78,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
 
 // Update repository (visibility, description, etc.)
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
-  const token = request.cookies.get('github_token')?.value;
+  const token = await getGitHubToken(request);
   const { owner, repo } = await params;
 
   if (!token) {

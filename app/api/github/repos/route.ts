@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getGitHubToken } from '@/lib/github/auth';
 
 export const runtime = 'nodejs';
 
@@ -198,7 +199,7 @@ A full-stack application built with Next.js and Supabase.
 };
 
 export async function GET(request: NextRequest) {
-  const token = request.cookies.get('github_token')?.value;
+  const token = await getGitHubToken(request);
 
   if (!token) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
@@ -245,7 +246,7 @@ export async function GET(request: NextRequest) {
 
 // Create a new repository with optional template
 export async function POST(request: NextRequest) {
-  const token = request.cookies.get('github_token')?.value;
+  const token = await getGitHubToken(request);
 
   if (!token) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });

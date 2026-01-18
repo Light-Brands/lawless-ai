@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getGitHubToken } from '@/lib/github/auth';
 
 export const runtime = 'nodejs';
 
 export async function GET(request: NextRequest) {
-  const token = request.cookies.get('github_token')?.value;
+  const token = await getGitHubToken(request);
 
   if (!token) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
