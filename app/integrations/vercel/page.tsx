@@ -6,6 +6,7 @@ import Link from 'next/link';
 import ProjectTree from './components/ProjectTree';
 import DeploymentList from './components/DeploymentList';
 import BuildLogsViewer from './components/BuildLogsViewer';
+import EnvVarsPanel from './components/EnvVarsPanel';
 import ConfirmationModal from '@/app/components/ConfirmationModal';
 import '../integrations.css';
 
@@ -95,6 +96,13 @@ const RefreshIcon = () => (
   </svg>
 );
 
+const SettingsIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
+    <circle cx="12" cy="12" r="3"/>
+  </svg>
+);
+
 function VercelPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -112,6 +120,7 @@ function VercelPageContent() {
   const [showLogs, setShowLogs] = useState(false);
   const [projectToDelete, setProjectToDelete] = useState<Project | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showEnvVars, setShowEnvVars] = useState(false);
 
   useEffect(() => {
     checkAuthAndLoadData();
@@ -206,6 +215,7 @@ function VercelPageContent() {
     setSelectedProject(project);
     setSelectedDeployment(null);
     setShowLogs(false);
+    setShowEnvVars(false);
     await loadDeployments(project.id);
   }, []);
 
@@ -368,6 +378,15 @@ function VercelPageContent() {
               <button onClick={handleRefresh} className="vercel-action-btn" title="Refresh">
                 <RefreshIcon />
               </button>
+              {selectedProject && (
+                <button
+                  onClick={() => setShowEnvVars(!showEnvVars)}
+                  className={`vercel-action-btn ${showEnvVars ? 'active' : ''}`}
+                  title="Environment Variables"
+                >
+                  <SettingsIcon />
+                </button>
+              )}
               <Link href="/" className="vercel-nav-btn">
                 <HomeIcon />
               </Link>
@@ -401,6 +420,12 @@ function VercelPageContent() {
 
           {/* Main panel */}
           <div className="vercel-main-panel">
+            {showEnvVars && selectedProject && (
+              <EnvVarsPanel
+                projectId={selectedProject.id}
+                onClose={() => setShowEnvVars(false)}
+              />
+            )}
             {showLogs && selectedDeployment ? (
               <BuildLogsViewer
                 deployment={selectedDeployment}

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import hljs from 'highlight.js';
+import { marked } from 'marked';
 
 interface FileData {
   name: string;
@@ -14,6 +15,8 @@ interface FileData {
 
 interface FileViewerProps {
   file: FileData;
+  repoFullName: string;
+  branch: string;
   onNavigate: (path: string, isFile?: boolean) => void;
 }
 
