@@ -113,7 +113,8 @@ const authenticateApiKey = (req: Request, res: Response, next: NextFunction): vo
 // Get git commit SHA for version tracking
 function getGitCommit(): string {
   try {
-    return execSync('git rev-parse --short HEAD', { cwd: path.join(__dirname, '..'), encoding: 'utf-8' }).trim();
+    // __dirname is backend/dist, so go up two levels to repo root
+    return execSync('git rev-parse --short HEAD', { cwd: path.join(__dirname, '..', '..'), encoding: 'utf-8' }).trim();
   } catch {
     return 'unknown';
   }
