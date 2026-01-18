@@ -6,6 +6,7 @@ import Link from 'next/link';
 import GitHubCard from './components/GitHubCard';
 import VercelCard from './components/VercelCard';
 import SupabaseCard from './components/SupabaseCard';
+import WorkersCard from './components/WorkersCard';
 import './integrations.css';
 
 interface User {
@@ -227,6 +228,15 @@ export default function IntegrationsPage() {
             onDisconnect={() => handleDisconnect('supabase')}
             onRefresh={loadIntegrationStatus}
           />
+        </div>
+
+        {/* Infrastructure section */}
+        <div className="integrations-section-header">
+          <h2>Infrastructure</h2>
+          <p>Monitor your backend services and worker instances</p>
+        </div>
+        <div className="integrations-infrastructure">
+          <WorkersCard />
         </div>
 
         {/* Integration capabilities */}
