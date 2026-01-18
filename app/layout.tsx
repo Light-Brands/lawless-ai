@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Space_Grotesk, JetBrains_Mono } from 'next/font/google';
 import './globals.css';
+import { ToastProvider } from './components/Toast';
 
 const spaceGrotesk = Space_Grotesk({
   subsets: ['latin'],
@@ -51,7 +52,9 @@ export default function RootLayout({
         />
       </head>
       <body className={`${spaceGrotesk.variable} ${jetbrainsMono.variable}`}>
-        {children}
+        <ToastProvider>
+          {children}
+        </ToastProvider>
       </body>
     </html>
   );

@@ -5,6 +5,8 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import RepoBrowser from './components/RepoBrowser';
 import ConfirmationModal from '@/app/components/ConfirmationModal';
+import CredentialsModal from '@/app/components/CredentialsModal';
+import { useToast } from '@/app/components/Toast';
 
 interface RepoData {
   id: number;
@@ -130,6 +132,7 @@ export default function RepoBrowserPage() {
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const toast = useToast();
 
   const owner = params.owner as string;
   const repo = params.repo as string;
@@ -163,6 +166,10 @@ export default function RepoBrowserPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isTogglingVisibility, setIsTogglingVisibility] = useState(false);
+
+  // Database credentials modal state
+  const [showCredentialsModal, setShowCredentialsModal] = useState(false);
+  const [dbCredentials, setDbCredentials] = useState<{ password: string; projectName: string } | null>(null);
 
   useEffect(() => {
     checkAuthAndLoadData();
@@ -413,10 +420,10 @@ export default function RepoBrowserPage() {
           });
         } else {
           const error = await res.json();
-          alert(`Failed to create Vercel project: ${error.error || 'Unknown error'}`);
+          toast.error('Failed to create Vercel project', error.error || 'Unknown error');
         }
       } catch (err) {
-        alert('Failed to create Vercel project');
+        toast.error('Failed to create Vercel project');
       } finally {
         setCreatingVercel(false);
       }
@@ -473,7 +480,11 @@ export default function RepoBrowserPage() {
 
           // Show the database password to the user
           if (data.project.dbPassword) {
-            alert(`Database created!\n\nIMPORTANT - Save your database password:\n${data.project.dbPassword}\n\nThis won't be shown again.`);
+            setDbCredentials({
+              password: data.project.dbPassword,
+              projectName: data.project.name,
+            });
+            setShowCredentialsModal(true);
           }
 
           // Add to projects list
@@ -489,10 +500,10 @@ export default function RepoBrowserPage() {
           });
         } else {
           const error = await res.json();
-          alert(`Failed to create Supabase database: ${error.error || 'Unknown error'}`);
+          toast.error('Failed to create Supabase database', error.error || 'Unknown error');
         }
       } catch (err) {
-        alert('Failed to create Supabase database');
+        toast.error('Failed to create Supabase database');
       } finally {
         setCreatingSupabase(false);
       }
@@ -522,10 +533,10 @@ export default function RepoBrowserPage() {
         router.push('/repos');
       } else {
         const data = await res.json();
-        alert(`Failed to delete repository: ${data.error || 'Unknown error'}`);
+        toast.error('Failed to delete repository', data.error || 'Unknown error');
       }
     } catch (err) {
-      alert('Failed to delete repository');
+      toast.error('Failed to delete repository');
     } finally {
       setIsDeleting(false);
       setShowDeleteModal(false);
@@ -547,12 +558,13 @@ export default function RepoBrowserPage() {
       if (res.ok) {
         const data = await res.json();
         setRepoData(prev => prev ? { ...prev, private: data.repo.private } : null);
+        toast.success('Visibility updated', `Repository is now ${data.repo.private ? 'private' : 'public'}`);
       } else {
         const data = await res.json();
-        alert(`Failed to change visibility: ${data.error || 'Unknown error'}`);
+        toast.error('Failed to change visibility', data.error || 'Unknown error');
       }
     } catch (err) {
-      alert('Failed to change visibility');
+      toast.error('Failed to change visibility');
     } finally {
       setIsTogglingVisibility(false);
     }
@@ -669,6 +681,20 @@ export default function RepoBrowserPage() {
         onConfirm={handleDeleteRepo}
         onCancel={() => setShowDeleteModal(false)}
         isLoading={isDeleting}
+      />
+
+      {/* Database Credentials Modal */}
+      <CredentialsModal
+        isOpen={showCredentialsModal}
+        title="Database Created!"
+        subtitle={dbCredentials ? `Your Supabase project "${dbCredentials.projectName}" is ready.` : undefined}
+        credentials={dbCredentials ? [
+          { label: 'Database Password', value: dbCredentials.password }
+        ] : []}
+        onClose={() => {
+          setShowCredentialsModal(false);
+          setDbCredentials(null);
+        }}
       />
     </div>
   );
