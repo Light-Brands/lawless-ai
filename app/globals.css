@@ -3982,7 +3982,7 @@ body::before {
   display: flex;
   flex-direction: column;
   gap: var(--space-6);
-  overflow-y: auto;
+  overflow: hidden;
 }
 
 .repo-browser-content-loading {
@@ -4050,7 +4050,9 @@ body::before {
   border: 1px solid var(--color-surface-glass-border);
   border-radius: var(--radius-xl);
   overflow: auto;
-  max-height: calc(100vh - 350px);
+  flex: 1;
+  min-height: 0;
+  max-height: calc(100vh - 280px);
 }
 
 .directory-view-empty {
