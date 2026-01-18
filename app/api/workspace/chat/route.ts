@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
   }
 
-  const { message, repoFullName, sessionId } = await request.json();
+  const { message, repoFullName, sessionId, workspaceSessionId } = await request.json();
 
   if (!message || !repoFullName) {
     return NextResponse.json({ error: 'Message and repository required' }, { status: 400 });
@@ -30,6 +30,7 @@ export async function POST(request: NextRequest) {
         message,
         repoFullName,
         sessionId,
+        workspaceSessionId,
         githubToken: token,
       }),
     });

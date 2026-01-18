@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ReadTool, WriteTool, EditTool, BashTool, GlobTool, GrepTool, TaskTool, ToolStatus } from '@/app/components/tools';
 
@@ -37,6 +37,18 @@ interface GitStatus {
   added: string[];
   deleted: string[];
   untracked: string[];
+}
+
+interface WorkspaceSession {
+  sessionId: string;
+  name: string;
+  branchName: string;
+  baseBranch: string;
+  baseCommit: string;
+  createdAt: string;
+  lastAccessedAt: string;
+  messageCount?: number;
+  isValid?: boolean;
 }
 
 // SVG Icons
@@ -90,6 +102,51 @@ const ChevronIcon = ({ expanded }: { expanded: boolean }) => (
     <path d="m6 9 6 6 6-6"/>
   </svg>
 );
+
+const PlusIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="12" x2="12" y1="5" y2="19"/>
+    <line x1="5" x2="19" y1="12" y2="12"/>
+  </svg>
+);
+
+const TrashIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M3 6h18"/>
+    <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/>
+    <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
+  </svg>
+);
+
+const SidebarIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect width="18" height="18" x="3" y="3" rx="2"/>
+    <path d="M9 3v18"/>
+  </svg>
+);
+
+const MessageIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+  </svg>
+);
+
+const SmallGitBranchIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="6" x2="6" y1="3" y2="15"/>
+    <circle cx="18" cy="6" r="3"/>
+    <circle cx="6" cy="18" r="3"/>
+    <path d="M18 9a9 9 0 0 1-9 9"/>
+  </svg>
+);
+
+function generateSessionId(): string {
+  return `ws_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+}
+
+function generateSessionName(index: number): string {
+  return `Session ${index + 1}`;
+}
 
 // Render a tool card based on the tool type
 function ToolCardRenderer({ block }: { block: ToolUseBlock }) {
@@ -228,7 +285,17 @@ export default function WorkspacePage() {
   const [committing, setCommitting] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const [sessionId] = useState(() => `workspace-${Date.now()}`);
+
+  // Session state
+  const [sessions, setSessions] = useState<WorkspaceSession[]>([]);
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sessionsLoading, setSessionsLoading] = useState(true);
+  const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState('');
+
+  // Store messages per session
+  const sessionMessages = useRef<Map<string, Message[]>>(new Map());
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -247,6 +314,173 @@ export default function WorkspacePage() {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
+  // Load sessions on mount
+  useEffect(() => {
+    if (repoFullName) {
+      loadSessions();
+    }
+  }, [repoFullName]);
+
+  async function loadSessions() {
+    setSessionsLoading(true);
+    try {
+      const [owner, repo] = repoFullName.split('/');
+      const response = await fetch(`/api/workspace/sessions/${owner}/${repo}`);
+      const data = await response.json();
+
+      if (data.sessions) {
+        setSessions(data.sessions);
+        // If no active session and sessions exist, select the first one
+        if (data.sessions.length > 0 && !activeSessionId) {
+          const firstSession = data.sessions[0];
+          setActiveSessionId(firstSession.sessionId);
+          loadSessionMessages(firstSession.sessionId);
+        } else if (data.sessions.length === 0) {
+          // Auto-create first session
+          await createNewSession();
+        }
+      }
+    } catch (err) {
+      console.error('Failed to load sessions:', err);
+      // If loading fails, create a new session
+      await createNewSession();
+    } finally {
+      setSessionsLoading(false);
+    }
+  }
+
+  async function loadSessionMessages(sessionId: string) {
+    // Check if we already have messages cached
+    const cached = sessionMessages.current.get(sessionId);
+    if (cached) {
+      setMessages(cached);
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/workspace/session/${sessionId}`);
+      const data = await response.json();
+
+      if (data.messages && data.messages.length > 0) {
+        // Convert stored messages to ContentBlock format
+        const formattedMessages: Message[] = data.messages.map((msg: { role: string; content: string }) => ({
+          role: msg.role,
+          content: [{ type: 'text', content: msg.content }]
+        }));
+        sessionMessages.current.set(sessionId, formattedMessages);
+        setMessages(formattedMessages);
+      } else {
+        setMessages([]);
+      }
+    } catch (err) {
+      console.error('Failed to load session messages:', err);
+      setMessages([]);
+    }
+  }
+
+  const createNewSession = useCallback(async () => {
+    const sessionId = generateSessionId();
+    const sessionName = generateSessionName(sessions.length);
+
+    try {
+      const response = await fetch('/api/workspace/session/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          repoFullName,
+          sessionId,
+          sessionName,
+          baseBranch: 'main',
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        console.error('Failed to create session:', error);
+        return;
+      }
+
+      const data = await response.json();
+
+      const newSession: WorkspaceSession = {
+        sessionId: data.sessionId,
+        name: data.name,
+        branchName: data.branchName,
+        baseBranch: data.baseBranch,
+        baseCommit: data.baseCommit,
+        createdAt: data.createdAt,
+        lastAccessedAt: data.lastAccessedAt,
+        messageCount: 0,
+        isValid: true,
+      };
+
+      setSessions(prev => [...prev, newSession]);
+      setActiveSessionId(newSession.sessionId);
+      setMessages([]);
+      sessionMessages.current.set(newSession.sessionId, []);
+    } catch (err) {
+      console.error('Error creating session:', err);
+    }
+  }, [sessions.length, repoFullName]);
+
+  const deleteSession = useCallback(async (sessionId: string) => {
+    try {
+      await fetch(`/api/workspace/session/${sessionId}?repo=${encodeURIComponent(repoFullName)}`, {
+        method: 'DELETE',
+      });
+
+      // Remove from local state
+      sessionMessages.current.delete(sessionId);
+      setSessions(prev => {
+        const updated = prev.filter(s => s.sessionId !== sessionId);
+        // If we're deleting the active session, switch to another
+        if (activeSessionId === sessionId && updated.length > 0) {
+          setActiveSessionId(updated[0].sessionId);
+          loadSessionMessages(updated[0].sessionId);
+        } else if (updated.length === 0) {
+          setActiveSessionId(null);
+          setMessages([]);
+        }
+        return updated;
+      });
+    } catch (err) {
+      console.error('Failed to delete session:', err);
+    }
+  }, [activeSessionId, repoFullName]);
+
+  const switchSession = useCallback((sessionId: string) => {
+    if (sessionId === activeSessionId) return;
+
+    // Save current messages
+    if (activeSessionId) {
+      sessionMessages.current.set(activeSessionId, messages);
+    }
+
+    setActiveSessionId(sessionId);
+    loadSessionMessages(sessionId);
+  }, [activeSessionId, messages]);
+
+  const renameSession = useCallback(async (sessionId: string, newName: string) => {
+    try {
+      const response = await fetch(`/api/workspace/session/${sessionId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newName }),
+      });
+
+      if (response.ok) {
+        setSessions(prev => prev.map(s =>
+          s.sessionId === sessionId ? { ...s, name: newName } : s
+        ));
+      }
+    } catch (err) {
+      console.error('Failed to rename session:', err);
+    }
+
+    setEditingSessionId(null);
+    setEditingName('');
+  }, []);
+
   async function loadGitStatus() {
     try {
       const response = await fetch(`/api/workspace/git/status?repo=${encodeURIComponent(repoFullName)}`);
@@ -261,13 +495,14 @@ export default function WorkspacePage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!input.trim() || loading) return;
+    if (!input.trim() || loading || !activeSessionId) return;
 
     const userMessage = input.trim();
     setInput('');
 
     // Add user message
-    setMessages((prev) => [...prev, { role: 'user', content: [{ type: 'text', content: userMessage }] }]);
+    const userMsg: Message = { role: 'user', content: [{ type: 'text', content: userMessage }] };
+    setMessages((prev) => [...prev, userMsg]);
     setLoading(true);
 
     // Add empty assistant message that we'll populate
@@ -280,7 +515,7 @@ export default function WorkspacePage() {
         body: JSON.stringify({
           message: userMessage,
           repoFullName,
-          sessionId,
+          workspaceSessionId: activeSessionId,
         }),
       });
 
@@ -375,6 +610,14 @@ export default function WorkspacePage() {
         }
       }
 
+      // Update cached messages
+      if (activeSessionId) {
+        setMessages(msgs => {
+          sessionMessages.current.set(activeSessionId, msgs);
+          return msgs;
+        });
+      }
+
       // Refresh git status after Claude might have made changes
       loadGitStatus();
     } catch (err) {
@@ -460,6 +703,8 @@ export default function WorkspacePage() {
 
   const changesCount = (gitStatus?.modified.length || 0) + (gitStatus?.added.length || 0) + (gitStatus?.untracked.length || 0) + (gitStatus?.deleted.length || 0);
 
+  const activeSession = sessions.find(s => s.sessionId === activeSessionId);
+
   // Render message content blocks
   function renderContent(content: ContentBlock[], messageIndex: number) {
     return content.map((block, blockIndex) => {
@@ -490,278 +735,604 @@ export default function WorkspacePage() {
   }
 
   return (
-    <div className="workspace-page">
-      {/* Header */}
-      <header className="workspace-header">
-        <div className="workspace-header-left">
-          <button
-            onClick={() => router.push('/repos')}
-            className="workspace-back-btn"
-            aria-label="Back to repositories"
-          >
-            <BackIcon />
-          </button>
-          <div className="workspace-title">
-            <h1>{repoFullName?.split('/')[1] || repoFullName}</h1>
-            <span className="workspace-owner">{repoFullName?.split('/')[0]}</span>
+    <div className="workspace-page with-sidebar">
+      <style jsx>{`
+        .workspace-page.with-sidebar {
+          display: flex;
+          height: 100vh;
+          overflow: hidden;
+        }
+
+        .workspace-sidebar {
+          width: 280px;
+          background: #161b22;
+          border-right: 1px solid #30363d;
+          display: flex;
+          flex-direction: column;
+          flex-shrink: 0;
+          transition: margin-left 0.2s ease;
+        }
+
+        .workspace-sidebar.collapsed {
+          margin-left: -280px;
+        }
+
+        .sidebar-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 1rem;
+          border-bottom: 1px solid #30363d;
+        }
+
+        .sidebar-title {
+          font-size: 0.875rem;
+          font-weight: 600;
+          color: #c9d1d9;
+        }
+
+        .sidebar-actions {
+          display: flex;
+          gap: 0.5rem;
+        }
+
+        .sidebar-btn {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 28px;
+          height: 28px;
+          background: transparent;
+          border: 1px solid #30363d;
+          border-radius: 6px;
+          color: #8b949e;
+          cursor: pointer;
+          transition: all 0.15s;
+        }
+
+        .sidebar-btn:hover {
+          background: #21262d;
+          color: #c9d1d9;
+          border-color: #8b949e;
+        }
+
+        .sidebar-btn.primary {
+          background: #238636;
+          border-color: #238636;
+          color: white;
+        }
+
+        .sidebar-btn.primary:hover {
+          background: #2ea043;
+        }
+
+        .sessions-list {
+          flex: 1;
+          overflow-y: auto;
+          padding: 0.5rem;
+        }
+
+        .session-item {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+          padding: 0.75rem;
+          margin-bottom: 0.25rem;
+          background: transparent;
+          border: 1px solid transparent;
+          border-radius: 8px;
+          cursor: pointer;
+          transition: all 0.15s;
+          width: 100%;
+          text-align: left;
+        }
+
+        .session-item:hover {
+          background: #21262d;
+        }
+
+        .session-item.active {
+          background: #21262d;
+          border-color: #58a6ff;
+        }
+
+        .session-icon {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 32px;
+          height: 32px;
+          background: #30363d;
+          border-radius: 6px;
+          flex-shrink: 0;
+        }
+
+        .session-item.active .session-icon {
+          background: #58a6ff;
+          color: #0d1117;
+        }
+
+        .session-info {
+          flex: 1;
+          min-width: 0;
+        }
+
+        .session-name {
+          font-size: 0.875rem;
+          font-weight: 500;
+          color: #c9d1d9;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        .session-name-input {
+          font-size: 0.875rem;
+          font-weight: 500;
+          color: #c9d1d9;
+          background: #0d1117;
+          border: 1px solid #58a6ff;
+          border-radius: 4px;
+          padding: 2px 6px;
+          width: 100%;
+        }
+
+        .session-meta {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          font-size: 0.75rem;
+          color: #8b949e;
+          margin-top: 2px;
+        }
+
+        .session-branch {
+          display: flex;
+          align-items: center;
+          gap: 3px;
+        }
+
+        .session-delete {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 24px;
+          height: 24px;
+          background: transparent;
+          border: none;
+          border-radius: 4px;
+          color: #8b949e;
+          cursor: pointer;
+          opacity: 0;
+          transition: all 0.15s;
+        }
+
+        .session-item:hover .session-delete {
+          opacity: 1;
+        }
+
+        .session-delete:hover {
+          background: rgba(248, 81, 73, 0.2);
+          color: #f85149;
+        }
+
+        .workspace-main {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          min-width: 0;
+        }
+
+        @media (max-width: 768px) {
+          .workspace-sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            z-index: 50;
+            transform: translateX(0);
+          }
+
+          .workspace-sidebar.collapsed {
+            transform: translateX(-100%);
+            margin-left: 0;
+          }
+        }
+      `}</style>
+
+      {/* Session Sidebar */}
+      <aside className={`workspace-sidebar ${!sidebarOpen ? 'collapsed' : ''}`}>
+        <div className="sidebar-header">
+          <span className="sidebar-title">Sessions ({sessions.length})</span>
+          <div className="sidebar-actions">
+            <button
+              className="sidebar-btn primary"
+              onClick={createNewSession}
+              title="New session"
+            >
+              <PlusIcon />
+            </button>
           </div>
         </div>
-        <div className="workspace-header-right">
-          <button
-            onClick={() => router.push(`/terminal/${repoFullName}`)}
-            className="workspace-terminal-btn"
-            title="Open Terminal"
-          >
-            <TerminalIcon />
-            <span className="terminal-btn-label">Terminal</span>
-          </button>
-          <button
-            onClick={() => setShowGitPanel(!showGitPanel)}
-            className={`workspace-git-btn ${hasChanges ? 'has-changes' : ''} ${showGitPanel ? 'active' : ''}`}
-          >
-            <GitBranchIcon />
-            <span className="git-btn-label">Git</span>
-            {hasChanges && <span className="git-changes-badge">{changesCount}</span>}
-          </button>
-        </div>
-      </header>
-
-      <div className="workspace-content">
-        {/* Chat panel */}
-        <div className="workspace-chat">
-          {/* Messages */}
-          <div className="workspace-messages">
-            {messages.length === 0 && (
-              <div className="workspace-empty">
-                <div className="workspace-empty-icon">
-                  <GitBranchIcon />
-                </div>
-                <h2>Ready to code</h2>
-                <p>Ask Claude to read, edit, or create files in this repository.</p>
-              </div>
-            )}
-            {messages.map((msg, i) => (
+        <div className="sessions-list">
+          {sessionsLoading ? (
+            <div style={{ padding: '1rem', color: '#8b949e', textAlign: 'center' }}>
+              Loading sessions...
+            </div>
+          ) : sessions.length === 0 ? (
+            <div style={{ padding: '1rem', color: '#8b949e', textAlign: 'center' }}>
+              No sessions yet
+            </div>
+          ) : (
+            sessions.map(session => (
               <div
-                key={i}
-                className={`workspace-message ${msg.role}`}
+                key={session.sessionId}
+                className={`session-item ${session.sessionId === activeSessionId ? 'active' : ''}`}
+                onClick={() => switchSession(session.sessionId)}
               >
-                <div className="workspace-message-header">
-                  {msg.role === 'user' ? 'You' : 'Claude'}
+                <div className="session-icon">
+                  <MessageIcon />
                 </div>
-                <div className="workspace-message-content">
-                  {renderContent(msg.content, i)}
+                <div className="session-info">
+                  {editingSessionId === session.sessionId ? (
+                    <input
+                      className="session-name-input"
+                      value={editingName}
+                      onChange={(e) => setEditingName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          renameSession(session.sessionId, editingName);
+                        } else if (e.key === 'Escape') {
+                          setEditingSessionId(null);
+                          setEditingName('');
+                        }
+                      }}
+                      onBlur={() => renameSession(session.sessionId, editingName)}
+                      onClick={(e) => e.stopPropagation()}
+                      autoFocus
+                    />
+                  ) : (
+                    <div
+                      className="session-name"
+                      onDoubleClick={(e) => {
+                        e.stopPropagation();
+                        setEditingSessionId(session.sessionId);
+                        setEditingName(session.name);
+                      }}
+                    >
+                      {session.name}
+                    </div>
+                  )}
+                  <div className="session-meta">
+                    <span className="session-branch">
+                      <SmallGitBranchIcon />
+                      {session.branchName.replace('workspace/', '')}
+                    </span>
+                    {session.messageCount !== undefined && session.messageCount > 0 && (
+                      <span>{session.messageCount} msgs</span>
+                    )}
+                  </div>
                 </div>
+                <button
+                  className="session-delete"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (confirm('Delete this session? This will also delete the branch and worktree.')) {
+                      deleteSession(session.sessionId);
+                    }
+                  }}
+                  title="Delete session"
+                >
+                  <TrashIcon />
+                </button>
               </div>
-            ))}
-            {loading && messages[messages.length - 1]?.content.length === 0 && (
-              <div className="workspace-thinking">
-                <div className="thinking-dots">
-                  <span></span><span></span><span></span>
-                </div>
-                Claude is thinking...
+            ))
+          )}
+        </div>
+      </aside>
+
+      <div className="workspace-main">
+        {/* Header */}
+        <header className="workspace-header">
+          <div className="workspace-header-left">
+            <button
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              className="workspace-back-btn"
+              aria-label={sidebarOpen ? 'Hide sidebar' : 'Show sidebar'}
+              style={{ marginRight: '0.5rem' }}
+            >
+              <SidebarIcon />
+            </button>
+            <button
+              onClick={() => router.push('/repos')}
+              className="workspace-back-btn"
+              aria-label="Back to repositories"
+            >
+              <BackIcon />
+            </button>
+            <div className="workspace-title">
+              <h1>{repoFullName?.split('/')[1] || repoFullName}</h1>
+              <span className="workspace-owner">{repoFullName?.split('/')[0]}</span>
+            </div>
+            {activeSession && (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                marginLeft: '1rem',
+                padding: '0.25rem 0.75rem',
+                background: '#21262d',
+                borderRadius: '6px',
+                fontSize: '0.8rem',
+                color: '#58a6ff'
+              }}>
+                <SmallGitBranchIcon />
+                {activeSession.branchName}
               </div>
             )}
-            <div ref={messagesEndRef} />
+          </div>
+          <div className="workspace-header-right">
+            <button
+              onClick={() => router.push(`/terminal/${repoFullName}`)}
+              className="workspace-terminal-btn"
+              title="Open Terminal"
+            >
+              <TerminalIcon />
+              <span className="terminal-btn-label">Terminal</span>
+            </button>
+            <button
+              onClick={() => setShowGitPanel(!showGitPanel)}
+              className={`workspace-git-btn ${hasChanges ? 'has-changes' : ''} ${showGitPanel ? 'active' : ''}`}
+            >
+              <GitBranchIcon />
+              <span className="git-btn-label">Git</span>
+              {hasChanges && <span className="git-changes-badge">{changesCount}</span>}
+            </button>
+          </div>
+        </header>
+
+        <div className="workspace-content">
+          {/* Chat panel */}
+          <div className="workspace-chat">
+            {/* Messages */}
+            <div className="workspace-messages">
+              {messages.length === 0 && (
+                <div className="workspace-empty">
+                  <div className="workspace-empty-icon">
+                    <GitBranchIcon />
+                  </div>
+                  <h2>Ready to code</h2>
+                  <p>Ask Claude to read, edit, or create files in this repository.</p>
+                  {activeSession && (
+                    <p style={{ fontSize: '0.875rem', color: '#8b949e', marginTop: '0.5rem' }}>
+                      Working on branch: <code style={{ color: '#58a6ff' }}>{activeSession.branchName}</code>
+                    </p>
+                  )}
+                </div>
+              )}
+              {messages.map((msg, i) => (
+                <div
+                  key={i}
+                  className={`workspace-message ${msg.role}`}
+                >
+                  <div className="workspace-message-header">
+                    {msg.role === 'user' ? 'You' : 'Claude'}
+                  </div>
+                  <div className="workspace-message-content">
+                    {renderContent(msg.content, i)}
+                  </div>
+                </div>
+              ))}
+              {loading && messages[messages.length - 1]?.content.length === 0 && (
+                <div className="workspace-thinking">
+                  <div className="thinking-dots">
+                    <span></span><span></span><span></span>
+                  </div>
+                  Claude is thinking...
+                </div>
+              )}
+              <div ref={messagesEndRef} />
+            </div>
+
+            {/* Input */}
+            <form onSubmit={handleSubmit} className="workspace-input-form">
+              <div className="workspace-input-wrapper">
+                <input
+                  type="text"
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  placeholder={activeSession ? "Ask Claude to edit code..." : "Select or create a session to start..."}
+                  className="workspace-input"
+                  disabled={loading || !activeSessionId}
+                />
+                <button
+                  type="submit"
+                  disabled={loading || !input.trim() || !activeSessionId}
+                  className="workspace-send-btn"
+                >
+                  <SendIcon />
+                </button>
+              </div>
+            </form>
           </div>
 
-          {/* Input */}
-          <form onSubmit={handleSubmit} className="workspace-input-form">
-            <div className="workspace-input-wrapper">
-              <input
-                type="text"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                placeholder="Ask Claude to edit code..."
-                className="workspace-input"
-                disabled={loading}
-              />
-              <button
-                type="submit"
-                disabled={loading || !input.trim()}
-                className="workspace-send-btn"
-              >
-                <SendIcon />
-              </button>
+          {/* Desktop Git panel */}
+          {showGitPanel && !isMobile && (
+            <div className="workspace-git-panel">
+              <div className="git-panel-header">
+                <h2>Git Status</h2>
+                <button onClick={() => setShowGitPanel(false)} className="git-panel-close">
+                  <CloseIcon />
+                </button>
+              </div>
+
+              {gitStatus && (
+                <div className="git-panel-content">
+                  {gitStatus.modified.length > 0 && (
+                    <div className="git-section">
+                      <h3 className="git-section-title modified">Modified</h3>
+                      <div className="git-files">
+                        {gitStatus.modified.map((file) => (
+                          <div key={file} className="git-file">{file}</div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {gitStatus.added.length > 0 && (
+                    <div className="git-section">
+                      <h3 className="git-section-title added">Added</h3>
+                      <div className="git-files">
+                        {gitStatus.added.map((file) => (
+                          <div key={file} className="git-file">{file}</div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {gitStatus.untracked.length > 0 && (
+                    <div className="git-section">
+                      <h3 className="git-section-title untracked">Untracked</h3>
+                      <div className="git-files">
+                        {gitStatus.untracked.map((file) => (
+                          <div key={file} className="git-file">{file}</div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {gitStatus.deleted.length > 0 && (
+                    <div className="git-section">
+                      <h3 className="git-section-title deleted">Deleted</h3>
+                      <div className="git-files">
+                        {gitStatus.deleted.map((file) => (
+                          <div key={file} className="git-file">{file}</div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {!hasChanges && (
+                    <div className="git-no-changes">No changes</div>
+                  )}
+
+                  {hasChanges && (
+                    <div className="git-actions">
+                      <input
+                        type="text"
+                        value={commitMessage}
+                        onChange={(e) => setCommitMessage(e.target.value)}
+                        placeholder="Commit message..."
+                        className="git-commit-input"
+                      />
+                      <button
+                        onClick={handleCommit}
+                        disabled={!commitMessage.trim() || committing}
+                        className="git-commit-btn"
+                      >
+                        {committing ? 'Committing...' : 'Commit All'}
+                      </button>
+                      <button
+                        onClick={handlePush}
+                        className="git-push-btn"
+                      >
+                        Push to GitHub
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
-          </form>
+          )}
         </div>
 
-        {/* Desktop Git panel */}
-        {showGitPanel && !isMobile && (
-          <div className="workspace-git-panel">
-            <div className="git-panel-header">
-              <h2>Git Status</h2>
-              <button onClick={() => setShowGitPanel(false)} className="git-panel-close">
-                <CloseIcon />
-              </button>
-            </div>
+        {/* Mobile Git Bottom Sheet */}
+        {showGitPanel && isMobile && (
+          <div className="mobile-sheet-overlay" onClick={() => setShowGitPanel(false)}>
+            <div className="mobile-sheet git-sheet" onClick={(e) => e.stopPropagation()}>
+              <div className="mobile-sheet-handle" />
 
-            {gitStatus && (
-              <div className="git-panel-content">
-                {gitStatus.modified.length > 0 && (
-                  <div className="git-section">
-                    <h3 className="git-section-title modified">Modified</h3>
-                    <div className="git-files">
+              <div className="mobile-sheet-header">
+                <h3>Git Status</h3>
+                <button className="mobile-sheet-close" onClick={() => setShowGitPanel(false)}>
+                  <CloseIcon />
+                </button>
+              </div>
+
+              {gitStatus && (
+                <div className="mobile-sheet-list git-mobile-content">
+                  {gitStatus.modified.length > 0 && (
+                    <div className="git-mobile-section">
+                      <h4 className="git-mobile-title modified">Modified ({gitStatus.modified.length})</h4>
                       {gitStatus.modified.map((file) => (
-                        <div key={file} className="git-file">{file}</div>
+                        <div key={file} className="git-mobile-file">{file}</div>
                       ))}
                     </div>
-                  </div>
-                )}
+                  )}
 
-                {gitStatus.added.length > 0 && (
-                  <div className="git-section">
-                    <h3 className="git-section-title added">Added</h3>
-                    <div className="git-files">
+                  {gitStatus.added.length > 0 && (
+                    <div className="git-mobile-section">
+                      <h4 className="git-mobile-title added">Added ({gitStatus.added.length})</h4>
                       {gitStatus.added.map((file) => (
-                        <div key={file} className="git-file">{file}</div>
+                        <div key={file} className="git-mobile-file">{file}</div>
                       ))}
                     </div>
-                  </div>
-                )}
+                  )}
 
-                {gitStatus.untracked.length > 0 && (
-                  <div className="git-section">
-                    <h3 className="git-section-title untracked">Untracked</h3>
-                    <div className="git-files">
+                  {gitStatus.untracked.length > 0 && (
+                    <div className="git-mobile-section">
+                      <h4 className="git-mobile-title untracked">Untracked ({gitStatus.untracked.length})</h4>
                       {gitStatus.untracked.map((file) => (
-                        <div key={file} className="git-file">{file}</div>
+                        <div key={file} className="git-mobile-file">{file}</div>
                       ))}
                     </div>
-                  </div>
-                )}
+                  )}
 
-                {gitStatus.deleted.length > 0 && (
-                  <div className="git-section">
-                    <h3 className="git-section-title deleted">Deleted</h3>
-                    <div className="git-files">
+                  {gitStatus.deleted.length > 0 && (
+                    <div className="git-mobile-section">
+                      <h4 className="git-mobile-title deleted">Deleted ({gitStatus.deleted.length})</h4>
                       {gitStatus.deleted.map((file) => (
-                        <div key={file} className="git-file">{file}</div>
+                        <div key={file} className="git-mobile-file">{file}</div>
                       ))}
                     </div>
-                  </div>
-                )}
+                  )}
 
-                {!hasChanges && (
-                  <div className="git-no-changes">No changes</div>
-                )}
+                  {!hasChanges && (
+                    <div className="git-mobile-empty">No changes detected</div>
+                  )}
+                </div>
+              )}
 
-                {hasChanges && (
-                  <div className="git-actions">
-                    <input
-                      type="text"
-                      value={commitMessage}
-                      onChange={(e) => setCommitMessage(e.target.value)}
-                      placeholder="Commit message..."
-                      className="git-commit-input"
-                    />
+              {hasChanges && (
+                <div className="git-mobile-actions">
+                  <input
+                    type="text"
+                    value={commitMessage}
+                    onChange={(e) => setCommitMessage(e.target.value)}
+                    placeholder="Commit message..."
+                    className="git-mobile-input"
+                  />
+                  <div className="git-mobile-buttons">
                     <button
                       onClick={handleCommit}
                       disabled={!commitMessage.trim() || committing}
-                      className="git-commit-btn"
+                      className="git-mobile-commit"
                     >
-                      {committing ? 'Committing...' : 'Commit All'}
+                      {committing ? 'Committing...' : 'Commit'}
                     </button>
                     <button
                       onClick={handlePush}
-                      className="git-push-btn"
+                      className="git-mobile-push"
                     >
-                      Push to GitHub
+                      Push
                     </button>
                   </div>
-                )}
-              </div>
-            )}
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>
-
-      {/* Mobile Git Bottom Sheet */}
-      {showGitPanel && isMobile && (
-        <div className="mobile-sheet-overlay" onClick={() => setShowGitPanel(false)}>
-          <div className="mobile-sheet git-sheet" onClick={(e) => e.stopPropagation()}>
-            <div className="mobile-sheet-handle" />
-
-            <div className="mobile-sheet-header">
-              <h3>Git Status</h3>
-              <button className="mobile-sheet-close" onClick={() => setShowGitPanel(false)}>
-                <CloseIcon />
-              </button>
-            </div>
-
-            {gitStatus && (
-              <div className="mobile-sheet-list git-mobile-content">
-                {gitStatus.modified.length > 0 && (
-                  <div className="git-mobile-section">
-                    <h4 className="git-mobile-title modified">Modified ({gitStatus.modified.length})</h4>
-                    {gitStatus.modified.map((file) => (
-                      <div key={file} className="git-mobile-file">{file}</div>
-                    ))}
-                  </div>
-                )}
-
-                {gitStatus.added.length > 0 && (
-                  <div className="git-mobile-section">
-                    <h4 className="git-mobile-title added">Added ({gitStatus.added.length})</h4>
-                    {gitStatus.added.map((file) => (
-                      <div key={file} className="git-mobile-file">{file}</div>
-                    ))}
-                  </div>
-                )}
-
-                {gitStatus.untracked.length > 0 && (
-                  <div className="git-mobile-section">
-                    <h4 className="git-mobile-title untracked">Untracked ({gitStatus.untracked.length})</h4>
-                    {gitStatus.untracked.map((file) => (
-                      <div key={file} className="git-mobile-file">{file}</div>
-                    ))}
-                  </div>
-                )}
-
-                {gitStatus.deleted.length > 0 && (
-                  <div className="git-mobile-section">
-                    <h4 className="git-mobile-title deleted">Deleted ({gitStatus.deleted.length})</h4>
-                    {gitStatus.deleted.map((file) => (
-                      <div key={file} className="git-mobile-file">{file}</div>
-                    ))}
-                  </div>
-                )}
-
-                {!hasChanges && (
-                  <div className="git-mobile-empty">No changes detected</div>
-                )}
-              </div>
-            )}
-
-            {hasChanges && (
-              <div className="git-mobile-actions">
-                <input
-                  type="text"
-                  value={commitMessage}
-                  onChange={(e) => setCommitMessage(e.target.value)}
-                  placeholder="Commit message..."
-                  className="git-mobile-input"
-                />
-                <div className="git-mobile-buttons">
-                  <button
-                    onClick={handleCommit}
-                    disabled={!commitMessage.trim() || committing}
-                    className="git-mobile-commit"
-                  >
-                    {committing ? 'Committing...' : 'Commit'}
-                  </button>
-                  <button
-                    onClick={handlePush}
-                    className="git-mobile-push"
-                  >
-                    Push
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
