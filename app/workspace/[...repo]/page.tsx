@@ -338,6 +338,23 @@ export default function WorkspacePage() {
     }
   }, [repoFullName]);
 
+  // Create a local session (when backend is unavailable)
+  function createLocalSession(): WorkspaceSession {
+    const sessionId = generateSessionId();
+    const sessionName = generateSessionName(sessions.length);
+    return {
+      sessionId,
+      name: sessionName,
+      branchName: `local/${sessionId.slice(0, 8)}`,
+      baseBranch: 'main',
+      baseCommit: 'local',
+      createdAt: new Date().toISOString(),
+      lastAccessedAt: new Date().toISOString(),
+      messageCount: 0,
+      isValid: true,
+    };
+  }
+
   async function loadSessions() {
     setSessionsLoading(true);
     setSessionsError(null);
@@ -347,10 +364,13 @@ export default function WorkspacePage() {
       const data = await response.json();
 
       if (!response.ok) {
-        // Backend is unavailable - work in local mode
-        console.warn('Sessions API unavailable, working in local mode');
-        setSessionsError(data.details || data.error || 'Backend unavailable');
-        setSessions([]);
+        // Backend is unavailable - create a local session
+        console.warn('Sessions API unavailable, creating local session');
+        const localSession = createLocalSession();
+        setSessions([localSession]);
+        setActiveSessionId(localSession.sessionId);
+        setMessages([]);
+        sessionMessages.current.set(localSession.sessionId, []);
         return;
       }
 
@@ -362,14 +382,23 @@ export default function WorkspacePage() {
           const firstSession = data.sessions[0];
           setActiveSessionId(firstSession.sessionId);
           loadSessionMessages(firstSession.sessionId);
+        } else if (data.sessions.length === 0) {
+          // No sessions - create one
+          const localSession = createLocalSession();
+          setSessions([localSession]);
+          setActiveSessionId(localSession.sessionId);
+          setMessages([]);
+          sessionMessages.current.set(localSession.sessionId, []);
         }
-        // Don't auto-create session if there are none - let user do it manually
       }
     } catch (err: any) {
-      console.warn('Failed to load sessions, working in local mode:', err.message);
-      setSessionsError(err.message || 'Failed to connect to backend');
-      setSessions([]);
-      // Don't try to create a session - just work locally
+      console.warn('Failed to load sessions, creating local session:', err.message);
+      // Create a local session so user can start working
+      const localSession = createLocalSession();
+      setSessions([localSession]);
+      setActiveSessionId(localSession.sessionId);
+      setMessages([]);
+      sessionMessages.current.set(localSession.sessionId, []);
     } finally {
       setSessionsLoading(false);
     }
@@ -405,14 +434,28 @@ export default function WorkspacePage() {
   }
 
   const createNewSession = useCallback(async () => {
-    // If we already know the backend is down, don't try
-    if (sessionsError) {
-      console.warn('Backend unavailable, cannot create session');
-      return;
-    }
-
     const sessionId = generateSessionId();
     const sessionName = generateSessionName(sessions.length);
+
+    // If backend is unavailable, create local session
+    if (sessionsError) {
+      const localSession: WorkspaceSession = {
+        sessionId,
+        name: sessionName,
+        branchName: `local/${sessionId.slice(0, 8)}`,
+        baseBranch: 'main',
+        baseCommit: 'local',
+        createdAt: new Date().toISOString(),
+        lastAccessedAt: new Date().toISOString(),
+        messageCount: 0,
+        isValid: true,
+      };
+      setSessions(prev => [...prev, localSession]);
+      setActiveSessionId(localSession.sessionId);
+      setMessages([]);
+      sessionMessages.current.set(localSession.sessionId, []);
+      return;
+    }
 
     try {
       const response = await fetch('/api/workspace/session/create', {
