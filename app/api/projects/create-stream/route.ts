@@ -4,8 +4,9 @@ export const runtime = 'nodejs';
 export const maxDuration = 300; // 5 minutes
 
 const AI_CODING_CONFIG_REPO = 'TechNickAI/ai-coding-config';
-const SKIP_PREFIXES = ['.git', '.github', 'docs/', 'scripts/'];
-const SKIP_FILES = ['LICENSE', 'README.md', 'implementation-plan.md'];
+// Only skip .git (internal git files) - everything else comes through
+const SKIP_PREFIXES = ['.git/'];
+const SKIP_FILES = ['LICENSE', 'implementation-plan.md'];
 
 // Helper to send SSE messages
 function sendEvent(controller: ReadableStreamDefaultController, event: string, data: unknown) {
