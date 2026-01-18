@@ -45,3 +45,6 @@
 
 /* Confirmation modal */
 @import './styles/confirmation-modal.css';
+
+/* SQL Editor panel */
+@import './styles/sql-editor.css';

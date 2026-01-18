@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import TableTree from './components/TableTree';
 import TableBrowser from './components/TableBrowser';
-import SQLEditor from './components/SQLEditor';
+import SQLEditorPanel from './components/SQLEditorPanel';
 import RowEditor from './components/RowEditor';
 import ConfirmationModal from '@/app/components/ConfirmationModal';
 import '../integrations.css';
@@ -112,7 +112,7 @@ export default function SupabasePage() {
   const [tablesLoading, setTablesLoading] = useState(false);
   const [dataLoading, setDataLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [showSQLEditor, setShowSQLEditor] = useState(false);
+  const [activeView, setActiveView] = useState<'tables' | 'sql'>('tables');
   const [showRowEditor, setShowRowEditor] = useState(false);
   const [editingRow, setEditingRow] = useState<Record<string, any> | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -414,16 +414,27 @@ export default function SupabasePage() {
 
           {user && (
             <div className="supabase-header-right">
-              <button
-                onClick={() => setShowSQLEditor(true)}
-                className="supabase-action-btn"
-                title="SQL Editor"
-              >
-                <SQLIcon />
-              </button>
-              <button onClick={handleRefresh} className="supabase-action-btn" title="Refresh">
-                <RefreshIcon />
-              </button>
+              <div className="supabase-view-tabs">
+                <button
+                  className={`supabase-view-tab ${activeView === 'tables' ? 'active' : ''}`}
+                  onClick={() => setActiveView('tables')}
+                >
+                  Table Editor
+                </button>
+                <button
+                  className={`supabase-view-tab ${activeView === 'sql' ? 'active' : ''}`}
+                  onClick={() => setActiveView('sql')}
+                >
+                  <SQLIcon />
+                  SQL Editor
+                </button>
+              </div>
+              <div className="supabase-header-divider" />
+              {activeView === 'tables' && (
+                <button onClick={handleRefresh} className="supabase-action-btn" title="Refresh">
+                  <RefreshIcon />
+                </button>
+              )}
               <Link href="/" className="supabase-nav-btn">
                 <HomeIcon />
               </Link>
@@ -440,72 +451,75 @@ export default function SupabasePage() {
 
       {/* Main content */}
       <main className="supabase-main">
-        <div className="supabase-content">
-          {/* Tables sidebar */}
-          <aside className="supabase-sidebar">
-            <div className="supabase-sidebar-header">
-              <span className="supabase-sidebar-title">Tables</span>
-              <span className="supabase-sidebar-count">{tables.length}</span>
-            </div>
-            {projects.length > 0 && (
-              <div className="supabase-project-select-wrapper">
-                <div className="supabase-project-select">
-                  <select
-                    value={selectedProject?.id || ''}
-                    onChange={(e) => {
-                      const project = projects.find(p => p.id === e.target.value);
-                      if (project) handleSelectProject(project);
-                    }}
-                  >
-                    {projects.map(project => (
-                      <option key={project.id} value={project.id}>
-                        {project.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <button
-                  className="supabase-project-delete-btn"
-                  onClick={() => setShowDeleteModal(true)}
-                  title="Delete database"
-                >
-                  <TrashIcon />
-                </button>
+        {activeView === 'tables' ? (
+          <div className="supabase-content">
+            {/* Tables sidebar */}
+            <aside className="supabase-sidebar">
+              <div className="supabase-sidebar-header">
+                <span className="supabase-sidebar-title">Tables</span>
+                <span className="supabase-sidebar-count">{tables.length}</span>
               </div>
-            )}
-            <TableTree
-              tables={tables}
-              selectedTable={selectedTable}
-              loading={tablesLoading}
-              onSelectTable={handleSelectTable}
-            />
-          </aside>
+              {projects.length > 0 && (
+                <div className="supabase-project-select-wrapper">
+                  <div className="supabase-project-select">
+                    <select
+                      value={selectedProject?.id || ''}
+                      onChange={(e) => {
+                        const project = projects.find(p => p.id === e.target.value);
+                        if (project) handleSelectProject(project);
+                      }}
+                    >
+                      {projects.map(project => (
+                        <option key={project.id} value={project.id}>
+                          {project.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <button
+                    className="supabase-project-delete-btn"
+                    onClick={() => setShowDeleteModal(true)}
+                    title="Delete database"
+                  >
+                    <TrashIcon />
+                  </button>
+                </div>
+              )}
+              <TableTree
+                tables={tables}
+                selectedTable={selectedTable}
+                loading={tablesLoading}
+                onSelectTable={handleSelectTable}
+              />
+            </aside>
 
-          {/* Main panel */}
-          <div className="supabase-main-panel">
-            <TableBrowser
-              tableData={tableData}
-              loading={dataLoading}
-              selectedTable={selectedTable}
-              onEditRow={handleEditRow}
-              onDeleteRow={handleDeleteRow}
-              onAddRow={() => {
-                setEditingRow(null);
-                setShowRowEditor(true);
-              }}
-              onPageChange={(offset) => loadTableData(selectedTable?.name || '', offset)}
-            />
+            {/* Main panel */}
+            <div className="supabase-main-panel">
+              <TableBrowser
+                tableData={tableData}
+                loading={dataLoading}
+                selectedTable={selectedTable}
+                onEditRow={handleEditRow}
+                onDeleteRow={handleDeleteRow}
+                onAddRow={() => {
+                  setEditingRow(null);
+                  setShowRowEditor(true);
+                }}
+                onPageChange={(offset) => loadTableData(selectedTable?.name || '', offset)}
+              />
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="supabase-sql-view">
+            {selectedProject && (
+              <SQLEditorPanel
+                projectRef={selectedProject.ref}
+                tables={tables}
+              />
+            )}
+          </div>
+        )}
       </main>
-
-      {/* SQL Editor Modal */}
-      {showSQLEditor && selectedProject && (
-        <SQLEditor
-          projectRef={selectedProject.ref}
-          onClose={() => setShowSQLEditor(false)}
-        />
-      )}
 
       {/* Row Editor Modal */}
       {showRowEditor && tableData && (
