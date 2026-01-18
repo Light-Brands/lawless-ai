@@ -5,6 +5,7 @@
   "description": "Lawless AI Chat - A chat interface powered by Claude through CLI",
   "scripts": {
     "dev": "next dev",
+    "prebuild": "node scripts/generate-version.js",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"
