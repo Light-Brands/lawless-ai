@@ -48,3 +48,9 @@
 
 /* SQL Editor panel */
 @import './styles/sql-editor.css';
+
+/* Deployments page */
+@import './styles/deployments.css';
+
+/* Databases page */
+@import './styles/databases.css';

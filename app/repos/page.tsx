@@ -240,13 +240,13 @@ export default function ReposPage() {
                 <HomeIcon />
                 <span>Chat</span>
               </Link>
-              <Link href="/integrations/vercel" className="repos-nav-btn">
+              <Link href="/deployments" className="repos-nav-btn">
                 <VercelIcon />
                 <span>Deployments</span>
               </Link>
-              <Link href="/integrations/supabase" className="repos-nav-btn">
+              <Link href="/databases" className="repos-nav-btn">
                 <DatabaseIcon />
-                <span>Database</span>
+                <span>Databases</span>
               </Link>
               <Link href="/integrations" className="repos-nav-btn">
                 <IntegrationsIcon />
