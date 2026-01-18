@@ -239,6 +239,39 @@
   color: var(--color-text-tertiary);
 }
 
+.repos-search-right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.repos-new-project-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  background: var(--gradient-primary);
+  border: none;
+  border-radius: var(--radius-lg);
+  color: white;
+  font-size: 0.9rem;
+  font-weight: var(--font-weight-medium);
+  text-decoration: none;
+  cursor: pointer;
+  transition: opacity var(--transition-fast), transform var(--transition-fast);
+  white-space: nowrap;
+}
+
+.repos-new-project-btn:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.repos-new-project-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
 /* Error */
 .repos-error {
   display: flex;
