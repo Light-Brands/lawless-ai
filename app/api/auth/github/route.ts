@@ -3,8 +3,6 @@ import { createClient } from '@/lib/supabase/server';
 
 export const runtime = 'nodejs';
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://lawless-ai.vercel.app';
-
 // Check if Supabase is configured
 const USE_SUPABASE_AUTH = !!(
   process.env.NEXT_PUBLIC_SUPABASE_URL &&
@@ -13,9 +11,25 @@ const USE_SUPABASE_AUTH = !!(
 
 // Legacy GitHub OAuth config (fallback)
 const GITHUB_CLIENT_ID = process.env.GITHUB_CLIENT_ID;
-const REDIRECT_URI = `${APP_URL}/api/auth/github/callback`;
+
+function getAppUrl(request: NextRequest): string {
+  // Use VERCEL_URL in production, or detect from request
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`;
+  }
+  // For custom domains, use the request host
+  const host = request.headers.get('host');
+  const protocol = request.headers.get('x-forwarded-proto') || 'https';
+  if (host && !host.includes('localhost')) {
+    return `${protocol}://${host}`;
+  }
+  // Fallback for local development
+  return process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+}
 
 export async function GET(request: NextRequest) {
+  const APP_URL = getAppUrl(request);
+
   // If Supabase is configured, use Supabase Auth
   if (USE_SUPABASE_AUTH) {
     const supabase = await createClient();
@@ -47,10 +61,11 @@ export async function GET(request: NextRequest) {
 
   // Request repo scope for read/write access, delete_repo for deletion
   const scope = 'repo delete_repo user:email';
+  const redirectUri = `${APP_URL}/api/auth/github/callback`;
 
   const githubAuthUrl = new URL('https://github.com/login/oauth/authorize');
   githubAuthUrl.searchParams.set('client_id', GITHUB_CLIENT_ID);
-  githubAuthUrl.searchParams.set('redirect_uri', REDIRECT_URI);
+  githubAuthUrl.searchParams.set('redirect_uri', redirectUri);
   githubAuthUrl.searchParams.set('scope', scope);
   githubAuthUrl.searchParams.set('state', crypto.randomUUID());
 

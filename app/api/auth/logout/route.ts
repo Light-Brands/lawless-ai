@@ -3,13 +3,23 @@ import { createClient } from '@/lib/supabase/server';
 
 export const runtime = 'nodejs';
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://lawless-ai.vercel.app';
-
 // Check if Supabase is configured
 const USE_SUPABASE_AUTH = !!(
   process.env.NEXT_PUBLIC_SUPABASE_URL &&
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 );
+
+function getAppUrl(request: NextRequest): string {
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`;
+  }
+  const host = request.headers.get('host');
+  const protocol = request.headers.get('x-forwarded-proto') || 'https';
+  if (host && !host.includes('localhost')) {
+    return `${protocol}://${host}`;
+  }
+  return process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+}
 
 export async function POST(request: NextRequest) {
   const response = NextResponse.json({ success: true });
@@ -32,6 +42,8 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
+  const APP_URL = getAppUrl(request);
+
   // Sign out from Supabase if configured
   if (USE_SUPABASE_AUTH) {
     try {

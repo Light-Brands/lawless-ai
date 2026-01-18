@@ -4,13 +4,27 @@ import { encryptToken } from '@/lib/encryption';
 
 export const runtime = 'nodejs';
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://lawless-ai.vercel.app';
+function getAppUrl(request: NextRequest): string {
+  // Use VERCEL_URL in production, or detect from request
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`;
+  }
+  // For custom domains, use the request host
+  const host = request.headers.get('host');
+  const protocol = request.headers.get('x-forwarded-proto') || 'https';
+  if (host && !host.includes('localhost')) {
+    return `${protocol}://${host}`;
+  }
+  // Fallback for local development
+  return process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+}
 
 /**
  * Supabase Auth callback handler
  * This endpoint handles the OAuth callback from Supabase Auth (GitHub OAuth)
  */
 export async function GET(request: NextRequest) {
+  const APP_URL = getAppUrl(request);
   const { searchParams } = new URL(request.url);
   const code = searchParams.get('code');
   const error = searchParams.get('error');
