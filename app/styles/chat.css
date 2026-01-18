@@ -98,6 +98,56 @@
   transform: translateY(0);
 }
 
+.new-chat-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: transparent;
+  border: 1px solid var(--color-surface-glass-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text-secondary);
+  font-size: 0.8125rem;
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.new-chat-btn:hover {
+  background: var(--color-surface-glass-hover);
+  border-color: var(--color-primary-500);
+  color: var(--color-primary-400);
+}
+
+.new-chat-btn:active {
+  transform: scale(0.98);
+}
+
+.new-chat-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Hide text on small screens, show icon only */
+@media (max-width: 480px) {
+  .new-chat-btn span {
+    display: none;
+  }
+
+  .new-chat-btn {
+    padding: var(--space-2);
+    width: 40px;
+    height: 40px;
+    justify-content: center;
+  }
+
+  .new-chat-btn svg {
+    width: 20px;
+    height: 20px;
+  }
+}
+
 /* ============================================================================
    Messages Container
    ============================================================================ */

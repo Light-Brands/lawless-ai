@@ -144,21 +144,23 @@
     font-size: clamp(0.9375rem, 3.5vw, 1rem);
   }
 
+  /* Hide feature cards on mobile - takes too much space */
   .feature-cards {
-    grid-template-columns: 1fr;
-    gap: var(--space-3);
-    margin-bottom: var(--space-8);
+    display: none;
   }
 
-  .feature-card {
-    padding: var(--space-4);
+  /* Hide the AI badge on mobile */
+  .welcome-badge {
+    display: none;
   }
 
-  .feature-card-icon {
-    width: 40px;
-    height: 40px;
-    font-size: 18px;
-    margin-bottom: var(--space-3);
+  /* Simplify welcome message on mobile */
+  .welcome-message > p {
+    display: none;
+  }
+
+  .suggestions-label {
+    margin-top: var(--space-4);
   }
 
   .welcome-suggestions {
