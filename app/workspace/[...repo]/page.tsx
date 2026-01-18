@@ -1046,13 +1046,13 @@ export default function WorkspacePage() {
                   type="text"
                   value={input}
                   onChange={handleInputChange}
-                  placeholder={activeSession ? "Ask Claude to edit code... (type / for commands)" : "Select or create a session to start..."}
+                  placeholder="Ask Claude to edit code... (type / for commands)"
                   className="workspace-input"
-                  disabled={loading || !activeSessionId}
+                  disabled={loading}
                 />
                 <button
                   type="submit"
-                  disabled={loading || !input.trim() || !activeSessionId}
+                  disabled={loading || !input.trim()}
                   className="workspace-send-btn"
                 >
                   <SendIcon />
