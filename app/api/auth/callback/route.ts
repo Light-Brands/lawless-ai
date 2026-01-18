@@ -1,8 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient, createServiceClient } from '@/lib/supabase/server';
+import { createServerClient, type CookieOptions } from '@supabase/ssr';
+import { createServiceClient } from '@/lib/supabase/server';
 import { encryptToken } from '@/lib/encryption';
+import type { Database } from '@/types/database';
 
 export const runtime = 'nodejs';
+
+interface CookieToSet {
+  name: string;
+  value: string;
+  options?: CookieOptions;
+}
 
 function getAppUrl(request: NextRequest): string {
   // Use VERCEL_URL in production, or detect from request
@@ -33,27 +41,47 @@ export async function GET(request: NextRequest) {
 
   if (error) {
     console.error('Supabase OAuth error:', error, errorDescription);
-    return NextResponse.redirect(`${APP_URL}?error=${error}`);
+    return NextResponse.redirect(`${APP_URL}/login?error=${error}`);
   }
 
   if (!code) {
-    return NextResponse.redirect(`${APP_URL}?error=no_code`);
+    return NextResponse.redirect(`${APP_URL}/login?error=no_code`);
   }
 
-  const supabase = await createClient();
+  // Create a response that we'll add cookies to
+  const redirectUrl = `${APP_URL}${next}`;
+  let response = NextResponse.redirect(redirectUrl);
 
-  // Exchange code for session
+  // Create Supabase client that sets cookies on our response
+  const supabase = createServerClient<Database>(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll();
+        },
+        setAll(cookiesToSet: CookieToSet[]) {
+          cookiesToSet.forEach(({ name, value, options }) => {
+            response.cookies.set(name, value, options);
+          });
+        },
+      },
+    }
+  );
+
+  // Exchange code for session - cookies will be set on the response
   const { data: sessionData, error: sessionError } = await supabase.auth.exchangeCodeForSession(code);
 
   if (sessionError) {
     console.error('Session exchange error:', sessionError);
-    return NextResponse.redirect(`${APP_URL}?error=auth_failed`);
+    return NextResponse.redirect(`${APP_URL}/login?error=auth_failed`);
   }
 
   const { session, user } = sessionData;
 
   if (!session || !user) {
-    return NextResponse.redirect(`${APP_URL}?error=no_session`);
+    return NextResponse.redirect(`${APP_URL}/login?error=no_session`);
   }
 
   // Get GitHub identity and access token from the session
@@ -119,9 +147,6 @@ export async function GET(request: NextRequest) {
     console.log('Provider token exists:', !!providerToken);
     console.log('Encryption key exists:', !!process.env.ENCRYPTION_KEY);
   }
-
-  // Create response with redirect
-  const response = NextResponse.redirect(`${APP_URL}${next}`);
 
   // Also set legacy cookie for backward compatibility with existing code
   // that reads github_user cookie for UI display
