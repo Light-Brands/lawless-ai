@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import Link from 'next/link';
 
 interface VercelCardProps {
@@ -39,24 +38,8 @@ const DisconnectIcon = () => (
 );
 
 export default function VercelCard({ connected, user, onDisconnect, onRefresh }: VercelCardProps) {
-  const [connecting, setConnecting] = useState(false);
-
-  const VERCEL_CLIENT_ID = process.env.NEXT_PUBLIC_VERCEL_CLIENT_ID;
-  const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://lawless-ai.vercel.app';
-
-  // Vercel OAuth URL with required scopes
-  const authUrl = VERCEL_CLIENT_ID
-    ? `https://vercel.com/integrations/${VERCEL_CLIENT_ID}/new`
-    : null;
-
-  async function handleConnect() {
-    if (!authUrl) {
-      alert('Vercel integration is not configured. Please add VERCEL_CLIENT_ID to environment variables.');
-      return;
-    }
-    setConnecting(true);
-    window.location.href = authUrl;
-  }
+  // OAuth is handled server-side via /api/auth/vercel
+  const authUrl = '/api/auth/vercel';
 
   return (
     <div className={`integration-card ${connected ? 'connected' : ''}`}>
@@ -112,14 +95,10 @@ export default function VercelCard({ connected, user, onDisconnect, onRefresh }:
             </button>
           </>
         ) : (
-          <button
-            onClick={handleConnect}
-            className="integration-btn connect vercel"
-            disabled={connecting || !VERCEL_CLIENT_ID}
-          >
+          <a href={authUrl} className="integration-btn connect vercel">
             <VercelIcon />
-            <span>{connecting ? 'Connecting...' : 'Connect Vercel'}</span>
-          </button>
+            <span>Connect Vercel</span>
+          </a>
         )}
       </div>
     </div>
