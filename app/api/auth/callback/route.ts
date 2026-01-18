@@ -97,7 +97,7 @@ export async function GET(request: NextRequest) {
           access_token: encryptedToken,
           metadata: {
             username: user.user_metadata?.user_name,
-            scopes: 'repo delete_repo user:email',
+            scopes: 'repo delete_repo user:email read:org',
           },
           updated_at: new Date().toISOString(),
         } as never,

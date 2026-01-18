@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
       provider: 'github',
       options: {
         redirectTo: `${APP_URL}/api/auth/callback`,
-        scopes: 'repo delete_repo user:email',
+        scopes: 'repo delete_repo user:email read:org',
       },
     });
 
@@ -59,8 +59,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'GitHub OAuth not configured' }, { status: 500 });
   }
 
-  // Request repo scope for read/write access, delete_repo for deletion
-  const scope = 'repo delete_repo user:email';
+  // Request repo scope for read/write access, delete_repo for deletion, read:org for org repos
+  const scope = 'repo delete_repo user:email read:org';
   const redirectUri = `${APP_URL}/api/auth/github/callback`;
 
   const githubAuthUrl = new URL('https://github.com/login/oauth/authorize');
