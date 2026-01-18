@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import ProjectTree from './components/ProjectTree';
@@ -95,7 +95,7 @@ const RefreshIcon = () => (
   </svg>
 );
 
-export default function VercelPage() {
+function VercelPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [user, setUser] = useState<User | null>(null);
@@ -437,5 +437,13 @@ export default function VercelPage() {
         isLoading={isDeleting}
       />
     </div>
+  );
+}
+
+export default function VercelPage() {
+  return (
+    <Suspense fallback={<div className="integration-page"><div className="loading">Loading...</div></div>}>
+      <VercelPageContent />
+    </Suspense>
   );
 }

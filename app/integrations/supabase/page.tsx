@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import TableTree from './components/TableTree';
@@ -101,7 +101,7 @@ const TrashIcon = () => (
   </svg>
 );
 
-export default function SupabasePage() {
+function SupabasePageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [user, setUser] = useState<User | null>(null);
@@ -614,5 +614,13 @@ export default function SupabasePage() {
         />
       )}
     </div>
+  );
+}
+
+export default function SupabasePage() {
+  return (
+    <Suspense fallback={<div className="integration-page"><div className="loading">Loading...</div></div>}>
+      <SupabasePageContent />
+    </Suspense>
   );
 }
