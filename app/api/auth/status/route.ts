@@ -1,9 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@/lib/supabase/server';
+import { decryptToken, isEncrypted } from '@/lib/encryption';
 
 export const runtime = 'nodejs';
 
+// Check if Supabase is configured
+const USE_SUPABASE_AUTH = !!(
+  process.env.NEXT_PUBLIC_SUPABASE_URL &&
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+);
+
 export async function GET(request: NextRequest) {
-  const githubToken = request.cookies.get('github_token')?.value;
+  // Legacy cookie-based tokens
+  const legacyGithubToken = request.cookies.get('github_token')?.value;
   const vercelToken = request.cookies.get('vercel_token')?.value;
   const supabaseToken = request.cookies.get('supabase_token')?.value;
   const supabaseProjects = request.cookies.get('supabase_projects')?.value;
@@ -11,7 +20,9 @@ export async function GET(request: NextRequest) {
 
   const result: {
     authenticated: boolean;
+    authMethod?: 'supabase' | 'legacy';
     user?: {
+      id?: string;
       login: string;
       name: string;
       avatar: string;
@@ -40,7 +51,7 @@ export async function GET(request: NextRequest) {
     supabase: { connected: false },
   };
 
-  // Parse repo integrations
+  // Parse repo integrations from cookie (for backward compatibility)
   if (repoIntegrationsCookie) {
     try {
       result.repoIntegrations = JSON.parse(repoIntegrationsCookie);
@@ -49,12 +60,86 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // Check GitHub auth
-  if (githubToken) {
+  // Try Supabase Auth first if configured
+  if (USE_SUPABASE_AUTH) {
+    try {
+      const supabase = await createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+
+      if (user) {
+        result.authenticated = true;
+        result.authMethod = 'supabase';
+        result.user = {
+          id: user.id,
+          login: user.user_metadata?.user_name || user.user_metadata?.preferred_username || user.email?.split('@')[0] || 'user',
+          name: user.user_metadata?.full_name || user.user_metadata?.name || 'User',
+          avatar: user.user_metadata?.avatar_url || '',
+        };
+
+        // Fetch repo integrations from database
+        type RepoIntegrationRow = { repo_full_name: string; vercel_project_id: string | null; supabase_project_ref: string | null };
+        const { data: repoIntegrations } = await supabase
+          .from('repo_integrations')
+          .select('repo_full_name, vercel_project_id, supabase_project_ref');
+
+        if (repoIntegrations && repoIntegrations.length > 0) {
+          result.repoIntegrations = {};
+          for (const integration of repoIntegrations as RepoIntegrationRow[]) {
+            result.repoIntegrations[integration.repo_full_name] = {};
+            if (integration.vercel_project_id) {
+              result.repoIntegrations[integration.repo_full_name].vercel = {
+                projectId: integration.vercel_project_id,
+                projectName: '', // Would need to fetch from Vercel API
+              };
+            }
+            if (integration.supabase_project_ref) {
+              result.repoIntegrations[integration.repo_full_name].supabase = {
+                projectRef: integration.supabase_project_ref,
+                projectName: '', // Would need to fetch from Supabase API
+              };
+            }
+          }
+        }
+
+        // Check for integration connections
+        type IntegrationRow = { provider: string; metadata: unknown };
+        const { data: integrations } = await supabase
+          .from('integration_connections')
+          .select('provider, metadata');
+
+        if (integrations) {
+          const integrationsTyped = integrations as IntegrationRow[];
+          const vercelIntegration = integrationsTyped.find(i => i.provider === 'vercel');
+          if (vercelIntegration) {
+            result.vercel = {
+              connected: true,
+              user: vercelIntegration.metadata as { name: string; email: string; avatar?: string },
+            };
+          }
+
+          const supabaseIntegration = integrationsTyped.find(i => i.provider === 'supabase_pat');
+          if (supabaseIntegration) {
+            result.supabase = {
+              connected: true,
+              projectCount: (supabaseIntegration.metadata as { projectCount?: number })?.projectCount || 0,
+            };
+          }
+        }
+
+        return NextResponse.json(result);
+      }
+    } catch (error) {
+      console.error('Supabase auth check failed:', error);
+      // Fall through to legacy auth check
+    }
+  }
+
+  // Legacy: Check GitHub token cookie
+  if (legacyGithubToken) {
     try {
       const response = await fetch('https://api.github.com/user', {
         headers: {
-          'Authorization': `Bearer ${githubToken}`,
+          'Authorization': `Bearer ${legacyGithubToken}`,
           'Accept': 'application/vnd.github.v3+json',
         },
       });
@@ -62,6 +147,7 @@ export async function GET(request: NextRequest) {
       if (response.ok) {
         const userData = await response.json();
         result.authenticated = true;
+        result.authMethod = 'legacy';
         result.user = {
           login: userData.login,
           name: userData.name,

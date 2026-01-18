@@ -18,7 +18,6 @@ node_modules/
 
 # Build artifacts
 bin/
-lib/
 dist/
 build/
 .next/
