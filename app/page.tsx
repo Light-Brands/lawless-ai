@@ -186,16 +186,43 @@ export default function Home() {
     checkServerStatus();
     checkGitHubAuth();
 
-    // Register service worker for PWA
+    // Register service worker for PWA with update handling
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker
         .register('/sw.js')
         .then((registration) => {
           console.log('Service Worker registered:', registration.scope);
+
+          // Check for updates every 60 seconds
+          setInterval(() => {
+            registration.update();
+          }, 60000);
+
+          // Listen for new service worker
+          registration.addEventListener('updatefound', () => {
+            const newWorker = registration.installing;
+            if (newWorker) {
+              newWorker.addEventListener('statechange', () => {
+                if (newWorker.state === 'activated') {
+                  // New version activated - reload to get fresh content
+                  console.log('New version activated, reloading...');
+                  window.location.reload();
+                }
+              });
+            }
+          });
         })
         .catch((error) => {
           console.log('Service Worker registration failed:', error);
         });
+
+      // Listen for messages from service worker
+      navigator.serviceWorker.addEventListener('message', (event) => {
+        if (event.data?.type === 'VERSION_UPDATED') {
+          console.log('Version updated to:', event.data.version);
+          window.location.reload();
+        }
+      });
     }
 
     // Detect mobile screen
