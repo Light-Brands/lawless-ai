@@ -66,3 +66,6 @@
 
 /* Tools hub page */
 @import './styles/tools.css';
+
+/* Workers page */
+@import './styles/workers.css';
