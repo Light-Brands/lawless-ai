@@ -4,9 +4,9 @@ export const runtime = 'nodejs';
 
 const AI_CODING_CONFIG_REPO = 'TechNickAI/ai-coding-config';
 
-// Only skip .git (internal git files) - everything else comes through
+// Only skip .git internals - literally everything else comes through
 const SKIP_PREFIXES = ['.git/'];
-const SKIP_FILES = ['LICENSE', 'implementation-plan.md'];
+const SKIP_FILES: string[] = [];
 
 // Fetch entire repo using Git Trees API (2 API calls instead of hundreds)
 async function fetchAiCodingConfig(token: string): Promise<Record<string, string>> {
