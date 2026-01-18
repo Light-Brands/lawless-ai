@@ -131,4 +131,8 @@
   --sidebar-width: 280px;
   --header-height: 64px;
   --max-content-width: 800px;
+
+  /* Mobile Navigation */
+  --mobile-bottom-nav-height: 56px;
+  --mobile-bottom-nav-height-safe: calc(56px + env(safe-area-inset-bottom));
 }

@@ -674,3 +674,23 @@
   }
 }
 
+/* Mobile bottom nav adjustments */
+@media (max-width: 768px) {
+  .chat-container {
+    height: calc(100dvh - var(--mobile-bottom-nav-height-safe));
+    margin-left: 0;
+  }
+
+  .input-container {
+    padding-bottom: calc(var(--space-4) + env(safe-area-inset-bottom, 0px));
+  }
+
+  .messages-container {
+    padding-bottom: var(--space-4);
+  }
+
+  .welcome-message {
+    padding-bottom: var(--space-6);
+  }
+}
+

@@ -2149,10 +2149,133 @@
   gap: 12px;
 }
 
-/* Responsive */
+/* ============================================================================
+   Mobile Optimizations for Integrations Pages
+   ============================================================================ */
+
 @media (max-width: 768px) {
+  .integrations-page,
+  .vercel-page,
+  .supabase-page {
+    height: calc(100dvh - var(--mobile-bottom-nav-height-safe));
+  }
+
+  .integrations-header-content {
+    padding: 12px 16px;
+    gap: 12px;
+  }
+
+  .integrations-header-left {
+    gap: 12px;
+  }
+
+  .integrations-logo-text {
+    display: none;
+  }
+
+  .integrations-header-right {
+    gap: 8px;
+  }
+
+  .integrations-nav-btn {
+    display: none;
+  }
+
+  .integrations-user {
+    padding: 0;
+  }
+
+  .integrations-avatar {
+    width: 28px;
+    height: 28px;
+  }
+
+  .integrations-username {
+    display: none;
+  }
+
+  .integrations-logout-btn {
+    padding: 10px;
+    min-width: 40px;
+    min-height: 40px;
+  }
+
+  .integrations-main {
+    padding: 20px 16px 80px;
+  }
+
+  .integrations-hero {
+    margin-bottom: 24px;
+  }
+
+  .integrations-hero-icon {
+    width: 48px;
+    height: 48px;
+    margin-bottom: 16px;
+  }
+
+  .integrations-hero h1 {
+    font-size: 24px;
+  }
+
+  .integrations-hero p {
+    font-size: 14px;
+  }
+
   .integrations-grid {
     grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .integration-card {
+    padding: 18px;
+    border-radius: 14px;
+  }
+
+  .integration-card:active {
+    transform: scale(0.98);
+  }
+
+  .integration-card-header {
+    margin-bottom: 12px;
+  }
+
+  .integration-card-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+  }
+
+  .integration-card-content h3 {
+    font-size: 16px;
+  }
+
+  .integration-card-description {
+    font-size: 13px;
+  }
+
+  .integration-card-actions {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .integration-btn {
+    padding: 12px 16px;
+    font-size: 14px;
+  }
+
+  .capabilities-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .capability-card {
+    padding: 16px;
+    border-radius: 12px;
+  }
+
+  .capability-card h3 {
+    font-size: 15px;
   }
 
   .vercel-content,
@@ -2163,7 +2286,7 @@
   .vercel-sidebar,
   .supabase-sidebar {
     width: 100%;
-    max-height: 200px;
+    max-height: 180px;
     border-right: none;
     border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   }
@@ -2173,8 +2296,104 @@
     display: none;
   }
 
+  .vercel-header-content,
+  .supabase-header-content {
+    padding: 10px 16px;
+  }
+
+  .vercel-logo-text,
+  .supabase-logo-text {
+    display: none;
+  }
+
+  .vercel-main-panel,
+  .supabase-main-panel {
+    padding: 16px;
+  }
+
   .deployment-item {
     flex-direction: column;
     gap: 12px;
+    padding: 14px;
+    border-radius: 12px;
+  }
+
+  .deployment-item-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .deployment-action-btn {
+    flex: 1;
+    justify-content: center;
+    padding: 10px;
+  }
+
+  .deployment-list-header,
+  .table-browser-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .table-browser-scroll {
+    max-height: calc(100vh - 360px);
+  }
+
+  .modal-content {
+    margin: 16px;
+    max-height: calc(100vh - 32px);
+    border-radius: 14px;
+  }
+
+  .sql-editor-modal {
+    max-width: calc(100vw - 32px);
+    max-height: calc(100vh - 32px);
+  }
+
+  .row-editor-modal {
+    max-width: calc(100vw - 32px);
+  }
+
+  .logs-viewer {
+    border-radius: 10px;
+  }
+
+  .logs-viewer-header {
+    padding: 12px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .logs-viewer-title h2 {
+    font-size: 14px;
+  }
+
+  .logs-viewer-deployment-id {
+    display: none;
+  }
+}
+
+@media (max-width: 380px) {
+  .integrations-main {
+    padding: 16px 12px 80px;
+  }
+
+  .integrations-hero h1 {
+    font-size: 20px;
+  }
+
+  .integration-card {
+    padding: 14px;
+  }
+
+  .integration-card-icon {
+    width: 44px;
+    height: 44px;
+  }
+
+  .vercel-main-panel,
+  .supabase-main-panel {
+    padding: 12px;
   }
 }

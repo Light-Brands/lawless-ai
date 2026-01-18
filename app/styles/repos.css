@@ -524,3 +524,186 @@
   font-size: 14px;
 }
 
+/* ============================================================================
+   Mobile Optimizations for Repository Browser
+   ============================================================================ */
+
+@media (max-width: 768px) {
+  .repos-page {
+    height: calc(100dvh - var(--mobile-bottom-nav-height-safe));
+  }
+
+  .repos-header-content {
+    padding: 12px 16px;
+    gap: 12px;
+  }
+
+  .repos-header-left {
+    gap: 12px;
+  }
+
+  .repos-logo-text {
+    display: none;
+  }
+
+  .repos-header-right {
+    gap: 8px;
+  }
+
+  /* Hide desktop nav items on mobile - they're in bottom nav */
+  .repos-nav-btn {
+    display: none;
+  }
+
+  .repos-user {
+    padding: 4px 8px 4px 4px;
+  }
+
+  .repos-avatar {
+    width: 28px;
+    height: 28px;
+  }
+
+  .repos-username {
+    display: none;
+  }
+
+  .repos-logout-btn {
+    padding: 10px;
+    min-width: 40px;
+    min-height: 40px;
+  }
+
+  .repos-main {
+    padding: 20px 16px 80px;
+  }
+
+  .repos-hero {
+    margin-bottom: 24px;
+  }
+
+  .repos-hero-icon {
+    width: 48px;
+    height: 48px;
+    margin-bottom: 16px;
+  }
+
+  .repos-hero h1 {
+    font-size: 24px;
+  }
+
+  .repos-hero p {
+    font-size: 14px;
+  }
+
+  .repos-search-container {
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .repos-search {
+    max-width: none;
+    width: 100%;
+    padding: 14px 16px;
+    min-height: 48px;
+  }
+
+  .repos-search input {
+    font-size: 16px; /* Prevents zoom on iOS */
+  }
+
+  .repos-search-right {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .repos-new-project-btn {
+    padding: 12px 16px;
+    font-size: 14px;
+  }
+
+  .repos-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .repo-card {
+    padding: 16px;
+    border-radius: 14px;
+  }
+
+  .repo-card:active {
+    transform: scale(0.98);
+    background: rgba(168, 85, 247, 0.08);
+  }
+
+  .repo-card-arrow {
+    opacity: 1;
+    transform: none;
+    color: var(--color-text-muted);
+  }
+
+  .repo-card-title h3 {
+    font-size: 15px;
+  }
+
+  .repo-card-description {
+    font-size: 13px;
+    -webkit-line-clamp: 2;
+    margin-bottom: 12px;
+  }
+
+  .repo-card-footer {
+    gap: 12px;
+    font-size: 12px;
+  }
+
+  .repo-language-dot {
+    width: 10px;
+    height: 10px;
+  }
+
+  .repos-empty {
+    padding: 60px 20px;
+  }
+
+  .repos-empty svg {
+    width: 40px;
+    height: 40px;
+  }
+
+  .repos-empty h3 {
+    font-size: 16px;
+  }
+
+  .repos-error {
+    padding: 12px 16px;
+    font-size: 13px;
+    border-radius: 10px;
+  }
+}
+
+/* Small mobile devices */
+@media (max-width: 380px) {
+  .repos-main {
+    padding: 16px 12px 80px;
+  }
+
+  .repos-hero h1 {
+    font-size: 20px;
+  }
+
+  .repo-card {
+    padding: 14px;
+  }
+
+  .repo-card-title h3 {
+    font-size: 14px;
+  }
+
+  .repos-new-project-btn span {
+    display: none;
+  }
+}
+
