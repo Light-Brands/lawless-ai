@@ -36,3 +36,6 @@
 
 /* Repository browser page */
 @import './styles/repo-browser.css';
+
+/* New project creation page */
+@import './styles/new-project.css';
