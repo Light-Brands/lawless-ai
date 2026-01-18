@@ -1,46 +1,35 @@
-# Dependencies
-node_modules/
-.pnp
-.pnp.js
-
-# Next.js
-.next/
-out/
-
-# Production
-build/
-dist/
-
-# Debug
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# Local env files
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-
-# Vercel
-.vercel
-
-# TypeScript
-*.tsbuildinfo
-next-env.d.ts
-
-# IDE
-.idea/
-.vscode/
-*.swp
-*.swo
-
-# OS
+# macOS
 .DS_Store
-Thumbs.db
 
-# OCI Configuration (sensitive)
-.oci/
-*.pem
-!*.pem.example
+# Editor/IDE
+*.swp
+*.local.json
+
+# Python (for testing/examples)
+*.pyc
+__pycache__/
+.pytest_cache/
+.venv/
+.ruff_cache/
+
+# Node.js (for testing/examples)
+node_modules/
+.pnpm-store/
+
+# Build artifacts
+bin/
+lib/
+dist/
+build/
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+
+.created-prompts/
+
+# Claude Code session data (user-specific, may contain sensitive context)
+.claude/sessions/

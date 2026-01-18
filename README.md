@@ -1,168 +1,342 @@
-# Lawless AI Chat
+<p align="center">
+  <img src="assets/logo.png" alt="AI Coding Configuration" width="200">
+</p>
 
-A sleek chat interface for conversing with Lawless AI - powered by Claude CLI, using your subscription instead of API credits. Built with **Next.js** for seamless Vercel deployment.
+<p align="center">
+  <a href="https://claude.ai"><img src="https://img.shields.io/badge/Claude_Code-D97757?logo=claude&logoColor=fff" alt="Claude Code"></a>
+</p>
 
-## Overview
+# AI Coding Configuration
 
-This app creates a web-based chat interface that connects to Claude through the CLI rather than the API. This means:
-- **No API costs** - Uses your existing Claude subscription
-- **Full Claude capabilities** - Access to Claude's complete feature set
-- **Local operation** - Runs entirely on your machine
+Curated commands, agents, and rules for Claude Code, Cursor, Windsurf, and Cline.
 
-## Prerequisites
+## What This Is
 
-1. **Node.js** (v18 or higher)
-2. **Claude CLI** installed and authenticated
-   - Install: `npm install -g @anthropic-ai/claude-code` (or your preferred method)
-   - Authenticate: Run `claude` and follow the prompts
+A shared configuration that works across AI coding tools. Commands automate workflows
+(PR handling, debugging, session management). Agents specialize in specific review types
+(security, performance, UX). Rules encode your coding standards so AI follows your
+patterns.
 
 ## Quick Start
 
+**Claude Code:**
+
 ```bash
-# Install dependencies
-npm install
-
-# Start development server
-npm run dev
-
-# Or build and start production server
-npm run build
-npm start
+/plugin marketplace add https://github.com/TechNickAI/ai-coding-config
+/plugin install ai-coding-config skills
 ```
 
-Then open **http://localhost:3000** in your browser.
+**Cursor, Windsurf, Cline, or others:**
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/TechNickAI/ai-coding-config/main/scripts/bootstrap.sh | bash
+```
+
+Then run the interactive setup:
+
+```
+/ai-coding-config
+```
+
+This detects your stack and installs relevant configurations.
+
+## Example Usage
+
+```bash
+# Triage PR bot comments (fixes real issues, declines nitpicks)
+/address-pr-comments
+
+# Load coding standards for current task
+/load-rules
+
+# Autonomous task execution: describe what you want, get a PR
+/autotask "add user settings page with dark mode toggle"
+```
+
+## What's Included
+
+| Type                                    | Count | Purpose                 |
+| --------------------------------------- | ----- | ----------------------- |
+| [Commands](plugins/core/commands/)      | 18    | Automate workflows      |
+| [Agents](plugins/core/agents/)          | 24    | Specialized assistants  |
+| [Skills](plugins/core/skills/)          | 6     | Autonomous capabilities |
+| [Rules](rules/)                         | 33    | Coding standards        |
+| [Personalities](plugins/personalities/) | 7     | Communication styles    |
+
+---
+
+## Commands
+
+Slash commands that automate real workflows. Type `/command-name` to invoke.
+
+### Autonomous Development
+
+**`/autotask "description"`** - Describe what you want, get a PR. Creates branch,
+implements, writes tests, handles bot feedback.
+
+```bash
+/autotask "add user settings page with dark mode toggle"
+```
+
+**`/troubleshoot`** - Connects to Sentry/HoneyBadger, analyzes errors, fixes bugs in
+parallel worktrees, submits PRs with root cause analysis.
+
+**`/verify-fix`** - Confirms fixes actually work before claiming success. Runs tests,
+checks live behavior.
+
+### PR & Code Review
+
+**`/address-pr-comments`** - Triages bot comments: fixes real issues, declines nitpicks,
+iterates until merge-ready.
+
+**`/multi-review`** - Runs multiple specialized reviewers in parallel. Security, logic,
+performance, style - all at once.
+
+### Context & Session Management
+
+**`/session save|resume|list`** - Save your context, decisions, and progress. Resume
+exactly where you left off - even in a new conversation.
+
+```bash
+/session save "auth-refactor"    # Save current session
+/session resume                   # Resume where you left off
+```
+
+**`/load-rules`** - Loads relevant coding standards for your current task. Working on
+React? Loads React patterns. Writing tests? Testing standards.
+
+**`/handoff-context`** - Generate context handoff for new sessions.
+
+### Project Setup
+
+**`/ai-coding-config`** - Interactive setup for new projects. Detects your stack,
+installs relevant rules.
+
+**`/repo-tooling`** - Set up linting, formatting, CI/CD based on detected language.
+
+**`/setup-environment`** - Initialize dev environment for git worktrees.
+
+### Other Commands
+
+- `/cleanup-worktree` - Clean up worktrees after PR merge
+- `/create-prompt` - Create optimized prompts following prompt engineering principles
+- `/generate-AGENTS-file` - Generate AGENTS.md for AI context
+- `/generate-llms-txt` - Generate llms.txt for LLM navigation
+- `/knowledge` - AI Product Manager - maintain living product understanding
+- `/personality-change` - Switch AI communication style
+- `/product-intel` - Competitive intelligence research
+
+---
+
+## Agents
+
+24 specialized assistants that Claude Code invokes automatically based on context.
+
+### Building Features
+
+| Agent                    | Purpose                                                |
+| ------------------------ | ------------------------------------------------------ |
+| **autonomous-developer** | Implements features end-to-end following your patterns |
+| **test-engineer**        | Writes comprehensive test coverage                     |
+| **test-runner**          | Runs tests with terse, context-efficient output        |
+
+### Debugging
+
+| Agent           | Purpose                                              |
+| --------------- | ---------------------------------------------------- |
+| **debugger**    | Root cause analysis through systematic investigation |
+| **site-keeper** | Production health monitoring and error triage        |
+
+### Code Review - Correctness
+
+| Agent                       | Purpose                                |
+| --------------------------- | -------------------------------------- |
+| **logic-reviewer**          | Bug and logic error detection          |
+| **error-handling-reviewer** | Silent failures and try-catch patterns |
+| **security-reviewer**       | Injection, auth, OWASP top 10          |
+| **robustness-reviewer**     | Production readiness and resilience    |
+
+### Code Review - Performance
+
+| Agent                    | Purpose                                   |
+| ------------------------ | ----------------------------------------- |
+| **performance-reviewer** | N+1 queries, algorithmic complexity       |
+| **simplifier**           | Reduce complexity, preserve functionality |
+
+### Code Review - UX
+
+| Agent                  | Purpose                                       |
+| ---------------------- | --------------------------------------------- |
+| **empathy-reviewer**   | UX from the user's chair (Norman, Krug, Rams) |
+| **ux-designer**        | User-facing content and interface design      |
+| **design-reviewer**    | Visual quality and responsive behavior        |
+| **mobile-ux-reviewer** | Mobile responsiveness and touch interactions  |
+
+### Code Review - Architecture
+
+| Agent                      | Purpose                                  |
+| -------------------------- | ---------------------------------------- |
+| **architecture-auditor**   | Design patterns and structural decisions |
+| **style-reviewer**         | Code style and project conventions       |
+| **observability-reviewer** | Logging, monitoring, debuggability       |
+
+### Polish & Documentation
+
+| Agent                | Purpose                                    |
+| -------------------- | ------------------------------------------ |
+| **comment-analyzer** | Comment accuracy and staleness             |
+| **test-analyzer**    | Test coverage gaps and brittle tests       |
+| **seo-specialist**   | SEO, meta tags, structured data            |
+| **git-writer**       | Commit messages and PR descriptions        |
+| **prompt-engineer**  | LLM prompt optimization                    |
+| **library-advisor**  | Evaluate libraries, build vs buy decisions |
+
+---
+
+## Skills
+
+Autonomous capabilities with multi-step workflows.
+
+| Skill                           | Purpose                                       |
+| ------------------------------- | --------------------------------------------- |
+| **brainstorming**               | Creative ideation with structured exploration |
+| **playwright-browser**          | Browser automation, screenshots, UI testing   |
+| **research**                    | Web research and documentation gathering      |
+| **skill-creator**               | Framework for creating new skills             |
+| **systematic-debugging**        | Root cause analysis framework                 |
+| **youtube-transcript-analyzer** | Video transcript analysis for learning        |
+
+---
+
+## Rules
+
+Coding standards in `.mdc` format (markdown with frontmatter). AI reads these to
+understand your conventions.
+
+**Always active:**
+
+- `git-interaction.mdc` - Git workflow, commit messages, PR standards
+- `prompt-engineering.mdc` - Writing prompts for LLMs
+- `heart-centered-ai-philosophy.mdc` - Presence before solutions
+
+**Framework-specific** (loaded by `/load-rules`):
+
+- `frontend/react-components.mdc` - React patterns and hooks
+- `frontend/typescript-standards.mdc` - TypeScript conventions
+- `python/python-coding-standards.mdc` - Python conventions
+- `django/django-models.mdc` - Django ORM patterns
+- `observability/logfire.mdc` - Logging with Logfire
+- And 25+ more...
+
+---
+
+## Personalities
+
+Change how AI communicates. Same technical capabilities, different style.
+
+| Personality         | Style                                        |
+| ------------------- | -------------------------------------------- |
+| **Samantha**        | Warm, witty, emotionally intelligent         |
+| **Sherlock Holmes** | Analytical, deductive reasoning              |
+| **Bob Ross**        | Calm, encouraging (bugs are happy accidents) |
+| **Ron Swanson**     | Minimalist, anti-complexity                  |
+| **Marie Kondo**     | Sparks joy in clean code                     |
+| **Stewie Griffin**  | Sardonic genius                              |
+| **Luminous**        | Heart-centered, presence-first               |
+
+Activate: `/personality-change samantha`
+
+---
 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                         Browser                                  │
-│  ┌─────────────────────────────────────────────────────────┐    │
-│  │                 Lawless AI Chat UI                       │    │
-│  │  - Next.js React frontend                                │    │
-│  │  - Markdown rendering                                    │    │
-│  │  - Code syntax highlighting                              │    │
-│  └─────────────────────────────────────────────────────────┘    │
-└────────────────────────────┬────────────────────────────────────┘
-                             │ HTTP/SSE
-                             ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                  Next.js API Routes                              │
-│  ┌─────────────────────────────────────────────────────────┐    │
-│  │  - Manages chat sessions                                 │    │
-│  │  - Proxies requests to Claude CLI                        │    │
-│  │  - Streams responses back via SSE                        │    │
-│  └─────────────────────────────────────────────────────────┘    │
-└────────────────────────────┬────────────────────────────────────┘
-                             │ Subprocess
-                             ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                      Claude CLI                                  │
-│  - Uses your subscription credentials                            │
-│  - Full Claude capabilities                                      │
-│  - No API costs                                                  │
-└─────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────┐
+│  ai-coding-config                       │
+│  (commands, agents, rules, skills)      │
+└─────────────────────────────────────────┘
+              │
+      Plugin system / Bootstrap
+              │
+      ┌───────┴───────┐
+      │               │
+      ▼               ▼
+  Project A      Project B
 ```
 
-## Project Structure
+**Plugin-first** - All distributable content lives in `plugins/`:
 
 ```
-├── app/
-│   ├── api/
-│   │   ├── chat/
-│   │   │   └── route.ts       # Chat endpoint with SSE streaming
-│   │   ├── health/
-│   │   │   └── route.ts       # Health check endpoint
-│   │   └── session/
-│   │       ├── route.ts       # Session creation
-│   │       └── [sessionId]/
-│   │           └── route.ts   # Session deletion
-│   ├── globals.css            # Design system styles
-│   ├── layout.tsx             # Root layout
-│   └── page.tsx               # Main chat page
-├── lib/
-│   ├── constants.ts           # System prompt and constants
-│   └── conversations.ts       # Conversation management
-├── package.json
-├── tsconfig.json
-├── next.config.js
-├── vercel.json
-└── README.md
+ai-coding-config/
+├── .claude-plugin/marketplace.json   # Plugin manifest
+├── plugins/
+│   ├── core/                         # Main plugin
+│   │   ├── commands/                 # 18 workflow commands
+│   │   ├── agents/                   # 24 specialized agents
+│   │   └── skills/                   # 6 autonomous capabilities
+│   └── personalities/                # 7 personality variants
+├── .cursor/rules/                    # 33 coding standards (.mdc)
+├── docs/                             # Guides
+└── scripts/                          # Installation
 ```
 
-## Lawless AI Persona
+---
 
-The chat interface embodies the **Lawless AI Solution Architect** persona:
+## Updates
 
-- **Purpose**: Bridge technical complexity and human understanding
-- **Voice**: Warm, clear, inviting, playful yet precise
-- **Approach**: Start with human relevance, layer in complexity as needed
-- **Values**: Dignity > Efficiency, Simplicity > Power, Trust > Speed
-
-## Customization
-
-### Styling
-
-The CSS uses design tokens (CSS custom properties) for easy customization in `app/globals.css`:
-
-```css
-:root {
-  --color-accent-primary: #8B5CF6;    /* Main accent color */
-  --color-abyss-base: #0A0A0F;        /* Background color */
-  --color-moonlight: #F5F5F7;         /* Text color */
-  /* ... more tokens in globals.css */
-}
-```
-
-### System Prompt
-
-Modify the `LAWLESS_SYSTEM_PROMPT` in `lib/constants.ts` to adjust the AI's personality and behavior.
-
-## API Endpoints
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/health` | GET | Health check |
-| `/api/session` | POST | Create new chat session |
-| `/api/chat` | POST | Send message (SSE response) |
-| `/api/session/:id` | DELETE | Clear session history |
-
-## Vercel Deployment
-
-This project is built with Next.js for seamless Vercel deployment:
+Update configurations in any project:
 
 ```bash
-# Install Vercel CLI
-npm install -g vercel
-
-# Deploy
-vercel
+/ai-coding-config update
 ```
 
-**Important Note:** The default implementation uses Claude CLI, which requires a local environment with Claude CLI installed. When deployed to Vercel:
+Shows what changed, lets you choose what to update, preserves your customizations.
 
-- The **static frontend** will work correctly
-- The **API endpoints** that use Claude CLI will **not function** on Vercel's serverless environment
+---
 
-To make the API work on Vercel, you would need to modify `app/api/chat/route.ts` to use the Claude API instead of CLI:
-1. Install the Anthropic SDK: `npm install @anthropic-ai/sdk`
-2. Replace the CLI spawn logic with API calls
-3. Set `ANTHROPIC_API_KEY` in Vercel environment variables
+## Requirements
 
-## Troubleshooting
+**Basic usage:**
 
-**"Failed to start Claude CLI"**
-- Ensure Claude CLI is installed: `which claude`
-- Ensure you're authenticated: Run `claude` directly to check
+- Claude Code, Cursor, Windsurf, Cline, or any AI tool with rules support
 
-**No response streaming**
-- Check server console for errors
-- Verify Claude CLI works directly: `claude -p "Hello"`
+**For autonomous workflows** (`/autotask`, `/troubleshoot`):
 
-**Connection refused**
-- Make sure the server is running on port 3000
-- Check for port conflicts
+- Git with worktrees support
+- GitHub CLI (`gh`) installed and authenticated
 
-## License
+---
 
-Part of the Light-Brands ecosystem.
+## Documentation
+
+- [Coding Ecosystem Comparison](docs/coding-ecosystem.md) - Cursor vs Claude Code vs
+  Windsurf
+- [Tools and Configs Guide](docs/tools-and-configs.md) - Rules vs commands vs agents
+- [Personalities Guide](docs/personalities.md) - All personalities with examples
+- [Architecture](docs/architecture-summary.md) - System design
+- [Development Workflow](context/optimal-development-workflow.md) - Autonomous workflow
+  philosophy
+- [Contributing](docs/contributing.md) - How to contribute
+
+---
+
+## Philosophy
+
+- **Plugin-first** - Everything distributable lives in `plugins/`, other locations
+  symlink
+- **Single source of truth** - Configurations symlinked, never duplicated
+- **Cross-tool compatibility** - Works with Claude Code, Cursor, Windsurf, and others
+- **Human control** - AI prepares, human decides (especially for commits)
+
+---
+
+## Discovery
+
+This marketplace is indexed at
+[claudemarketplaces.com](https://claudemarketplaces.com) - the searchable directory of
+Claude Code plugins.
+
+---
+
+**License**: MIT | **Author**: [TechNickAI](https://github.com/TechNickAI) |
+**Repository**: https://github.com/TechNickAI/ai-coding-config
