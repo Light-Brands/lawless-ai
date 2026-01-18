@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { encryptToken } from '@/lib/encryption';
 
 export const runtime = 'nodejs';
@@ -60,8 +60,11 @@ export async function GET(request: NextRequest) {
   const githubIdentity = user.identities?.find(i => i.provider === 'github');
   const providerToken = session.provider_token;
 
+  // Use service role client for database operations (bypasses RLS)
+  const serviceClient = createServiceClient();
+
   // Upsert user record in our users table
-  const { error: upsertError } = await supabase.from('users').upsert(
+  const { error: upsertError } = await serviceClient.from('users').upsert(
     {
       id: user.id,
       github_username: user.user_metadata?.user_name || user.user_metadata?.preferred_username,
@@ -78,6 +81,8 @@ export async function GET(request: NextRequest) {
   if (upsertError) {
     console.error('User upsert error:', upsertError);
     // Don't fail the auth - user can still use the app
+  } else {
+    console.log('User record created/updated for:', user.id);
   }
 
   // If we have a provider token (GitHub access token), store it encrypted
@@ -85,7 +90,7 @@ export async function GET(request: NextRequest) {
     try {
       const encryptedToken = encryptToken(providerToken);
 
-      const { error: tokenError } = await supabase.from('integration_connections').upsert(
+      const { error: tokenError } = await serviceClient.from('integration_connections').upsert(
         {
           user_id: user.id,
           provider: 'github',
@@ -103,10 +108,16 @@ export async function GET(request: NextRequest) {
 
       if (tokenError) {
         console.error('Token storage error:', tokenError);
+      } else {
+        console.log('GitHub token stored for user:', user.id);
       }
     } catch (err) {
       console.error('Token encryption error:', err);
     }
+  } else {
+    console.log('No provider token available or encryption key missing');
+    console.log('Provider token exists:', !!providerToken);
+    console.log('Encryption key exists:', !!process.env.ENCRYPTION_KEY);
   }
 
   // Create response with redirect

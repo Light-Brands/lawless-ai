@@ -37,8 +37,6 @@ export async function createClient() {
 
 // Service role client for admin operations (bypasses RLS)
 export function createServiceClient() {
-  const cookieStore = cookies();
-
   return createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
