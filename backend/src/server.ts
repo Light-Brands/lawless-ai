@@ -112,10 +112,14 @@ const authenticateApiKey = (req: Request, res: Response, next: NextFunction): vo
 
 // Get git commit SHA for version tracking
 function getGitCommit(): string {
+  const repoRoot = path.join(__dirname, '..', '..');
   try {
     // __dirname is backend/dist, so go up two levels to repo root
-    return execSync('git rev-parse --short HEAD', { cwd: path.join(__dirname, '..', '..'), encoding: 'utf-8' }).trim();
-  } catch {
+    const commit = execSync('git rev-parse --short HEAD', { cwd: repoRoot, encoding: 'utf-8' }).trim();
+    console.log(`Git commit resolved: ${commit} (from ${repoRoot})`);
+    return commit;
+  } catch (e: any) {
+    console.error(`Git commit lookup failed: ${e.message} (cwd: ${repoRoot})`);
     return 'unknown';
   }
 }
