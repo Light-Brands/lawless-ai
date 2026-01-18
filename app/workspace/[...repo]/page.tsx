@@ -4,6 +4,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ReadTool, WriteTool, EditTool, BashTool, GlobTool, GrepTool, TaskTool, ToolStatus } from '@/app/components/tools';
 import SlashAutocomplete from '@/app/components/SlashAutocomplete';
+import AtMentionAutocomplete from '@/app/components/AtMentionAutocomplete';
 import CommandDictionary from '@/app/components/CommandDictionary';
 import { DictionaryItem } from '@/app/data/command-dictionary';
 import '@/app/styles/command-dictionary.css';
@@ -310,6 +311,8 @@ export default function WorkspacePage() {
   const [showDictionary, setShowDictionary] = useState(false);
   const [showAutocomplete, setShowAutocomplete] = useState(false);
   const [autocompleteIndex, setAutocompleteIndex] = useState(0);
+  const [showAtMention, setShowAtMention] = useState(false);
+  const [atMentionIndex, setAtMentionIndex] = useState(0);
 
   // Store messages per session
   const sessionMessages = useRef<Map<string, Message[]>>(new Map());
@@ -564,12 +567,21 @@ export default function WorkspacePage() {
     const value = e.target.value;
     setInput(value);
 
+    // Check for @ mention - look for @ at start or after space
+    const atMatch = value.match(/(?:^|\s)@(\w*)$/);
+    if (atMatch) {
+      setShowAtMention(true);
+      setAtMentionIndex(0);
+      setShowAutocomplete(false);
+    }
     // Show autocomplete when input starts with "/" and has content after
-    if (value.startsWith('/')) {
+    else if (value.startsWith('/')) {
       setShowAutocomplete(true);
       setAutocompleteIndex(0);
+      setShowAtMention(false);
     } else {
       setShowAutocomplete(false);
+      setShowAtMention(false);
     }
   }, []);
 
@@ -586,6 +598,26 @@ export default function WorkspacePage() {
   const handleAutocompleteClose = useCallback(() => {
     setShowAutocomplete(false);
     setAutocompleteIndex(0);
+  }, []);
+
+  // Handle @ mention selection
+  const handleAtMentionSelect = useCallback((item: DictionaryItem) => {
+    // Replace the @partial with @agent-name
+    const atMatch = input.match(/(?:^|\s)@(\w*)$/);
+    if (atMatch) {
+      const beforeAt = input.slice(0, input.length - atMatch[0].length + (atMatch[0].startsWith(' ') ? 1 : 0));
+      setInput(`${beforeAt}@${item.name} `);
+    } else {
+      setInput(`${input}@${item.name} `);
+    }
+    setShowAtMention(false);
+    setAtMentionIndex(0);
+  }, [input]);
+
+  // Close @ mention
+  const handleAtMentionClose = useCallback(() => {
+    setShowAtMention(false);
+    setAtMentionIndex(0);
   }, []);
 
   async function loadGitStatus() {
@@ -1085,11 +1117,21 @@ export default function WorkspacePage() {
                     onSelectedIndexChange={setAutocompleteIndex}
                   />
                 )}
+                {showAtMention && (
+                  <AtMentionAutocomplete
+                    searchTerm={input.match(/(?:^|\s)@(\w*)$/)?.[1] || ''}
+                    isVisible={showAtMention}
+                    onSelect={handleAtMentionSelect}
+                    onClose={handleAtMentionClose}
+                    selectedIndex={atMentionIndex}
+                    onSelectedIndexChange={setAtMentionIndex}
+                  />
+                )}
                 <input
                   type="text"
                   value={input}
                   onChange={handleInputChange}
-                  placeholder="Ask Claude to edit code... (type / for commands)"
+                  placeholder="Ask Claude to edit code... (/ commands, @ agents)"
                   className="workspace-input"
                   disabled={loading}
                 />
