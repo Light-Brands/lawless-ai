@@ -106,6 +106,7 @@ export default function NewProjectPage() {
   const [projectName, setProjectName] = useState('');
   const [description, setDescription] = useState('');
   const [isPrivate, setIsPrivate] = useState(true);
+  const [includeAiConfig, setIncludeAiConfig] = useState(true);
   const [includeVercel, setIncludeVercel] = useState(true);
   const [includeSupabase, setIncludeSupabase] = useState(true);
   const [supabaseRegion, setSupabaseRegion] = useState('us-east-1');
@@ -226,6 +227,7 @@ export default function NewProjectPage() {
           name: projectName,
           description,
           isPrivate,
+          includeAiConfig,
           includeVercel,
           includeSupabase,
           supabaseRegion,
@@ -406,6 +408,16 @@ export default function NewProjectPage() {
                       disabled={creating}
                     />
                     <span>Private repository</span>
+                  </label>
+
+                  <label className="new-project-checkbox">
+                    <input
+                      type="checkbox"
+                      checked={includeAiConfig}
+                      onChange={(e) => setIncludeAiConfig(e.target.checked)}
+                      disabled={creating}
+                    />
+                    <span>Include AI coding config</span>
                   </label>
 
                   <label className="new-project-checkbox">

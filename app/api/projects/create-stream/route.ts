@@ -82,6 +82,7 @@ export async function POST(request: NextRequest) {
     name,
     description,
     isPrivate = true,
+    includeAiConfig = true,
     includeVercel = true,
     includeSupabase = true,
     supabaseRegion = 'us-east-1',
@@ -195,30 +196,32 @@ export async function POST(request: NextRequest) {
               });
             }
 
-            // Add ai-coding-config files
-            const aiConfigFiles = await fetchAiCodingConfig(githubToken, progress);
-            progress('Adding ai-coding-config files...');
+            // Add ai-coding-config files (if enabled)
+            if (includeAiConfig) {
+              const aiConfigFiles = await fetchAiCodingConfig(githubToken, progress);
+              progress('Adding ai-coding-config files...');
 
-            let fileCount = 0;
-            const totalFiles = Object.keys(aiConfigFiles).length;
-            for (const [path, content] of Object.entries(aiConfigFiles)) {
-              if (content.length < 100 && !content.includes('\n')) continue;
+              let fileCount = 0;
+              const totalFiles = Object.keys(aiConfigFiles).length;
+              for (const [path, content] of Object.entries(aiConfigFiles)) {
+                if (content.length < 100 && !content.includes('\n')) continue;
 
-              await fetch(`https://api.github.com/repos/${repo.full_name}/contents/${path}`, {
-                method: 'PUT',
-                headers: {
-                  'Authorization': `Bearer ${githubToken}`,
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                  message: `Add ${path} from ai-coding-config`,
-                  content: Buffer.from(content).toString('base64'),
-                }),
-              });
+                await fetch(`https://api.github.com/repos/${repo.full_name}/contents/${path}`, {
+                  method: 'PUT',
+                  headers: {
+                    'Authorization': `Bearer ${githubToken}`,
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({
+                    message: `Add ${path} from ai-coding-config`,
+                    content: Buffer.from(content).toString('base64'),
+                  }),
+                });
 
-              fileCount++;
-              if (fileCount % 10 === 0) {
-                progress(`Adding ai-coding-config files... ${Math.round((fileCount / totalFiles) * 100)}%`);
+                fileCount++;
+                if (fileCount % 10 === 0) {
+                  progress(`Adding ai-coding-config files... ${Math.round((fileCount / totalFiles) * 100)}%`);
+                }
               }
             }
 
