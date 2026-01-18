@@ -779,3 +779,464 @@
 .thinking-block + .workspace-text-block {
   margin-top: var(--space-2);
 }
+
+/* ============================================================================
+   Shared Tool Loading Spinner
+   ============================================================================ */
+
+.tool-loading-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(168, 85, 247, 0.2);
+  border-top-color: var(--color-primary-500);
+  border-radius: 50%;
+  animation: tool-card-spin 1s linear infinite;
+  flex-shrink: 0;
+}
+
+/* ============================================================================
+   Read Tool Detailed Styles
+   ============================================================================ */
+
+.read-tool-content {
+  font-family: var(--font-mono);
+}
+
+.read-tool-details {
+  padding: var(--space-3);
+  background: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid var(--color-surface-glass-border);
+}
+
+.read-tool-path {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-1);
+}
+
+.read-tool-path svg {
+  color: var(--color-primary-400);
+  flex-shrink: 0;
+}
+
+.read-tool-filepath {
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+  word-break: break-all;
+}
+
+.read-tool-range {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  margin-left: calc(14px + var(--space-2));
+}
+
+.read-tool-result {
+  padding: 0;
+}
+
+.read-tool-stats {
+  padding: var(--space-2) var(--space-3);
+  font-size: 0.75rem;
+  color: var(--color-text-tertiary);
+  background: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid var(--color-surface-glass-border);
+}
+
+.read-tool-empty {
+  padding: var(--space-4);
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+  text-align: center;
+  font-style: italic;
+}
+
+/* ============================================================================
+   Glob Tool Detailed Styles
+   ============================================================================ */
+
+.glob-tool-details {
+  padding: var(--space-3);
+  background: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid var(--color-surface-glass-border);
+  margin-bottom: var(--space-3);
+}
+
+.glob-tool-search-info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.glob-tool-pattern-row,
+.glob-tool-path-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 0.8125rem;
+}
+
+.glob-tool-pattern-row svg,
+.glob-tool-path-row svg {
+  color: var(--color-primary-400);
+  flex-shrink: 0;
+}
+
+.glob-tool-label {
+  color: var(--color-text-muted);
+  min-width: 70px;
+}
+
+.glob-tool-pattern-value {
+  color: var(--color-text-primary);
+  background: rgba(255, 255, 255, 0.05);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+}
+
+.glob-tool-path-value {
+  color: var(--color-text-secondary);
+  word-break: break-all;
+}
+
+.glob-tool-results {
+  padding: 0 var(--space-3) var(--space-3);
+}
+
+.glob-tool-empty {
+  padding: var(--space-4);
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+  text-align: center;
+  font-style: italic;
+}
+
+/* ============================================================================
+   Grep Tool Detailed Styles
+   ============================================================================ */
+
+.grep-tool-details {
+  padding: var(--space-3);
+  background: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid var(--color-surface-glass-border);
+  margin-bottom: var(--space-3);
+}
+
+.grep-tool-search-info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.grep-tool-pattern-row,
+.grep-tool-path-row,
+.grep-tool-type-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 0.8125rem;
+}
+
+.grep-tool-pattern-row svg,
+.grep-tool-path-row svg,
+.grep-tool-type-row svg {
+  color: var(--color-primary-400);
+  flex-shrink: 0;
+}
+
+.grep-tool-label {
+  color: var(--color-text-muted);
+  min-width: 70px;
+}
+
+.grep-tool-pattern-value {
+  color: var(--color-text-primary);
+  background: rgba(255, 255, 255, 0.05);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+}
+
+.grep-tool-path-value,
+.grep-tool-type-value {
+  color: var(--color-text-secondary);
+  word-break: break-all;
+}
+
+.grep-tool-results {
+  padding: 0 var(--space-3) var(--space-3);
+}
+
+.grep-tool-file-groups {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+}
+
+.grep-tool-empty {
+  padding: var(--space-4);
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+  text-align: center;
+  font-style: italic;
+}
+
+/* ============================================================================
+   Edit Tool Detailed Styles
+   ============================================================================ */
+
+.edit-tool-content {
+  font-family: var(--font-mono);
+}
+
+.edit-tool-details {
+  padding: var(--space-3);
+  background: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid var(--color-surface-glass-border);
+}
+
+.edit-tool-file-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-1);
+}
+
+.edit-tool-file-row svg {
+  color: var(--color-primary-400);
+  flex-shrink: 0;
+}
+
+.edit-tool-filepath {
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+  word-break: break-all;
+}
+
+.edit-tool-description-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.edit-tool-description-row svg {
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.edit-tool-description {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  font-family: var(--font-sans);
+}
+
+.edit-tool-diff {
+  padding: 0;
+}
+
+.edit-tool-diff-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-2) var(--space-3);
+  background: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid var(--color-surface-glass-border);
+}
+
+.edit-tool-diff-label {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.edit-tool-diff-stats {
+  display: flex;
+  gap: var(--space-2);
+  font-size: 0.75rem;
+  font-family: var(--font-mono);
+}
+
+.edit-tool-additions {
+  color: var(--color-success);
+}
+
+.edit-tool-deletions {
+  color: var(--color-error);
+}
+
+.edit-tool-no-diff {
+  padding: var(--space-4);
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+  text-align: center;
+  font-style: italic;
+}
+
+/* ============================================================================
+   Write Tool Detailed Styles
+   ============================================================================ */
+
+.write-tool-wrapper {
+  font-family: var(--font-mono);
+}
+
+.write-tool-details {
+  padding: var(--space-3);
+  background: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid var(--color-surface-glass-border);
+}
+
+.write-tool-file-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.write-tool-file-row svg {
+  color: var(--color-success);
+  flex-shrink: 0;
+}
+
+.write-tool-filepath {
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+  word-break: break-all;
+}
+
+.write-tool-badge {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: rgba(46, 160, 67, 0.1);
+  border-bottom: 1px solid var(--color-surface-glass-border);
+}
+
+.write-tool-badge svg {
+  color: var(--color-success);
+  flex-shrink: 0;
+}
+
+.write-tool-badge-text {
+  color: var(--color-success);
+  font-size: 0.75rem;
+  font-weight: var(--font-weight-medium);
+}
+
+.write-tool-badge-stats {
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  margin-left: auto;
+}
+
+.write-tool-empty {
+  padding: var(--space-4);
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+  text-align: center;
+  font-style: italic;
+}
+
+/* ============================================================================
+   Task Tool Detailed Styles
+   ============================================================================ */
+
+.task-tool-content {
+  font-family: var(--font-mono);
+}
+
+.task-tool-details {
+  padding: var(--space-3);
+  background: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid var(--color-surface-glass-border);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.task-tool-description-row,
+.task-tool-agent-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  font-size: 0.8125rem;
+}
+
+.task-tool-description-row svg,
+.task-tool-agent-row svg {
+  color: var(--color-primary-400);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.task-tool-label {
+  color: var(--color-text-muted);
+  min-width: 50px;
+  flex-shrink: 0;
+}
+
+.task-tool-description {
+  color: var(--color-text-secondary);
+  font-family: var(--font-sans);
+}
+
+.task-tool-agent-type {
+  color: var(--color-primary-400);
+  background: rgba(168, 85, 247, 0.1);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  font-weight: var(--font-weight-medium);
+}
+
+.task-tool-running {
+  padding: var(--space-4);
+}
+
+.task-tool-status {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.task-tool-status-text {
+  color: var(--color-text-tertiary);
+  font-size: 0.875rem;
+}
+
+.task-tool-result {
+  padding: 0;
+}
+
+.task-tool-result-header {
+  padding: var(--space-2) var(--space-3);
+  background: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid var(--color-surface-glass-border);
+}
+
+.task-tool-result-label {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.task-tool-result-content {
+  margin: 0;
+  padding: var(--space-3);
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 300px;
+  overflow: auto;
+  background: var(--color-bg-primary);
+}
+
+.task-tool-empty {
+  padding: var(--space-4);
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+  text-align: center;
+  font-style: italic;
+}
