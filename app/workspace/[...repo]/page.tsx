@@ -647,6 +647,20 @@ export default function WorkspacePage() {
     // Add empty assistant message that we'll populate
     setMessages((prev) => [...prev, { role: 'assistant', content: [] }]);
 
+    // Build conversation history from current messages for local sessions
+    // or sessions that might not have database records yet
+    const currentSession = sessions.find(s => s.sessionId === activeSessionId);
+    const isLocalSession = currentSession?.branchName?.startsWith('local/');
+
+    // Get conversation history from current messages (excluding the one we just added)
+    const conversationHistory = messages.map(msg => {
+      const textContent = msg.content
+        .filter((c): c is { type: 'text'; content: string } => c.type === 'text')
+        .map(c => c.content)
+        .join('\n');
+      return { role: msg.role, content: textContent };
+    }).filter(msg => msg.content.trim());
+
     try {
       const response = await fetch('/api/workspace/chat', {
         method: 'POST',
@@ -655,6 +669,7 @@ export default function WorkspacePage() {
           message: userMessage,
           repoFullName,
           workspaceSessionId: activeSessionId,
+          conversationHistory: conversationHistory.length > 0 ? conversationHistory : undefined,
         }),
       });
 

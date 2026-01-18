@@ -695,7 +695,7 @@ app.post('/api/workspace/setup', authenticateApiKey, async (req: Request, res: R
 
 // Chat with Claude about code in workspace
 app.post('/api/workspace/chat', authenticateApiKey, (req: Request, res: Response) => {
-  const { message, repoFullName, sessionId, workspaceSessionId } = req.body;
+  const { message, repoFullName, sessionId, workspaceSessionId, conversationHistory: clientHistory } = req.body;
 
   if (!message || !repoFullName) {
     res.status(400).json({ error: 'Message and repository required' });
@@ -751,7 +751,7 @@ app.post('/api/workspace/chat', authenticateApiKey, (req: Request, res: Response
     cwd: workspacePath
   });
 
-  // Retrieve conversation history if we have a workspace session
+  // Retrieve conversation history - first try database, then fall back to client-provided history
   let conversationHistory = '';
   if (workspaceSessionId) {
     try {
@@ -770,6 +770,14 @@ app.post('/api/workspace/chat', authenticateApiKey, (req: Request, res: Response
     } catch (e) {
       console.error('Failed to load conversation history:', e);
     }
+  }
+
+  // Fall back to client-provided history (for local sessions without database records)
+  if (!conversationHistory && clientHistory && Array.isArray(clientHistory)) {
+    conversationHistory = clientHistory.map((msg: { role: string; content: string }) => {
+      const prefix = msg.role === 'user' ? 'User' : 'Assistant';
+      return `${prefix}: ${msg.content}`;
+    }).join('\n\n');
   }
 
   // Write the system prompt, conversation history, and user's message
