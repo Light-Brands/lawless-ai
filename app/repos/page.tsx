@@ -173,6 +173,13 @@ export default function ReposPage() {
       } else {
         setRepos(reposData.repos);
         setFilteredRepos(reposData.repos);
+
+        // Sync repos to database for persistence across devices
+        fetch('/api/user/repos', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ repos: reposData.repos }),
+        }).catch(console.error);
       }
     } catch (err) {
       setError('Failed to load repositories');
@@ -182,6 +189,13 @@ export default function ReposPage() {
   }
 
   function handleSelectRepo(repo: Repo) {
+    // Mark repo as accessed in database
+    fetch('/api/user/repos', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ repoId: repo.id, markAccessed: true }),
+    }).catch(console.error);
+
     // Navigate to the file browser for this repo
     const [owner, repoName] = repo.fullName.split('/');
     router.push(`/repos/${owner}/${repoName}`);

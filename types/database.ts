@@ -73,6 +73,59 @@ export interface Database {
           updated_at?: string;
         };
       };
+      user_repos: {
+        Row: {
+          id: string;
+          user_id: string;
+          repo_id: number;
+          repo_full_name: string;
+          repo_name: string;
+          is_private: boolean;
+          description: string | null;
+          language: string | null;
+          default_branch: string;
+          html_url: string | null;
+          clone_url: string | null;
+          is_favorite: boolean;
+          last_accessed_at: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          repo_id: number;
+          repo_full_name: string;
+          repo_name: string;
+          is_private?: boolean;
+          description?: string | null;
+          language?: string | null;
+          default_branch?: string;
+          html_url?: string | null;
+          clone_url?: string | null;
+          is_favorite?: boolean;
+          last_accessed_at?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          repo_id?: number;
+          repo_full_name?: string;
+          repo_name?: string;
+          is_private?: boolean;
+          description?: string | null;
+          language?: string | null;
+          default_branch?: string;
+          html_url?: string | null;
+          clone_url?: string | null;
+          is_favorite?: boolean;
+          last_accessed_at?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
       repo_integrations: {
         Row: {
           id: string;
@@ -81,6 +134,7 @@ export interface Database {
           vercel_project_id: string | null;
           supabase_project_ref: string | null;
           created_at: string;
+          updated_at: string;
         };
         Insert: {
           id?: string;
@@ -89,6 +143,7 @@ export interface Database {
           vercel_project_id?: string | null;
           supabase_project_ref?: string | null;
           created_at?: string;
+          updated_at?: string;
         };
         Update: {
           id?: string;
@@ -97,6 +152,7 @@ export interface Database {
           vercel_project_id?: string | null;
           supabase_project_ref?: string | null;
           created_at?: string;
+          updated_at?: string;
         };
       };
       workspace_sessions: {
@@ -272,6 +328,7 @@ export interface Database {
 // Helper types for common operations
 export type User = Database['public']['Tables']['users']['Row'];
 export type IntegrationConnection = Database['public']['Tables']['integration_connections']['Row'];
+export type UserRepo = Database['public']['Tables']['user_repos']['Row'];
 export type RepoIntegration = Database['public']['Tables']['repo_integrations']['Row'];
 export type WorkspaceSession = Database['public']['Tables']['workspace_sessions']['Row'];
 export type Conversation = Database['public']['Tables']['conversations']['Row'];

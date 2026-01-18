@@ -29,6 +29,26 @@ CREATE TABLE IF NOT EXISTS public.integration_connections (
   UNIQUE(user_id, provider)
 );
 
+-- User repos (cached repo data and preferences)
+CREATE TABLE IF NOT EXISTS public.user_repos (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  repo_id BIGINT NOT NULL, -- GitHub repo ID
+  repo_full_name TEXT NOT NULL,
+  repo_name TEXT NOT NULL,
+  is_private BOOLEAN DEFAULT false,
+  description TEXT,
+  language TEXT,
+  default_branch TEXT DEFAULT 'main',
+  html_url TEXT,
+  clone_url TEXT,
+  is_favorite BOOLEAN DEFAULT false,
+  last_accessed_at TIMESTAMPTZ DEFAULT NOW(),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(user_id, repo_id)
+);
+
 -- Repo integrations (Vercel/Supabase project mappings)
 CREATE TABLE IF NOT EXISTS public.repo_integrations (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -37,6 +57,7 @@ CREATE TABLE IF NOT EXISTS public.repo_integrations (
   vercel_project_id TEXT,
   supabase_project_ref TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE(user_id, repo_full_name)
 );
 
@@ -104,6 +125,8 @@ CREATE TABLE IF NOT EXISTS public.sql_query_history (
 
 -- Create indexes for better query performance
 CREATE INDEX IF NOT EXISTS idx_integration_connections_user ON public.integration_connections(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_repos_user ON public.user_repos(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_repos_last_accessed ON public.user_repos(user_id, last_accessed_at DESC);
 CREATE INDEX IF NOT EXISTS idx_repo_integrations_user ON public.repo_integrations(user_id);
 CREATE INDEX IF NOT EXISTS idx_workspace_sessions_user ON public.workspace_sessions(user_id);
 CREATE INDEX IF NOT EXISTS idx_workspace_sessions_repo ON public.workspace_sessions(repo_full_name);
@@ -117,6 +140,7 @@ CREATE INDEX IF NOT EXISTS idx_sql_history_project ON public.sql_query_history(p
 -- Enable Row Level Security
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.integration_connections ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_repos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.repo_integrations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.workspace_sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.conversations ENABLE ROW LEVEL SECURITY;
@@ -140,6 +164,11 @@ CREATE POLICY "Users can insert own profile"
 -- RLS Policies for integration_connections
 CREATE POLICY "Users can manage own integrations"
   ON public.integration_connections FOR ALL
+  USING (auth.uid() = user_id);
+
+-- RLS Policies for user_repos
+CREATE POLICY "Users can manage own repos"
+  ON public.user_repos FOR ALL
   USING (auth.uid() = user_id);
 
 -- RLS Policies for repo_integrations
@@ -193,6 +222,14 @@ CREATE TRIGGER update_users_updated_at
 
 CREATE TRIGGER update_integration_connections_updated_at
   BEFORE UPDATE ON public.integration_connections
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_user_repos_updated_at
+  BEFORE UPDATE ON public.user_repos
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_repo_integrations_updated_at
+  BEFORE UPDATE ON public.repo_integrations
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TRIGGER update_conversations_updated_at
