@@ -751,8 +751,36 @@ app.post('/api/workspace/chat', authenticateApiKey, (req: Request, res: Response
     cwd: workspacePath
   });
 
-  // Write the system prompt and user's message
-  const promptWithContext = `${WORKSPACE_SYSTEM_PROMPT}
+  // Retrieve conversation history if we have a workspace session
+  let conversationHistory = '';
+  if (workspaceSessionId) {
+    try {
+      const existingConv = db.prepare(`
+        SELECT messages FROM conversations WHERE workspace_session_id = ? LIMIT 1
+      `).get(workspaceSessionId) as { messages: string } | undefined;
+
+      if (existingConv) {
+        const messages = JSON.parse(existingConv.messages) as Array<{ role: string; content: string }>;
+        // Build conversation history string
+        conversationHistory = messages.map(msg => {
+          const prefix = msg.role === 'user' ? 'User' : 'Assistant';
+          return `${prefix}: ${msg.content}`;
+        }).join('\n\n');
+      }
+    } catch (e) {
+      console.error('Failed to load conversation history:', e);
+    }
+  }
+
+  // Write the system prompt, conversation history, and user's message
+  const promptWithContext = conversationHistory
+    ? `${WORKSPACE_SYSTEM_PROMPT}
+
+Previous conversation:
+${conversationHistory}
+
+User request: ${message}`
+    : `${WORKSPACE_SYSTEM_PROMPT}
 
 User request: ${message}`;
   claude.stdin.write(promptWithContext);
