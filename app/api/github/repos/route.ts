@@ -205,26 +205,67 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
   }
 
-  try {
-    // Fetch user's repositories (including private)
-    const response = await fetch('https://api.github.com/user/repos?per_page=100&sort=updated', {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Accept': 'application/vnd.github.v3+json',
-      },
-    });
+  const headers = {
+    'Authorization': `Bearer ${token}`,
+    'Accept': 'application/vnd.github.v3+json',
+  };
 
-    if (!response.ok) {
-      if (response.status === 401) {
+  try {
+    // Fetch user's repositories (owned + collaborator access)
+    const userReposPromise = fetch(
+      'https://api.github.com/user/repos?per_page=100&sort=updated&affiliation=owner,collaborator',
+      { headers }
+    );
+
+    // Fetch user's organizations
+    const orgsPromise = fetch('https://api.github.com/user/orgs?per_page=100', { headers });
+
+    const [userReposResponse, orgsResponse] = await Promise.all([userReposPromise, orgsPromise]);
+
+    if (!userReposResponse.ok) {
+      if (userReposResponse.status === 401) {
         return NextResponse.json({ error: 'Token expired' }, { status: 401 });
       }
-      throw new Error(`GitHub API error: ${response.status}`);
+      throw new Error(`GitHub API error: ${userReposResponse.status}`);
     }
 
-    const repos = await response.json();
+    const userRepos = await userReposResponse.json();
+    const allRepos = [...userRepos];
+
+    // Fetch repos from each organization
+    if (orgsResponse.ok) {
+      const orgs = await orgsResponse.json();
+
+      // Fetch repos for each org in parallel
+      const orgRepoPromises = orgs.map((org: { login: string }) =>
+        fetch(`https://api.github.com/orgs/${org.login}/repos?per_page=100&sort=updated`, { headers })
+          .then(res => res.ok ? res.json() : [])
+          .catch(() => [])
+      );
+
+      const orgReposArrays = await Promise.all(orgRepoPromises);
+
+      // Flatten and add org repos
+      for (const orgRepos of orgReposArrays) {
+        allRepos.push(...orgRepos);
+      }
+    }
+
+    // Deduplicate by id (in case a repo appears in both user and org lists)
+    const seenIds = new Set<number>();
+    const uniqueRepos = allRepos.filter((repo: { id: number }) => {
+      if (seenIds.has(repo.id)) return false;
+      seenIds.add(repo.id);
+      return true;
+    });
+
+    // Sort by updated date
+    uniqueRepos.sort((a: { updated_at: string }, b: { updated_at: string }) =>
+      new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+    );
 
     // Return simplified repo data
-    const simplifiedRepos = repos.map((repo: any) => ({
+    const simplifiedRepos = uniqueRepos.map((repo: any) => ({
       id: repo.id,
       name: repo.name,
       fullName: repo.full_name,
