@@ -48,6 +48,15 @@ interface SupabaseOrg {
   name: string;
 }
 
+interface DocumentInput {
+  type: 'link' | 'upload';
+  url?: string;
+  content?: string;
+  filename?: string;
+}
+
+type TabType = 'link' | 'upload';
+
 const LightningIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
     <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
@@ -94,6 +103,32 @@ const LoadingSpinner = () => (
   <div className="new-project-spinner"></div>
 );
 
+const UploadIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+    <polyline points="17 8 12 3 7 8"/>
+    <line x1="12" y1="3" x2="12" y2="15"/>
+  </svg>
+);
+
+const DownloadIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+    <polyline points="7 10 12 15 17 10"/>
+    <line x1="12" y1="15" x2="12" y2="3"/>
+  </svg>
+);
+
+const FileIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+    <polyline points="14 2 14 8 20 8"/>
+    <line x1="16" y1="13" x2="8" y2="13"/>
+    <line x1="16" y1="17" x2="8" y2="17"/>
+    <polyline points="10 9 9 9 8 9"/>
+  </svg>
+);
+
 export default function NewProjectPage() {
   const router = useRouter();
   const [authStatus, setAuthStatus] = useState<AuthStatus | null>(null);
@@ -118,6 +153,19 @@ export default function NewProjectPage() {
   const [selectedGithubAccount, setSelectedGithubAccount] = useState<string>('');
   const [selectedVercelAccount, setSelectedVercelAccount] = useState<string>('');
   const [selectedSupabaseOrg, setSelectedSupabaseOrg] = useState<string>('');
+
+  // Document state
+  const [projectPlanTab, setProjectPlanTab] = useState<TabType>('link');
+  const [projectPlanUrl, setProjectPlanUrl] = useState('');
+  const [projectPlanFile, setProjectPlanFile] = useState<File | null>(null);
+  const [projectPlanContent, setProjectPlanContent] = useState<string>('');
+  const [brandIdentityTab, setBrandIdentityTab] = useState<TabType>('link');
+  const [brandIdentityUrl, setBrandIdentityUrl] = useState('');
+  const [brandIdentityFile, setBrandIdentityFile] = useState<File | null>(null);
+  const [brandIdentityContent, setBrandIdentityContent] = useState<string>('');
+  const [convertingFile, setConvertingFile] = useState<string | null>(null);
+  const [draggingPlan, setDraggingPlan] = useState(false);
+  const [draggingBrand, setDraggingBrand] = useState(false);
 
   useEffect(() => {
     checkAuth();
@@ -193,6 +241,112 @@ export default function NewProjectPage() {
     }
   }
 
+  const ALLOWED_EXTENSIONS = ['.md'];
+  const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+
+  function formatFileSize(bytes: number): string {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+  }
+
+  function getFileExtension(filename: string): string {
+    const ext = filename.toLowerCase().slice(filename.lastIndexOf('.'));
+    return ext;
+  }
+
+  function isAllowedFile(file: File): boolean {
+    const ext = getFileExtension(file.name);
+    return ALLOWED_EXTENSIONS.includes(ext) && file.size <= MAX_FILE_SIZE;
+  }
+
+  async function convertFile(file: File): Promise<string> {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await fetch('/api/convert', {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to convert file');
+    }
+
+    const data = await response.json();
+    return data.markdown;
+  }
+
+  async function handleFileSelect(
+    file: File,
+    type: 'plan' | 'brand'
+  ) {
+    if (!isAllowedFile(file)) {
+      alert(`Invalid file. Allowed formats: ${ALLOWED_EXTENSIONS.join(', ')}. Max size: 5MB.`);
+      return;
+    }
+
+    setConvertingFile(type);
+
+    try {
+      const content = await convertFile(file);
+      if (type === 'plan') {
+        setProjectPlanFile(file);
+        setProjectPlanContent(content);
+      } else {
+        setBrandIdentityFile(file);
+        setBrandIdentityContent(content);
+      }
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Failed to convert file');
+    } finally {
+      setConvertingFile(null);
+    }
+  }
+
+  function handleDragOver(e: React.DragEvent, type: 'plan' | 'brand') {
+    e.preventDefault();
+    if (type === 'plan') {
+      setDraggingPlan(true);
+    } else {
+      setDraggingBrand(true);
+    }
+  }
+
+  function handleDragLeave(e: React.DragEvent, type: 'plan' | 'brand') {
+    e.preventDefault();
+    if (type === 'plan') {
+      setDraggingPlan(false);
+    } else {
+      setDraggingBrand(false);
+    }
+  }
+
+  function handleDrop(e: React.DragEvent, type: 'plan' | 'brand') {
+    e.preventDefault();
+    if (type === 'plan') {
+      setDraggingPlan(false);
+    } else {
+      setDraggingBrand(false);
+    }
+
+    const file = e.dataTransfer.files[0];
+    if (file) {
+      handleFileSelect(file, type);
+    }
+  }
+
+  function clearFile(type: 'plan' | 'brand') {
+    if (type === 'plan') {
+      setProjectPlanFile(null);
+      setProjectPlanContent('');
+    } else {
+      setBrandIdentityFile(null);
+      setBrandIdentityContent('');
+    }
+  }
+
   async function handleCreate() {
     if (!projectName.trim()) {
       alert('Please enter a project name');
@@ -217,6 +371,29 @@ export default function NewProjectPage() {
     const vercelAccount = vercelAccounts.find(a => a.id === selectedVercelAccount);
     const vercelTeamId = vercelAccount?.type === 'team' ? selectedVercelAccount : undefined;
 
+    // Build document inputs
+    let projectPlan: DocumentInput | undefined;
+    if (projectPlanTab === 'link' && projectPlanUrl.trim()) {
+      projectPlan = { type: 'link', url: projectPlanUrl.trim() };
+    } else if (projectPlanTab === 'upload' && projectPlanContent) {
+      projectPlan = {
+        type: 'upload',
+        content: projectPlanContent,
+        filename: projectPlanFile?.name,
+      };
+    }
+
+    let brandIdentity: DocumentInput | undefined;
+    if (brandIdentityTab === 'link' && brandIdentityUrl.trim()) {
+      brandIdentity = { type: 'link', url: brandIdentityUrl.trim() };
+    } else if (brandIdentityTab === 'upload' && brandIdentityContent) {
+      brandIdentity = {
+        type: 'upload',
+        content: brandIdentityContent,
+        filename: brandIdentityFile?.name,
+      };
+    }
+
     const stepResults: StepResult[] = [];
 
     try {
@@ -234,6 +411,8 @@ export default function NewProjectPage() {
           githubOrg,
           vercelTeamId,
           supabaseOrgId: selectedSupabaseOrg || undefined,
+          projectPlan,
+          brandIdentity,
         }),
       });
 
@@ -463,6 +642,210 @@ export default function NewProjectPage() {
                     </select>
                   </div>
                 )}
+
+                {/* Project Plan Section */}
+                <div className="new-project-doc-section">
+                  <div className="new-project-doc-header">
+                    <span className="new-project-doc-title">
+                      Project Plan <span className="new-project-doc-optional">(optional)</span>
+                    </span>
+                  </div>
+                  <div className="new-project-tabs">
+                    <button
+                      type="button"
+                      className={`new-project-tab ${projectPlanTab === 'link' ? 'active' : ''}`}
+                      onClick={() => setProjectPlanTab('link')}
+                      disabled={creating}
+                    >
+                      Link
+                    </button>
+                    <button
+                      type="button"
+                      className={`new-project-tab ${projectPlanTab === 'upload' ? 'active' : ''}`}
+                      onClick={() => setProjectPlanTab('upload')}
+                      disabled={creating}
+                    >
+                      Upload
+                    </button>
+                  </div>
+                  <div className="new-project-tab-content">
+                    {projectPlanTab === 'link' ? (
+                      <input
+                        type="url"
+                        className="new-project-link-input"
+                        placeholder="https://docs.google.com/document/d/..."
+                        value={projectPlanUrl}
+                        onChange={(e) => setProjectPlanUrl(e.target.value)}
+                        disabled={creating}
+                      />
+                    ) : convertingFile === 'plan' ? (
+                      <div className="new-project-converting">
+                        <LoadingSpinner />
+                        <span>Converting file...</span>
+                      </div>
+                    ) : projectPlanFile ? (
+                      <div
+                        className="new-project-upload-zone has-file"
+                        onClick={() => clearFile('plan')}
+                      >
+                        <div className="new-project-file-preview">
+                          <div className="new-project-upload-icon">
+                            <FileIcon />
+                          </div>
+                          <div className="new-project-file-info">
+                            <div className="new-project-file-name">{projectPlanFile.name}</div>
+                            <div className="new-project-file-size">{formatFileSize(projectPlanFile.size)}</div>
+                          </div>
+                          <button
+                            type="button"
+                            className="new-project-file-remove"
+                            onClick={(e) => { e.stopPropagation(); clearFile('plan'); }}
+                          >
+                            <XIcon />
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div
+                        className={`new-project-upload-zone ${draggingPlan ? 'dragging' : ''}`}
+                        onDragOver={(e) => handleDragOver(e, 'plan')}
+                        onDragLeave={(e) => handleDragLeave(e, 'plan')}
+                        onDrop={(e) => handleDrop(e, 'plan')}
+                        onClick={() => document.getElementById('plan-upload')?.click()}
+                      >
+                        <div className="new-project-upload-icon">
+                          <UploadIcon />
+                        </div>
+                        <p className="new-project-upload-text">
+                          Drag & drop or <span>click to upload</span>
+                        </p>
+                        <p className="new-project-upload-hint">
+                          .md files only (max 5MB)
+                        </p>
+                        <input
+                          id="plan-upload"
+                          type="file"
+                          className="new-project-upload-input"
+                          accept=".md"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) handleFileSelect(file, 'plan');
+                          }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                  <a
+                    href="/templates/project-plan-template.md"
+                    download
+                    className="new-project-template-link"
+                  >
+                    <DownloadIcon />
+                    Download template
+                  </a>
+                </div>
+
+                {/* Brand Identity Section */}
+                <div className="new-project-doc-section">
+                  <div className="new-project-doc-header">
+                    <span className="new-project-doc-title">
+                      Brand Identity <span className="new-project-doc-optional">(optional)</span>
+                    </span>
+                  </div>
+                  <div className="new-project-tabs">
+                    <button
+                      type="button"
+                      className={`new-project-tab ${brandIdentityTab === 'link' ? 'active' : ''}`}
+                      onClick={() => setBrandIdentityTab('link')}
+                      disabled={creating}
+                    >
+                      Link
+                    </button>
+                    <button
+                      type="button"
+                      className={`new-project-tab ${brandIdentityTab === 'upload' ? 'active' : ''}`}
+                      onClick={() => setBrandIdentityTab('upload')}
+                      disabled={creating}
+                    >
+                      Upload
+                    </button>
+                  </div>
+                  <div className="new-project-tab-content">
+                    {brandIdentityTab === 'link' ? (
+                      <input
+                        type="url"
+                        className="new-project-link-input"
+                        placeholder="https://docs.google.com/document/d/..."
+                        value={brandIdentityUrl}
+                        onChange={(e) => setBrandIdentityUrl(e.target.value)}
+                        disabled={creating}
+                      />
+                    ) : convertingFile === 'brand' ? (
+                      <div className="new-project-converting">
+                        <LoadingSpinner />
+                        <span>Converting file...</span>
+                      </div>
+                    ) : brandIdentityFile ? (
+                      <div
+                        className="new-project-upload-zone has-file"
+                        onClick={() => clearFile('brand')}
+                      >
+                        <div className="new-project-file-preview">
+                          <div className="new-project-upload-icon">
+                            <FileIcon />
+                          </div>
+                          <div className="new-project-file-info">
+                            <div className="new-project-file-name">{brandIdentityFile.name}</div>
+                            <div className="new-project-file-size">{formatFileSize(brandIdentityFile.size)}</div>
+                          </div>
+                          <button
+                            type="button"
+                            className="new-project-file-remove"
+                            onClick={(e) => { e.stopPropagation(); clearFile('brand'); }}
+                          >
+                            <XIcon />
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div
+                        className={`new-project-upload-zone ${draggingBrand ? 'dragging' : ''}`}
+                        onDragOver={(e) => handleDragOver(e, 'brand')}
+                        onDragLeave={(e) => handleDragLeave(e, 'brand')}
+                        onDrop={(e) => handleDrop(e, 'brand')}
+                        onClick={() => document.getElementById('brand-upload')?.click()}
+                      >
+                        <div className="new-project-upload-icon">
+                          <UploadIcon />
+                        </div>
+                        <p className="new-project-upload-text">
+                          Drag & drop or <span>click to upload</span>
+                        </p>
+                        <p className="new-project-upload-hint">
+                          .md files only (max 5MB)
+                        </p>
+                        <input
+                          id="brand-upload"
+                          type="file"
+                          className="new-project-upload-input"
+                          accept=".md"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) handleFileSelect(file, 'brand');
+                          }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                  <a
+                    href="/templates/brand-identity-template.md"
+                    download
+                    className="new-project-template-link"
+                  >
+                    <DownloadIcon />
+                    Download template
+                  </a>
+                </div>
 
                 {/* Organization Selectors */}
                 <div className="new-project-org-section">

@@ -14,6 +14,56 @@ function sendEvent(controller: ReadableStreamDefaultController, event: string, d
   controller.enqueue(new TextEncoder().encode(message));
 }
 
+// Helper to fetch content from a URL
+async function fetchDocumentContent(url: string): Promise<string | null> {
+  try {
+    // Handle Google Docs URLs - convert to export URL
+    if (url.includes('docs.google.com/document')) {
+      const docIdMatch = url.match(/\/d\/([a-zA-Z0-9-_]+)/);
+      if (docIdMatch) {
+        const docId = docIdMatch[1];
+        const exportUrl = `https://docs.google.com/document/d/${docId}/export?format=txt`;
+        const response = await fetch(exportUrl);
+        if (response.ok) {
+          return await response.text();
+        }
+      }
+    }
+
+    // Try to fetch directly
+    const response = await fetch(url);
+    if (!response.ok) {
+      return null;
+    }
+
+    const contentType = response.headers.get('content-type') || '';
+
+    // Handle different content types
+    if (contentType.includes('text/plain') || contentType.includes('text/markdown')) {
+      return await response.text();
+    }
+
+    // For HTML, try to extract text content
+    if (contentType.includes('text/html')) {
+      const html = await response.text();
+      // Basic HTML to text conversion - strip tags
+      const text = html
+        .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+        .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+        .replace(/<[^>]+>/g, '\n')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+      return text;
+    }
+
+    // Default to text
+    return await response.text();
+  } catch (error) {
+    console.error('Failed to fetch document:', error);
+    return null;
+  }
+}
+
 // Fetch entire repo using Git Trees API
 async function fetchAiCodingConfig(
   token: string,
@@ -77,6 +127,13 @@ export async function POST(request: NextRequest) {
   const vercelToken = request.cookies.get('vercel_token')?.value;
   const supabaseToken = request.cookies.get('supabase_token')?.value;
 
+  interface DocumentInput {
+    type: 'link' | 'upload';
+    url?: string;
+    content?: string;
+    filename?: string;
+  }
+
   const body = await request.json();
   const {
     name,
@@ -89,7 +146,22 @@ export async function POST(request: NextRequest) {
     githubOrg,
     vercelTeamId,
     supabaseOrgId,
-  } = body;
+    projectPlan,
+    brandIdentity,
+  } = body as {
+    name: string;
+    description?: string;
+    isPrivate?: boolean;
+    includeAiConfig?: boolean;
+    includeVercel?: boolean;
+    includeSupabase?: boolean;
+    supabaseRegion?: string;
+    githubOrg?: string;
+    vercelTeamId?: string;
+    supabaseOrgId?: string;
+    projectPlan?: DocumentInput;
+    brandIdentity?: DocumentInput;
+  };
 
   if (!name || !githubToken) {
     return new Response(JSON.stringify({ error: 'Missing required fields' }), { status: 400 });
@@ -179,9 +251,31 @@ export async function POST(request: NextRequest) {
             const repo = await createRes.json();
             githubRepo = { fullName: repo.full_name, htmlUrl: repo.html_url };
 
+            // Resolve document content from links if needed
+            let projectPlanContent: string | null = null;
+            let brandIdentityContent: string | null = null;
+
+            if (projectPlan) {
+              if (projectPlan.type === 'upload' && projectPlan.content) {
+                projectPlanContent = projectPlan.content;
+              } else if (projectPlan.type === 'link' && projectPlan.url) {
+                progress('Fetching project plan from URL...');
+                projectPlanContent = await fetchDocumentContent(projectPlan.url);
+              }
+            }
+
+            if (brandIdentity) {
+              if (brandIdentity.type === 'upload' && brandIdentity.content) {
+                brandIdentityContent = brandIdentity.content;
+              } else if (brandIdentity.type === 'link' && brandIdentity.url) {
+                progress('Fetching brand identity from URL...');
+                brandIdentityContent = await fetchDocumentContent(brandIdentity.url);
+              }
+            }
+
             // Add template files
             progress('Adding template files...');
-            const templateFiles = getTemplateFiles(name, supabaseProject?.url);
+            const templateFiles = getTemplateFiles(name, supabaseProject?.url, projectPlanContent);
             for (const [path, content] of Object.entries(templateFiles)) {
               await fetch(`https://api.github.com/repos/${repo.full_name}/contents/${path}`, {
                 method: 'PUT',
@@ -192,6 +286,38 @@ export async function POST(request: NextRequest) {
                 body: JSON.stringify({
                   message: `Add ${path}`,
                   content: Buffer.from(content).toString('base64'),
+                }),
+              });
+            }
+
+            // Add project plan file if provided
+            if (projectPlanContent) {
+              progress('Adding project plan...');
+              await fetch(`https://api.github.com/repos/${repo.full_name}/contents/plans/project-plan.md`, {
+                method: 'PUT',
+                headers: {
+                  'Authorization': `Bearer ${githubToken}`,
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  message: 'Add project plan',
+                  content: Buffer.from(projectPlanContent).toString('base64'),
+                }),
+              });
+            }
+
+            // Add brand identity file if provided
+            if (brandIdentityContent) {
+              progress('Adding brand identity...');
+              await fetch(`https://api.github.com/repos/${repo.full_name}/contents/plans/brand-identity.md`, {
+                method: 'PUT',
+                headers: {
+                  'Authorization': `Bearer ${githubToken}`,
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  message: 'Add brand identity',
+                  content: Buffer.from(brandIdentityContent).toString('base64'),
                 }),
               });
             }
@@ -350,8 +476,40 @@ function generatePassword(): string {
   return Array.from({ length: 24 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
 }
 
-function getTemplateFiles(projectName: string, supabaseUrl?: string): Record<string, string> {
+function getTemplateFiles(projectName: string, supabaseUrl?: string, projectPlanContent?: string | null): Record<string, string> {
+  // Generate README from project plan or use default
+  const readme = projectPlanContent
+    ? projectPlanContent
+    : `# ${projectName}
+
+A Next.js project with Supabase integration.
+
+## Getting Started
+
+First, run the development server:
+
+\`\`\`bash
+npm run dev
+\`\`\`
+
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+
+## Tech Stack
+
+- [Next.js](https://nextjs.org/) - React framework
+- [Supabase](https://supabase.com/) - Backend as a Service
+- [TypeScript](https://www.typescriptlang.org/) - Type safety
+
+## Learn More
+
+To learn more about the technologies used in this project:
+
+- [Next.js Documentation](https://nextjs.org/docs)
+- [Supabase Documentation](https://supabase.com/docs)
+`;
+
   return {
+    'README.md': readme,
     'package.json': JSON.stringify({
       name: projectName,
       version: '0.1.0',
