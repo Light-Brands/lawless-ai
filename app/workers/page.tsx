@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import WorkerDetailModal from './components/WorkerDetailModal';
 
 interface WorkerInfo {
   id: string;
@@ -168,6 +169,7 @@ export default function WorkersPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedWorker, setSelectedWorker] = useState<WorkerInfo | null>(null);
 
   useEffect(() => {
     checkAuthAndLoadWorkers();
@@ -403,7 +405,14 @@ export default function WorkersPage() {
 
         <div className="workers-grid">
           {filteredWorkers.map((worker) => (
-            <div key={worker.id} className="worker-card">
+            <div
+              key={worker.id}
+              className="worker-card clickable"
+              onClick={() => setSelectedWorker(worker)}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => e.key === 'Enter' && setSelectedWorker(worker)}
+            >
               <div className="worker-card-header">
                 <div className="worker-card-title">
                   <div className="worker-provider-icon">
@@ -473,6 +482,13 @@ export default function WorkersPage() {
           </div>
         )}
       </main>
+
+      {selectedWorker && (
+        <WorkerDetailModal
+          worker={selectedWorker}
+          onClose={() => setSelectedWorker(null)}
+        />
+      )}
     </div>
   );
 }
