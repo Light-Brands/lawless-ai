@@ -1,6 +1,8 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
+import TokenInputModal from './TokenInputModal';
 
 interface VercelCardProps {
   connected: boolean;
@@ -38,69 +40,102 @@ const DisconnectIcon = () => (
 );
 
 export default function VercelCard({ connected, user, onDisconnect, onRefresh }: VercelCardProps) {
-  // OAuth is handled server-side via /api/auth/vercel
-  const authUrl = '/api/auth/vercel';
+  const [showTokenModal, setShowTokenModal] = useState(false);
+
+  async function handleTokenSubmit(token: string) {
+    try {
+      const res = await fetch('/api/auth/vercel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token }),
+      });
+
+      const data = await res.json();
+
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      setShowTokenModal(false);
+      onRefresh();
+    } catch (error) {
+      throw error;
+    }
+  }
 
   return (
-    <div className={`integration-card ${connected ? 'connected' : ''}`}>
-      <div className="integration-card-header">
-        <div className="integration-card-icon vercel">
-          <VercelIcon />
+    <>
+      <div className={`integration-card ${connected ? 'connected' : ''}`}>
+        <div className="integration-card-header">
+          <div className="integration-card-icon vercel">
+            <VercelIcon />
+          </div>
+          <div className="integration-card-status">
+            {connected ? (
+              <span className="status-badge connected">
+                <span className="status-dot"></span>
+                Connected
+              </span>
+            ) : (
+              <span className="status-badge disconnected">Not connected</span>
+            )}
+          </div>
         </div>
-        <div className="integration-card-status">
-          {connected ? (
-            <span className="status-badge connected">
-              <span className="status-dot"></span>
-              Connected
-            </span>
+
+        <div className="integration-card-content">
+          <h3>Vercel</h3>
+          {connected && user ? (
+            <div className="integration-card-user">
+              {user.avatar ? (
+                <img src={user.avatar} alt={user.name} className="integration-user-avatar" />
+              ) : (
+                <div className="integration-user-avatar-placeholder">
+                  {user.name.charAt(0).toUpperCase()}
+                </div>
+              )}
+              <div className="integration-user-info">
+                <span className="integration-user-name">{user.name}</span>
+                <span className="integration-user-handle">{user.email}</span>
+              </div>
+            </div>
           ) : (
-            <span className="status-badge disconnected">Not connected</span>
+            <p className="integration-card-description">
+              Connect Vercel to view deployments, logs, and trigger redeploys
+            </p>
+          )}
+        </div>
+
+        <div className="integration-card-actions">
+          {connected ? (
+            <>
+              <Link href="/integrations/vercel" className="integration-btn primary">
+                <span>View Deployments</span>
+                <ArrowRightIcon />
+              </Link>
+              <button onClick={onDisconnect} className="integration-btn danger">
+                <DisconnectIcon />
+                <span>Disconnect</span>
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={() => setShowTokenModal(true)}
+              className="integration-btn connect vercel"
+            >
+              <VercelIcon />
+              <span>Connect Vercel</span>
+            </button>
           )}
         </div>
       </div>
 
-      <div className="integration-card-content">
-        <h3>Vercel</h3>
-        {connected && user ? (
-          <div className="integration-card-user">
-            {user.avatar ? (
-              <img src={user.avatar} alt={user.name} className="integration-user-avatar" />
-            ) : (
-              <div className="integration-user-avatar-placeholder">
-                {user.name.charAt(0).toUpperCase()}
-              </div>
-            )}
-            <div className="integration-user-info">
-              <span className="integration-user-name">{user.name}</span>
-              <span className="integration-user-handle">{user.email}</span>
-            </div>
-          </div>
-        ) : (
-          <p className="integration-card-description">
-            Connect Vercel to view deployments, logs, and trigger redeploys
-          </p>
-        )}
-      </div>
-
-      <div className="integration-card-actions">
-        {connected ? (
-          <>
-            <Link href="/integrations/vercel" className="integration-btn primary">
-              <span>View Deployments</span>
-              <ArrowRightIcon />
-            </Link>
-            <button onClick={onDisconnect} className="integration-btn danger">
-              <DisconnectIcon />
-              <span>Disconnect</span>
-            </button>
-          </>
-        ) : (
-          <a href={authUrl} className="integration-btn connect vercel">
-            <VercelIcon />
-            <span>Connect Vercel</span>
-          </a>
-        )}
-      </div>
-    </div>
+      {showTokenModal && (
+        <TokenInputModal
+          service="vercel"
+          onSubmit={handleTokenSubmit}
+          onClose={() => setShowTokenModal(false)}
+        />
+      )}
+    </>
   );
 }
