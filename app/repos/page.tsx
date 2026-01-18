@@ -93,6 +93,18 @@ const HomeIcon = () => (
   </svg>
 );
 
+const IntegrationsIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 2v4"/>
+    <path d="m6.8 15-3.5 2"/>
+    <path d="m20.7 17-3.5-2"/>
+    <path d="M6.8 9 3.3 7"/>
+    <path d="m20.7 7-3.5 2"/>
+    <path d="m9 22 3-8 3 8"/>
+    <path d="M8 6a4 4 0 1 0 8 0"/>
+  </svg>
+);
+
 export default function ReposPage() {
   const router = useRouter();
   const [repos, setRepos] = useState<Repo[]>([]);
@@ -206,6 +218,10 @@ export default function ReposPage() {
               <Link href="/" className="repos-nav-btn">
                 <HomeIcon />
                 <span>Chat</span>
+              </Link>
+              <Link href="/integrations" className="repos-nav-btn">
+                <IntegrationsIcon />
+                <span>Integrations</span>
               </Link>
               <div className="repos-user">
                 <img src={user.avatar} alt={user.login} className="repos-avatar" />
