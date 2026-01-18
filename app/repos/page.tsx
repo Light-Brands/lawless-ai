@@ -100,8 +100,6 @@ export default function ReposPage() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedRepo, setSelectedRepo] = useState<string | null>(null);
-  const [cloning, setCloning] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
@@ -150,32 +148,10 @@ export default function ReposPage() {
     }
   }
 
-  async function handleSelectRepo(repo: Repo) {
-    setSelectedRepo(repo.fullName);
-    setCloning(true);
-
-    try {
-      const response = await fetch('/api/workspace/setup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ repoFullName: repo.fullName }),
-      });
-
-      const data = await response.json();
-
-      if (data.error) {
-        setError(data.error);
-        setCloning(false);
-        setSelectedRepo(null);
-        return;
-      }
-
-      router.push(`/workspace/${encodeURIComponent(repo.fullName)}`);
-    } catch (err) {
-      setError('Failed to setup workspace');
-      setCloning(false);
-      setSelectedRepo(null);
-    }
+  function handleSelectRepo(repo: Repo) {
+    // Navigate to the file browser for this repo
+    const [owner, repoName] = repo.fullName.split('/');
+    router.push(`/repos/${owner}/${repoName}`);
   }
 
   async function handleLogout() {
@@ -279,24 +255,13 @@ export default function ReposPage() {
           </div>
         )}
 
-        {/* Cloning overlay */}
-        {cloning && (
-          <div className="repos-cloning-overlay">
-            <div className="repos-cloning-modal">
-              <div className="repos-loading-spinner"></div>
-              <h3>Setting up workspace</h3>
-              <p>{selectedRepo}</p>
-            </div>
-          </div>
-        )}
-
         {/* Repository grid */}
         <div className="repos-grid">
           {filteredRepos.map((repo) => (
             <div
               key={repo.id}
-              onClick={() => !cloning && handleSelectRepo(repo)}
-              className={`repo-card ${selectedRepo === repo.fullName ? 'selected' : ''} ${cloning ? 'disabled' : ''}`}
+              onClick={() => handleSelectRepo(repo)}
+              className="repo-card"
             >
               <div className="repo-card-header">
                 <div className="repo-card-title">
