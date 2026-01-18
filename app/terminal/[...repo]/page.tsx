@@ -130,7 +130,7 @@ export default function TerminalPage() {
   const [sessions, setSessions] = useState<TerminalSession[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [backendWsUrl, setBackendWsUrl] = useState<string>('ws://localhost:3001');
+  const [backendWsUrl, setBackendWsUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const repoPath = Array.isArray(params.repo) ? params.repo.join('/') : params.repo;
@@ -262,6 +262,11 @@ export default function TerminalPage() {
 
   // Connect to WebSocket for a session
   const connectWebSocket = useCallback((sessionId: string, term: any) => {
+    if (!backendWsUrl) {
+      term.writeln(`\x1b[33mWaiting for server configuration...\x1b[0m`);
+      return;
+    }
+
     const wsUrl = `${backendWsUrl}/ws/terminal?repo=${encodeURIComponent(repoPath!)}&session=${sessionId}`;
 
     term.writeln(`\x1b[90mConnecting to server...\x1b[0m`);
@@ -492,6 +497,20 @@ export default function TerminalPage() {
     return () => window.removeEventListener('resize', handleResize);
   }, [activeSessionId]);
 
+  // Connect terminals when backendWsUrl becomes available
+  useEffect(() => {
+    if (!backendWsUrl) return;
+
+    // Connect any terminals that were initialized before the URL was ready
+    terminals.current.forEach((term, sessionId) => {
+      const ws = websockets.current.get(sessionId);
+      // Only connect if not already connected
+      if (!ws || ws.readyState === WebSocket.CLOSED) {
+        connectWebSocket(sessionId, term);
+      }
+    });
+  }, [backendWsUrl, connectWebSocket]);
+
   const createNewSession = useCallback(async () => {
     const sessionId = generateSessionId();
     const sessionName = generateSessionName(sessions.length);
@@ -599,12 +618,16 @@ export default function TerminalPage() {
   }, [activeSessionId]);
 
   const reconnectSession = useCallback((sessionId: string) => {
+    if (!backendWsUrl) {
+      setError('Server configuration not loaded yet');
+      return;
+    }
     const term = terminals.current.get(sessionId);
     if (term) {
       term.clear();
       connectWebSocket(sessionId, term);
     }
-  }, [connectWebSocket]);
+  }, [connectWebSocket, backendWsUrl]);
 
   const restartClaude = useCallback(() => {
     if (!activeSessionId) return;
