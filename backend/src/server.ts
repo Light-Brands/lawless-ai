@@ -607,7 +607,7 @@ app.post('/api/demo/chat', (req: Request, res: Response) => {
   }
 
   // Use a demo workspace directory
-  const demoWorkspacePath = path.join(WORKSPACES_DIR, '_demo');
+  const demoWorkspacePath = path.join(WORKSPACE_DIR, '_demo');
 
   // Create demo workspace if it doesn't exist
   if (!fs.existsSync(demoWorkspacePath)) {
