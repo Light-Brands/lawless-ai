@@ -1293,13 +1293,39 @@ app.get('/api/terminal/sessions/:owner/:repo', authenticateApiKey, (req: Request
 // Create HTTP server for both Express and WebSocket
 const server = http.createServer(app);
 
-// WebSocket server for terminal sessions
-const wss = new WebSocketServer({ server, path: '/ws/terminal' });
+// WebSocket server for terminal sessions with keep-alive
+const wss = new WebSocketServer({
+  server,
+  path: '/ws/terminal',
+  // Server-side ping every 30 seconds to keep connections alive through proxies
+  perMessageDeflate: false,
+});
+
+// Track alive status for ping/pong
+const isAlive = new Map<WebSocket, boolean>();
+
+// Send pings every 30 seconds to keep connections alive
+const pingInterval = setInterval(() => {
+  wss.clients.forEach((ws) => {
+    if (isAlive.get(ws) === false) {
+      console.log('Terminating stale WebSocket connection');
+      return ws.terminate();
+    }
+    isAlive.set(ws, false);
+    ws.ping();
+  });
+}, 30000);
 
 // Store active terminal sessions
 const terminalSessions = new Map<string, pty.IPty>();
 
 wss.on('connection', (ws: WebSocket, req) => {
+  // Mark connection as alive for ping/pong
+  isAlive.set(ws, true);
+  ws.on('pong', () => {
+    isAlive.set(ws, true);
+  });
+
   const url = new URL(req.url || '', `http://${req.headers.host}`);
   const repoFullName = url.searchParams.get('repo');
   const clientSessionId = url.searchParams.get('session');
@@ -1432,6 +1458,7 @@ wss.on('connection', (ws: WebSocket, req) => {
 
   ws.on('close', () => {
     console.log(`Terminal WebSocket disconnected: ${sessionId}`);
+    isAlive.delete(ws);
     const session = terminalSessions.get(sessionId);
     if (session) {
       session.kill();
@@ -1456,6 +1483,13 @@ server.listen(PORT, () => {
 ║  CORS:     ${(allowedOrigins[0] || 'all origins').slice(0, 45).padEnd(45)}║
 ╚═══════════════════════════════════════════════════════════╝
   `);
+});
+
+// Graceful shutdown - clean up ping interval
+process.on('SIGTERM', () => {
+  clearInterval(pingInterval);
+  wss.close();
+  server.close();
 });
 
 export default app;
