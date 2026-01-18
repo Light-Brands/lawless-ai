@@ -59,17 +59,20 @@ export async function GET(request: NextRequest) {
         updated_at: new Date().toISOString(),
       } as never, { onConflict: 'id' });
 
-    results.insertTest = {
+    const insertTestResult = {
       success: !insertError,
       error: insertError?.message || null,
       code: insertError?.code || null,
+      cleaned: false,
     };
 
     // Clean up test row
     if (!insertError) {
       await supabase.from('users').delete().eq('id', testId);
-      results.insertTest.cleaned = true;
+      insertTestResult.cleaned = true;
     }
+
+    results.insertTest = insertTestResult;
 
   } catch (err) {
     results.error = err instanceof Error ? err.message : 'Unknown error';
