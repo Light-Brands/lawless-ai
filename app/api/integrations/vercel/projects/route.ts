@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
       latestDeployment: project.latestDeployments?.[0] ? {
         id: project.latestDeployments[0].id,
         url: project.latestDeployments[0].url,
-        state: project.latestDeployments[0].state,
+        state: project.latestDeployments[0].state || project.latestDeployments[0].readyState,
         createdAt: project.latestDeployments[0].createdAt,
       } : null,
       targets: project.targets,
