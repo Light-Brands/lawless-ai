@@ -21,6 +21,9 @@ interface TerminalSession {
   name: string;
   createdAt: Date;
   connected: boolean;
+  branchName?: string;
+  baseBranch?: string;
+  baseCommit?: string;
   terminal?: any;
   ws?: WebSocket;
 }
@@ -89,6 +92,15 @@ const SidebarIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <rect width="18" height="18" x="3" y="3" rx="2"/>
     <path d="M9 3v18"/>
+  </svg>
+);
+
+const GitBranchIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="6" x2="6" y1="3" y2="15"/>
+    <circle cx="18" cy="6" r="3"/>
+    <circle cx="6" cy="18" r="3"/>
+    <path d="M18 9a9 9 0 0 1-9 9"/>
   </svg>
 );
 
@@ -166,6 +178,9 @@ export default function TerminalPage() {
           ...s,
           createdAt: new Date(s.createdAt),
           connected: false,
+          branchName: s.branchName,
+          baseBranch: s.baseBranch,
+          baseCommit: s.baseCommit,
         }));
         setSessions(restoredSessions);
         if (restoredSessions.length > 0) {
@@ -198,6 +213,9 @@ export default function TerminalPage() {
       id: s.id,
       name: s.name,
       createdAt: s.createdAt.toISOString(),
+      branchName: s.branchName,
+      baseBranch: s.baseBranch,
+      baseCommit: s.baseCommit,
     }));
     localStorage.setItem(`terminal_sessions_${repoPath.replace('/', '_')}`, JSON.stringify(toSave));
   }, [sessions, repoPath]);
@@ -299,6 +317,17 @@ export default function TerminalPage() {
             term.writeln(`\x1b[32m${msg.message}\x1b[0m`);
             term.writeln('\x1b[90mStarting Claude CLI...\x1b[0m\r\n');
             captureOutput(connectedMsg);
+            // Update session with branch info from backend
+            if (msg.branchName) {
+              setSessions(prev => prev.map(s =>
+                s.id === sessionId ? {
+                  ...s,
+                  branchName: msg.branchName,
+                  baseBranch: msg.baseBranch,
+                  baseCommit: msg.baseCommit,
+                } : s
+              ));
+            }
             break;
           case 'output':
             term.write(msg.data);
@@ -463,18 +492,50 @@ export default function TerminalPage() {
     return () => window.removeEventListener('resize', handleResize);
   }, [activeSessionId]);
 
-  const createNewSession = useCallback(() => {
-    const newSession: TerminalSession = {
-      id: generateSessionId(),
-      name: generateSessionName(sessions.length),
-      createdAt: new Date(),
-      connected: false,
-    };
-    setSessions(prev => [...prev, newSession]);
-    setActiveSessionId(newSession.id);
-  }, [sessions.length]);
+  const createNewSession = useCallback(async () => {
+    const sessionId = generateSessionId();
+    const sessionName = generateSessionName(sessions.length);
 
-  const deleteSession = useCallback((sessionId: string) => {
+    // Create session on backend first
+    try {
+      const response = await fetch('/api/terminal/session/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          repoFullName: repoPath,
+          sessionId,
+          baseBranch: 'main',
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        console.error('Failed to create session:', error);
+        setError(`Failed to create session: ${error.error || 'Unknown error'}`);
+        return;
+      }
+
+      const data = await response.json();
+
+      const newSession: TerminalSession = {
+        id: sessionId,
+        name: sessionName,
+        createdAt: new Date(),
+        connected: false,
+        branchName: data.branchName,
+        baseBranch: data.baseBranch,
+        baseCommit: data.baseCommit,
+      };
+
+      setSessions(prev => [...prev, newSession]);
+      setActiveSessionId(newSession.id);
+    } catch (err: any) {
+      console.error('Error creating session:', err);
+      setError(`Failed to create session: ${err.message}`);
+    }
+  }, [sessions.length, repoPath]);
+
+  const deleteSession = useCallback(async (sessionId: string) => {
     // Clear ping interval if exists
     const pingInterval = pingIntervals.current.get(sessionId);
     if (pingInterval) {
@@ -501,6 +562,16 @@ export default function TerminalPage() {
     initializedSessions.current.delete(sessionId);
     sessionOutputs.current.delete(sessionId);
 
+    // Call backend to delete worktree and branch
+    try {
+      await fetch(`/api/terminal/session/${sessionId}?repo=${encodeURIComponent(repoPath!)}`, {
+        method: 'DELETE',
+      });
+    } catch (err) {
+      console.error('Failed to delete session on backend:', err);
+      // Continue with local cleanup even if backend fails
+    }
+
     // Remove from state
     setSessions(prev => {
       const updated = prev.filter(s => s.id !== sessionId);
@@ -512,7 +583,7 @@ export default function TerminalPage() {
       }
       return updated;
     });
-  }, [activeSessionId]);
+  }, [activeSessionId, repoPath]);
 
   const switchSession = useCallback((sessionId: string) => {
     if (sessionId === activeSessionId) return;
@@ -811,6 +882,26 @@ export default function TerminalPage() {
           background: #8b949e;
         }
 
+        .session-branch {
+          display: flex;
+          align-items: center;
+          gap: 3px;
+          color: #8b949e;
+          font-size: 0.7rem;
+        }
+
+        .branch-badge {
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          padding: 2px 8px;
+          background: #21262d;
+          border-radius: 12px;
+          font-size: 0.75rem;
+          color: #58a6ff;
+          margin-left: 8px;
+        }
+
         .session-delete {
           display: flex;
           align-items: center;
@@ -1011,6 +1102,12 @@ export default function TerminalPage() {
                           <span className={`status-dot ${session.connected ? 'connected' : 'disconnected'}`} />
                           {session.connected ? 'Connected' : 'Disconnected'}
                         </span>
+                        {session.branchName && (
+                          <span className="session-branch">
+                            <GitBranchIcon />
+                            {session.branchName.replace('session/', '')}
+                          </span>
+                        )}
                       </div>
                     </div>
                     <button
@@ -1036,6 +1133,12 @@ export default function TerminalPage() {
                       <MessageIcon />
                       <span>{activeSession.name}</span>
                       <span className={`status-dot ${activeSession.connected ? 'connected' : 'disconnected'}`} />
+                      {activeSession.branchName && (
+                        <span className="branch-badge">
+                          <GitBranchIcon />
+                          {activeSession.branchName}
+                        </span>
+                      )}
                     </div>
                     <div className="terminal-content-actions">
                       {activeSession.connected ? (

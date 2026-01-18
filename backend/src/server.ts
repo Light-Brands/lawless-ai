@@ -29,6 +29,20 @@ db.exec(`
 
   CREATE INDEX IF NOT EXISTS idx_conversations_updated
   ON conversations(updated_at DESC);
+
+  CREATE TABLE IF NOT EXISTS terminal_sessions (
+    session_id TEXT PRIMARY KEY,
+    repo_full_name TEXT NOT NULL,
+    branch_name TEXT NOT NULL,
+    worktree_path TEXT NOT NULL,
+    base_branch TEXT NOT NULL,
+    base_commit TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    last_accessed_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_terminal_sessions_repo
+  ON terminal_sessions(repo_full_name);
 `);
 
 // Lawless AI System Prompt
@@ -372,12 +386,177 @@ if (!fs.existsSync(WORKSPACE_DIR)) {
   fs.mkdirSync(WORKSPACE_DIR, { recursive: true });
 }
 
-// Helper to get workspace path for a repo
-function getWorkspacePath(repoFullName: string): string {
+// Helper to get base workspace path for a repo (contains main/ and worktrees/)
+function getWorkspaceBasePath(repoFullName: string): string {
   return path.join(WORKSPACE_DIR, repoFullName.replace('/', '_'));
 }
 
-// Setup workspace (clone or pull repo)
+// Helper to get main repo path (the primary clone)
+function getMainRepoPath(repoFullName: string): string {
+  return path.join(getWorkspaceBasePath(repoFullName), 'main');
+}
+
+// Helper to get worktrees directory
+function getWorktreesDir(repoFullName: string): string {
+  return path.join(getWorkspaceBasePath(repoFullName), 'worktrees');
+}
+
+// Helper to get worktree path for a specific session
+function getWorktreePath(repoFullName: string, sessionId: string): string {
+  return path.join(getWorktreesDir(repoFullName), sessionId);
+}
+
+// Helper to get branch name for a session
+function getBranchName(sessionId: string): string {
+  return `session/${sessionId}`;
+}
+
+// Legacy helper - checks for old structure or returns main path
+function getWorkspacePath(repoFullName: string): string {
+  const basePath = getWorkspaceBasePath(repoFullName);
+  const mainPath = getMainRepoPath(repoFullName);
+
+  // If main/ exists, use that (new structure)
+  if (fs.existsSync(mainPath)) {
+    return mainPath;
+  }
+
+  // Check if old structure exists (repo cloned directly in base path)
+  if (fs.existsSync(path.join(basePath, '.git'))) {
+    return basePath;
+  }
+
+  // Default to main path for new repos
+  return mainPath;
+}
+
+// Session info type from database
+interface TerminalSessionInfo {
+  session_id: string;
+  repo_full_name: string;
+  branch_name: string;
+  worktree_path: string;
+  base_branch: string;
+  base_commit: string;
+  created_at: string;
+  last_accessed_at: string;
+}
+
+// Get session info from database
+function getSessionInfo(sessionId: string): TerminalSessionInfo | null {
+  const row = db.prepare('SELECT * FROM terminal_sessions WHERE session_id = ?').get(sessionId) as TerminalSessionInfo | undefined;
+  return row || null;
+}
+
+// Update session last accessed time
+function updateSessionAccess(sessionId: string): void {
+  db.prepare('UPDATE terminal_sessions SET last_accessed_at = CURRENT_TIMESTAMP WHERE session_id = ?').run(sessionId);
+}
+
+// Create a new session worktree
+function createSessionWorktree(repoFullName: string, sessionId: string, baseBranch: string = 'main'): TerminalSessionInfo {
+  const mainRepoPath = getMainRepoPath(repoFullName);
+  const worktreesDir = getWorktreesDir(repoFullName);
+  const worktreePath = getWorktreePath(repoFullName, sessionId);
+  const branchName = getBranchName(sessionId);
+
+  // Ensure worktrees directory exists
+  if (!fs.existsSync(worktreesDir)) {
+    fs.mkdirSync(worktreesDir, { recursive: true });
+  }
+
+  // Get current commit hash of base branch
+  const baseCommit = execSync(`git rev-parse ${baseBranch}`, {
+    cwd: mainRepoPath,
+    encoding: 'utf-8'
+  }).trim();
+
+  // Create worktree with new branch
+  execSync(`git worktree add -b "${branchName}" "${worktreePath}" ${baseBranch}`, {
+    cwd: mainRepoPath
+  });
+
+  // Set git config for commits in the worktree
+  execSync(`git config user.email "lawless-ai@localhost"`, { cwd: worktreePath });
+  execSync(`git config user.name "Lawless AI"`, { cwd: worktreePath });
+
+  // Save to database
+  db.prepare(`
+    INSERT INTO terminal_sessions (session_id, repo_full_name, branch_name, worktree_path, base_branch, base_commit)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `).run(sessionId, repoFullName, branchName, worktreePath, baseBranch, baseCommit);
+
+  return {
+    session_id: sessionId,
+    repo_full_name: repoFullName,
+    branch_name: branchName,
+    worktree_path: worktreePath,
+    base_branch: baseBranch,
+    base_commit: baseCommit,
+    created_at: new Date().toISOString(),
+    last_accessed_at: new Date().toISOString()
+  };
+}
+
+// Delete a session worktree
+function deleteSessionWorktree(repoFullName: string, sessionId: string): boolean {
+  const sessionInfo = getSessionInfo(sessionId);
+  if (!sessionInfo) {
+    return false;
+  }
+
+  const mainRepoPath = getMainRepoPath(repoFullName);
+  const worktreePath = sessionInfo.worktree_path;
+  const branchName = sessionInfo.branch_name;
+
+  try {
+    // Remove worktree
+    if (fs.existsSync(worktreePath)) {
+      execSync(`git worktree remove --force "${worktreePath}"`, { cwd: mainRepoPath });
+    }
+
+    // Delete branch
+    try {
+      execSync(`git branch -D "${branchName}"`, { cwd: mainRepoPath });
+    } catch (e) {
+      // Branch might not exist, that's ok
+    }
+
+    // Prune worktrees
+    execSync('git worktree prune', { cwd: mainRepoPath });
+
+    // Delete from database
+    db.prepare('DELETE FROM terminal_sessions WHERE session_id = ?').run(sessionId);
+
+    return true;
+  } catch (error) {
+    console.error('Error deleting session worktree:', error);
+    return false;
+  }
+}
+
+// Check if session worktree exists and is valid
+function isSessionWorktreeValid(sessionId: string): boolean {
+  const sessionInfo = getSessionInfo(sessionId);
+  if (!sessionInfo) {
+    return false;
+  }
+
+  // Check if worktree path exists
+  if (!fs.existsSync(sessionInfo.worktree_path)) {
+    return false;
+  }
+
+  // Check if it's a valid git worktree
+  try {
+    execSync('git rev-parse --git-dir', { cwd: sessionInfo.worktree_path });
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+// Setup workspace (clone or pull repo) with new directory structure
 app.post('/api/workspace/setup', authenticateApiKey, async (req: Request, res: Response) => {
   const { repoFullName, githubToken } = req.body;
 
@@ -386,28 +565,61 @@ app.post('/api/workspace/setup', authenticateApiKey, async (req: Request, res: R
     return;
   }
 
-  const workspacePath = getWorkspacePath(repoFullName);
+  const basePath = getWorkspaceBasePath(repoFullName);
+  const mainRepoPath = getMainRepoPath(repoFullName);
+  const worktreesDir = getWorktreesDir(repoFullName);
 
   try {
-    if (fs.existsSync(workspacePath)) {
-      // Pull latest changes
+    // Check for old directory structure and migrate if needed
+    const oldStructureExists = fs.existsSync(path.join(basePath, '.git')) && !fs.existsSync(mainRepoPath);
+
+    if (oldStructureExists) {
+      console.log(`Migrating old workspace structure for ${repoFullName}`);
+
+      // Create a temp directory
+      const tempPath = basePath + '_migration_temp';
+
+      // Move existing repo to temp
+      fs.renameSync(basePath, tempPath);
+
+      // Create new structure
+      fs.mkdirSync(basePath, { recursive: true });
+      fs.mkdirSync(worktreesDir, { recursive: true });
+
+      // Move temp (old repo) to main/
+      fs.renameSync(tempPath, mainRepoPath);
+
+      console.log(`Migration complete for ${repoFullName}`);
+    }
+
+    if (fs.existsSync(mainRepoPath)) {
+      // Pull latest changes in main repo
       execSync(`git pull`, {
-        cwd: workspacePath,
+        cwd: mainRepoPath,
         env: { ...process.env, GIT_TERMINAL_PROMPT: '0' }
       });
     } else {
-      // Clone the repo
+      // Create base directory structure
+      fs.mkdirSync(basePath, { recursive: true });
+      fs.mkdirSync(worktreesDir, { recursive: true });
+
+      // Clone the repo into main/
       const cloneUrl = `https://${githubToken}@github.com/${repoFullName}.git`;
-      execSync(`git clone ${cloneUrl} ${workspacePath}`, {
+      execSync(`git clone ${cloneUrl} "${mainRepoPath}"`, {
         env: { ...process.env, GIT_TERMINAL_PROMPT: '0' }
       });
     }
 
-    // Set git config for commits
-    execSync(`git config user.email "lawless-ai@localhost"`, { cwd: workspacePath });
-    execSync(`git config user.name "Lawless AI"`, { cwd: workspacePath });
+    // Set git config for commits in main repo
+    execSync(`git config user.email "lawless-ai@localhost"`, { cwd: mainRepoPath });
+    execSync(`git config user.name "Lawless AI"`, { cwd: mainRepoPath });
 
-    res.json({ success: true, workspacePath });
+    // Ensure worktrees directory exists
+    if (!fs.existsSync(worktreesDir)) {
+      fs.mkdirSync(worktreesDir, { recursive: true });
+    }
+
+    res.json({ success: true, workspacePath: mainRepoPath, worktreesDir });
   } catch (error: any) {
     console.error('Workspace setup error:', error);
     res.status(500).json({ error: `Failed to setup workspace: ${error.message}` });
@@ -901,6 +1113,118 @@ app.post('/api/workspace/git/push', authenticateApiKey, (req: Request, res: Resp
   }
 });
 
+// Terminal Session API Endpoints
+
+// Create a new terminal session with worktree
+app.post('/api/terminal/session/create', authenticateApiKey, (req: Request, res: Response) => {
+  const { repoFullName, sessionId, baseBranch = 'main' } = req.body;
+
+  if (!repoFullName || !sessionId) {
+    res.status(400).json({ error: 'Repository name and session ID required' });
+    return;
+  }
+
+  const mainRepoPath = getMainRepoPath(repoFullName);
+
+  if (!fs.existsSync(mainRepoPath)) {
+    res.status(400).json({ error: 'Workspace not found. Please set up the repository first.' });
+    return;
+  }
+
+  try {
+    // Check if session already exists
+    const existingSession = getSessionInfo(sessionId);
+    if (existingSession) {
+      // Session already exists, return its info
+      res.json({
+        sessionId: existingSession.session_id,
+        branchName: existingSession.branch_name,
+        baseBranch: existingSession.base_branch,
+        baseCommit: existingSession.base_commit,
+        worktreePath: existingSession.worktree_path,
+        isExisting: true
+      });
+      return;
+    }
+
+    // Create new session worktree
+    const sessionInfo = createSessionWorktree(repoFullName, sessionId, baseBranch);
+
+    res.json({
+      sessionId: sessionInfo.session_id,
+      branchName: sessionInfo.branch_name,
+      baseBranch: sessionInfo.base_branch,
+      baseCommit: sessionInfo.base_commit,
+      worktreePath: sessionInfo.worktree_path,
+      isExisting: false
+    });
+  } catch (error: any) {
+    console.error('Error creating terminal session:', error);
+    res.status(500).json({ error: `Failed to create session: ${error.message}` });
+  }
+});
+
+// Delete a terminal session and its worktree
+app.delete('/api/terminal/session/:sessionId', authenticateApiKey, (req: Request, res: Response) => {
+  const { sessionId } = req.params;
+  const { repoFullName } = req.query;
+
+  if (!repoFullName) {
+    res.status(400).json({ error: 'Repository name required' });
+    return;
+  }
+
+  try {
+    // Kill active PTY if running
+    const ptySession = terminalSessions.get(sessionId);
+    if (ptySession) {
+      ptySession.kill();
+      terminalSessions.delete(sessionId);
+    }
+
+    // Delete worktree and branch
+    const success = deleteSessionWorktree(repoFullName as string, sessionId);
+
+    if (success) {
+      res.json({ success: true, message: 'Session deleted' });
+    } else {
+      res.status(404).json({ error: 'Session not found' });
+    }
+  } catch (error: any) {
+    console.error('Error deleting terminal session:', error);
+    res.status(500).json({ error: `Failed to delete session: ${error.message}` });
+  }
+});
+
+// List all terminal sessions for a repo
+app.get('/api/terminal/sessions/:owner/:repo', authenticateApiKey, (req: Request, res: Response) => {
+  const repoFullName = `${req.params.owner}/${req.params.repo}`;
+
+  try {
+    const rows = db.prepare(`
+      SELECT * FROM terminal_sessions
+      WHERE repo_full_name = ?
+      ORDER BY last_accessed_at DESC
+    `).all(repoFullName) as TerminalSessionInfo[];
+
+    res.json({
+      sessions: rows.map(row => ({
+        sessionId: row.session_id,
+        branchName: row.branch_name,
+        baseBranch: row.base_branch,
+        baseCommit: row.base_commit,
+        worktreePath: row.worktree_path,
+        createdAt: row.created_at,
+        lastAccessedAt: row.last_accessed_at,
+        isValid: isSessionWorktreeValid(row.session_id)
+      }))
+    });
+  } catch (error: any) {
+    console.error('Error listing terminal sessions:', error);
+    res.status(500).json({ error: `Failed to list sessions: ${error.message}` });
+  }
+});
+
 // Create HTTP server for both Express and WebSocket
 const server = http.createServer(app);
 
@@ -913,7 +1237,10 @@ const terminalSessions = new Map<string, pty.IPty>();
 wss.on('connection', (ws: WebSocket, req) => {
   const url = new URL(req.url || '', `http://${req.headers.host}`);
   const repoFullName = url.searchParams.get('repo');
-  const sessionId = uuidv4();
+  const clientSessionId = url.searchParams.get('session');
+
+  // Use client-provided session ID if available
+  const sessionId = clientSessionId || uuidv4();
 
   console.log(`Terminal WebSocket connected: ${sessionId}, repo: ${repoFullName}`);
 
@@ -923,22 +1250,47 @@ wss.on('connection', (ws: WebSocket, req) => {
     return;
   }
 
-  const workspacePath = getWorkspacePath(repoFullName);
+  const mainRepoPath = getMainRepoPath(repoFullName);
 
-  if (!fs.existsSync(workspacePath)) {
+  if (!fs.existsSync(mainRepoPath)) {
     ws.send(JSON.stringify({ type: 'error', message: 'Workspace not found. Please set up the repository first.' }));
     ws.close();
     return;
   }
 
-  // Spawn Claude CLI in a PTY
+  // Check if this session has an existing worktree
+  let sessionInfo = getSessionInfo(sessionId);
+  let isNewSession = false;
+  let workingDirectory: string;
+
+  if (sessionInfo && isSessionWorktreeValid(sessionId)) {
+    // Reconnecting to existing session
+    workingDirectory = sessionInfo.worktree_path;
+    updateSessionAccess(sessionId);
+    console.log(`Reconnecting to existing session worktree: ${workingDirectory}`);
+  } else if (sessionInfo) {
+    // Session exists but worktree is invalid - clean up and recreate
+    console.log(`Session ${sessionId} has invalid worktree, recreating...`);
+    db.prepare('DELETE FROM terminal_sessions WHERE session_id = ?').run(sessionId);
+    sessionInfo = createSessionWorktree(repoFullName, sessionId);
+    workingDirectory = sessionInfo.worktree_path;
+    isNewSession = true;
+  } else {
+    // New session - create worktree
+    console.log(`Creating new session worktree for: ${sessionId}`);
+    sessionInfo = createSessionWorktree(repoFullName, sessionId);
+    workingDirectory = sessionInfo.worktree_path;
+    isNewSession = true;
+  }
+
+  // Spawn shell in a PTY
   const shell = process.platform === 'win32' ? 'powershell.exe' : 'bash';
 
   const ptyProcess = pty.spawn(shell, [], {
     name: 'xterm-256color',
     cols: 120,
     rows: 30,
-    cwd: workspacePath,
+    cwd: workingDirectory,
     env: {
       ...process.env,
       TERM: 'xterm-256color',
@@ -950,11 +1302,15 @@ wss.on('connection', (ws: WebSocket, req) => {
 
   terminalSessions.set(sessionId, ptyProcess);
 
-  // Send initial message
+  // Send initial message with branch info
   ws.send(JSON.stringify({
     type: 'connected',
     sessionId,
-    message: `Connected to workspace: ${repoFullName}\r\n`
+    branchName: sessionInfo.branch_name,
+    baseBranch: sessionInfo.base_branch,
+    baseCommit: sessionInfo.base_commit,
+    isNewSession,
+    message: `Connected to workspace: ${repoFullName}\r\nBranch: ${sessionInfo.branch_name}\r\n`
   }));
 
   // Start Claude CLI automatically
