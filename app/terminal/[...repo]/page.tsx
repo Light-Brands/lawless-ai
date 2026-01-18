@@ -203,6 +203,9 @@ export default function TerminalPage() {
     const backendUrl = process.env.NEXT_PUBLIC_BACKEND_WS_URL || 'ws://localhost:3001';
     const wsUrl = `${backendUrl}/ws/terminal?repo=${encodeURIComponent(repoPath!)}`;
 
+    console.log('Connecting to WebSocket:', wsUrl);
+    term.writeln(`\x1b[90mConnecting to ${wsUrl}...\x1b[0m`);
+
     setConnecting(true);
     setError(null);
 
@@ -211,6 +214,7 @@ export default function TerminalPage() {
 
     ws.onopen = () => {
       console.log('WebSocket connected');
+      term.writeln('\x1b[32mWebSocket connected!\x1b[0m');
       setConnecting(false);
       setConnected(true);
       if (fitAddon.current && term) {
@@ -249,16 +253,21 @@ export default function TerminalPage() {
       }
     };
 
-    ws.onclose = () => {
-      console.log('WebSocket disconnected');
+    ws.onclose = (event) => {
+      console.log('WebSocket disconnected:', event.code, event.reason);
       setConnected(false);
       setConnecting(false);
-      term.writeln('\r\n\x1b[33mDisconnected from server\x1b[0m');
+      term.writeln(`\r\n\x1b[33mDisconnected from server (code: ${event.code})\x1b[0m`);
+      if (event.code === 1006) {
+        term.writeln('\x1b[31mConnection failed - is the backend server running?\x1b[0m');
+        term.writeln(`\x1b[90mTried to connect to: ${wsUrl}\x1b[0m`);
+      }
     };
 
     ws.onerror = (err) => {
       console.error('WebSocket error:', err);
-      setError('Failed to connect to terminal server');
+      term.writeln('\r\n\x1b[31mWebSocket error - check console for details\x1b[0m');
+      setError('Failed to connect to terminal server. Check that the backend is running and accessible.');
       setConnecting(false);
     };
   }
