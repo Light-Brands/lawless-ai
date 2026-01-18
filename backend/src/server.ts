@@ -5,6 +5,9 @@ import Database from 'better-sqlite3';
 import { v4 as uuidv4 } from 'uuid';
 import path from 'path';
 import dotenv from 'dotenv';
+import http from 'http';
+import { WebSocketServer, WebSocket } from 'ws';
+import * as pty from 'node-pty';
 
 dotenv.config();
 
@@ -898,13 +901,132 @@ app.post('/api/workspace/git/push', authenticateApiKey, (req: Request, res: Resp
   }
 });
 
+// Create HTTP server for both Express and WebSocket
+const server = http.createServer(app);
+
+// WebSocket server for terminal sessions
+const wss = new WebSocketServer({ server, path: '/ws/terminal' });
+
+// Store active terminal sessions
+const terminalSessions = new Map<string, pty.IPty>();
+
+wss.on('connection', (ws: WebSocket, req) => {
+  const url = new URL(req.url || '', `http://${req.headers.host}`);
+  const repoFullName = url.searchParams.get('repo');
+  const sessionId = uuidv4();
+
+  console.log(`Terminal WebSocket connected: ${sessionId}, repo: ${repoFullName}`);
+
+  if (!repoFullName) {
+    ws.send(JSON.stringify({ type: 'error', message: 'Repository name required' }));
+    ws.close();
+    return;
+  }
+
+  const workspacePath = getWorkspacePath(repoFullName);
+
+  if (!fs.existsSync(workspacePath)) {
+    ws.send(JSON.stringify({ type: 'error', message: 'Workspace not found. Please set up the repository first.' }));
+    ws.close();
+    return;
+  }
+
+  // Spawn Claude CLI in a PTY
+  const shell = process.platform === 'win32' ? 'powershell.exe' : 'bash';
+
+  const ptyProcess = pty.spawn(shell, [], {
+    name: 'xterm-256color',
+    cols: 120,
+    rows: 30,
+    cwd: workspacePath,
+    env: {
+      ...process.env,
+      TERM: 'xterm-256color',
+      COLORTERM: 'truecolor',
+      HOME: process.env.HOME || '/home/ubuntu',
+      PATH: process.env.PATH || '/usr/local/bin:/usr/bin:/bin',
+    } as { [key: string]: string },
+  });
+
+  terminalSessions.set(sessionId, ptyProcess);
+
+  // Send initial message
+  ws.send(JSON.stringify({
+    type: 'connected',
+    sessionId,
+    message: `Connected to workspace: ${repoFullName}\r\n`
+  }));
+
+  // Start Claude CLI automatically
+  setTimeout(() => {
+    ptyProcess.write('claude --dangerously-skip-permissions\r');
+  }, 500);
+
+  // Pipe PTY output to WebSocket
+  ptyProcess.onData((data: string) => {
+    if (ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: 'output', data }));
+    }
+  });
+
+  ptyProcess.onExit(({ exitCode }) => {
+    console.log(`PTY exited with code ${exitCode}`);
+    if (ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: 'exit', code: exitCode }));
+    }
+    terminalSessions.delete(sessionId);
+  });
+
+  // Handle incoming messages from client
+  ws.on('message', (message: Buffer) => {
+    try {
+      const msg = JSON.parse(message.toString());
+
+      switch (msg.type) {
+        case 'input':
+          ptyProcess.write(msg.data);
+          break;
+        case 'resize':
+          if (msg.cols && msg.rows) {
+            ptyProcess.resize(msg.cols, msg.rows);
+          }
+          break;
+        case 'restart':
+          // Kill current process and restart Claude
+          ptyProcess.write('\x03'); // Ctrl+C
+          setTimeout(() => {
+            ptyProcess.write('claude --dangerously-skip-permissions\r');
+          }, 500);
+          break;
+      }
+    } catch (e) {
+      // If not JSON, treat as raw input
+      ptyProcess.write(message.toString());
+    }
+  });
+
+  ws.on('close', () => {
+    console.log(`Terminal WebSocket disconnected: ${sessionId}`);
+    const session = terminalSessions.get(sessionId);
+    if (session) {
+      session.kill();
+      terminalSessions.delete(sessionId);
+    }
+  });
+
+  ws.on('error', (err) => {
+    console.error(`Terminal WebSocket error: ${err.message}`);
+  });
+});
+
 // Start server
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`
 ╔═══════════════════════════════════════════════════════════╗
 ║           Lawless AI Backend Server                       ║
 ╠═══════════════════════════════════════════════════════════╣
 ║  Port:     ${String(PORT).padEnd(45)}║
+║  WebSocket: ws://localhost:${PORT}/ws/terminal${' '.repeat(26)}║
 ║  Database: ${dbPath.slice(-45).padEnd(45)}║
 ║  CORS:     ${(allowedOrigins[0] || 'all origins').slice(0, 45).padEnd(45)}║
 ╚═══════════════════════════════════════════════════════════╝

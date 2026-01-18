@@ -55,6 +55,13 @@ const GitBranchIcon = () => (
   </svg>
 );
 
+const TerminalIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="4 17 10 11 4 5"/>
+    <line x1="12" x2="20" y1="19" y2="19"/>
+  </svg>
+);
+
 const CloseIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <line x1="18" y1="6" x2="6" y2="18"/>
@@ -499,14 +506,24 @@ export default function WorkspacePage() {
             <span className="workspace-owner">{repoFullName?.split('/')[0]}</span>
           </div>
         </div>
-        <button
-          onClick={() => setShowGitPanel(!showGitPanel)}
-          className={`workspace-git-btn ${hasChanges ? 'has-changes' : ''} ${showGitPanel ? 'active' : ''}`}
-        >
-          <GitBranchIcon />
-          <span className="git-btn-label">Git</span>
-          {hasChanges && <span className="git-changes-badge">{changesCount}</span>}
-        </button>
+        <div className="workspace-header-right">
+          <button
+            onClick={() => router.push(`/terminal/${repoFullName}`)}
+            className="workspace-terminal-btn"
+            title="Open Terminal"
+          >
+            <TerminalIcon />
+            <span className="terminal-btn-label">Terminal</span>
+          </button>
+          <button
+            onClick={() => setShowGitPanel(!showGitPanel)}
+            className={`workspace-git-btn ${hasChanges ? 'has-changes' : ''} ${showGitPanel ? 'active' : ''}`}
+          >
+            <GitBranchIcon />
+            <span className="git-btn-label">Git</span>
+            {hasChanges && <span className="git-changes-badge">{changesCount}</span>}
+          </button>
+        </div>
       </header>
 
       <div className="workspace-content">

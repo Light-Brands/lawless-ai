@@ -67,6 +67,44 @@
   color: var(--color-text-muted);
 }
 
+.workspace-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.workspace-terminal-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: rgba(88, 166, 255, 0.1);
+  border: 1px solid rgba(88, 166, 255, 0.2);
+  border-radius: 10px;
+  color: #58a6ff;
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.workspace-terminal-btn:hover {
+  background: rgba(88, 166, 255, 0.2);
+  border-color: rgba(88, 166, 255, 0.4);
+}
+
+.terminal-btn-label {
+  display: none;
+}
+
+@media (min-width: 480px) {
+  .terminal-btn-label {
+    display: inline;
+  }
+}
+
 .workspace-git-btn {
   display: flex;
   align-items: center;
