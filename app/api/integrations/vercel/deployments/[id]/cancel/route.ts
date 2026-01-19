@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getIntegrationToken } from '@/lib/integrations/tokens';
 
 export const runtime = 'nodejs';
 
@@ -7,10 +8,10 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const token = request.cookies.get('vercel_token')?.value;
+  const token = await getIntegrationToken('vercel');
 
   if (!token) {
-    return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    return NextResponse.json({ error: 'Vercel not connected. Please connect your Vercel account in integrations.' }, { status: 401 });
   }
 
   try {

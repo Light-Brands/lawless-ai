@@ -3,15 +3,11 @@ import { getIntegrationToken } from '@/lib/integrations/tokens';
 
 export const runtime = 'nodejs';
 
-export async function GET(request: NextRequest) {
-  // Try database first, fall back to cookie for backward compatibility
-  let token = await getIntegrationToken('vercel');
-  if (!token) {
-    token = request.cookies.get('vercel_token')?.value || null;
-  }
+export async function GET() {
+  const token = await getIntegrationToken('vercel');
 
   if (!token) {
-    return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    return NextResponse.json({ error: 'Vercel not connected. Please connect your Vercel account in integrations.' }, { status: 401 });
   }
 
   try {
@@ -61,14 +57,10 @@ export async function GET(request: NextRequest) {
 
 // Create a new Vercel project and optionally link to GitHub
 export async function POST(request: NextRequest) {
-  // Try database first, fall back to cookie for backward compatibility
-  let token = await getIntegrationToken('vercel');
-  if (!token) {
-    token = request.cookies.get('vercel_token')?.value || null;
-  }
+  const token = await getIntegrationToken('vercel');
 
   if (!token) {
-    return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    return NextResponse.json({ error: 'Vercel not connected. Please connect your Vercel account in integrations.' }, { status: 401 });
   }
 
   try {

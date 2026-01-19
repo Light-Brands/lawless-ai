@@ -18,10 +18,10 @@ function getNextPageUrl(linkHeader: string | null): string | null {
 }
 
 export async function GET(request: NextRequest) {
-  const token = await getGitHubToken(request);
+  const token = await getGitHubToken();
 
   if (!token) {
-    return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    return NextResponse.json({ error: 'GitHub not connected. Please connect your GitHub account.' }, { status: 401 });
   }
 
   const { searchParams } = new URL(request.url);

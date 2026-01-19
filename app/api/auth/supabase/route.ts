@@ -60,25 +60,16 @@ export async function POST(request: NextRequest) {
 
       if (dbError) {
         console.error('Failed to store Supabase token in database:', dbError);
-        // Continue anyway - cookies will work as fallback
+        return NextResponse.json({ error: 'Failed to save connection. Please try again.' }, { status: 500 });
       }
+    } else {
+      return NextResponse.json({ error: 'Server configuration error: encryption not configured' }, { status: 500 });
     }
 
-    const response = NextResponse.json({
+    return NextResponse.json({
       success: true,
       projectCount,
     });
-
-    // Store token in cookie as fallback
-    response.cookies.set('supabase_token', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 30, // 30 days
-      path: '/',
-    });
-
-    return response;
   } catch (error) {
     console.error('Supabase auth error:', error);
     return NextResponse.json({ error: 'Authentication failed' }, { status: 500 });

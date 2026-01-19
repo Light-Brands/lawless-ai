@@ -94,11 +94,13 @@ export async function POST(request: NextRequest) {
 
       if (dbError) {
         console.error('Failed to store Vercel token in database:', dbError);
-        // Continue anyway - cookies will work as fallback
+        return NextResponse.json({ error: 'Failed to save connection. Please try again.' }, { status: 500 });
       }
+    } else {
+      return NextResponse.json({ error: 'Server configuration error: encryption not configured' }, { status: 500 });
     }
 
-    const response = NextResponse.json({
+    return NextResponse.json({
       success: true,
       user: {
         name: userData.user.name || userData.user.username,
@@ -106,28 +108,6 @@ export async function POST(request: NextRequest) {
         avatar: userData.user.avatar,
       },
     });
-
-    // Store token in cookie as fallback
-    response.cookies.set('vercel_token', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 30, // 30 days
-      path: '/',
-    });
-
-    response.cookies.set('vercel_user', JSON.stringify({
-      name: userData.user.name || userData.user.username,
-      email: userData.user.email,
-    }), {
-      httpOnly: false,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 30,
-      path: '/',
-    });
-
-    return response;
   } catch (error) {
     console.error('Vercel auth error:', error);
     return NextResponse.json({ error: 'Authentication failed' }, { status: 500 });

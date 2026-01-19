@@ -12,6 +12,12 @@ interface RepoIntegrations {
   [repoFullName: string]: RepoIntegration;
 }
 
+interface RepoIntegrationRow {
+  repo_full_name: string;
+  vercel_project_id: string | null;
+  supabase_project_ref: string | null;
+}
+
 // GET - retrieve associations for a repo
 export async function GET(request: NextRequest) {
   try {
@@ -45,12 +51,13 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: 'Failed to fetch integrations' }, { status: 500 });
       }
 
+      const row = data as { vercel_project_id: string | null; supabase_project_ref: string | null } | null;
       const integration: RepoIntegration = {};
-      if (data?.vercel_project_id) {
-        integration.vercel = { projectId: data.vercel_project_id, projectName: '' };
+      if (row?.vercel_project_id) {
+        integration.vercel = { projectId: row.vercel_project_id, projectName: '' };
       }
-      if (data?.supabase_project_ref) {
-        integration.supabase = { projectRef: data.supabase_project_ref, projectName: '' };
+      if (row?.supabase_project_ref) {
+        integration.supabase = { projectRef: row.supabase_project_ref, projectName: '' };
       }
 
       return NextResponse.json({ integrations: integration });
@@ -67,8 +74,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to fetch integrations' }, { status: 500 });
     }
 
+    const rows = (data || []) as RepoIntegrationRow[];
     const integrations: RepoIntegrations = {};
-    for (const row of data || []) {
+    for (const row of rows) {
       const integration: RepoIntegration = {};
       if (row.vercel_project_id) {
         integration.vercel = { projectId: row.vercel_project_id, projectName: '' };
@@ -113,12 +121,14 @@ export async function POST(request: NextRequest) {
     const serviceClient = createServiceClient();
 
     // Get existing integration
-    const { data: existing } = await serviceClient
+    const { data: existingData } = await serviceClient
       .from('repo_integrations')
       .select('vercel_project_id, supabase_project_ref')
       .eq('user_id', githubUsername)
       .eq('repo_full_name', repo)
       .single();
+
+    const existing = existingData as { vercel_project_id: string | null; supabase_project_ref: string | null } | null;
 
     // Build update object
     const updates: Record<string, unknown> = {
@@ -208,12 +218,14 @@ export async function DELETE(request: NextRequest) {
     const serviceClient = createServiceClient();
 
     // Get existing integration
-    const { data: existing } = await serviceClient
+    const { data: existingData } = await serviceClient
       .from('repo_integrations')
       .select('vercel_project_id, supabase_project_ref')
       .eq('user_id', githubUsername)
       .eq('repo_full_name', repo)
       .single();
+
+    const existing = existingData as { vercel_project_id: string | null; supabase_project_ref: string | null } | null;
 
     if (!existing) {
       return NextResponse.json({ success: true });

@@ -123,9 +123,11 @@ async function fetchAiCodingConfig(
 }
 
 export async function POST(request: NextRequest) {
-  const githubToken = request.cookies.get('github_token')?.value;
-  const vercelToken = request.cookies.get('vercel_token')?.value;
-  const supabaseToken = request.cookies.get('supabase_token')?.value;
+  // Get tokens from database
+  const { getIntegrationToken } = await import('@/lib/integrations/tokens');
+  const githubToken = await getIntegrationToken('github');
+  const vercelToken = await getIntegrationToken('vercel');
+  const supabaseToken = await getIntegrationToken('supabase_pat');
 
   interface DocumentInput {
     type: 'link' | 'upload';

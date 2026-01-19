@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getIntegrationToken } from '@/lib/integrations/tokens';
 
 export const runtime = 'nodejs';
 
@@ -7,10 +8,10 @@ export async function POST(
   { params }: { params: Promise<{ ref: string }> }
 ) {
   const { ref } = await params;
-  const token = request.cookies.get('supabase_token')?.value;
+  const token = await getIntegrationToken('supabase_pat');
 
   if (!token) {
-    return NextResponse.json({ error: 'Not authenticated with Supabase' }, { status: 401 });
+    return NextResponse.json({ error: 'Supabase not connected. Please connect your Supabase account in integrations.' }, { status: 401 });
   }
 
   try {

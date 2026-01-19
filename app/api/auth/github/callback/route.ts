@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createClient, createServiceClient } from '@/lib/supabase/server';
+import { encryptToken } from '@/lib/encryption';
 
 export const runtime = 'nodejs';
 
@@ -24,6 +26,19 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    // Get current user from Supabase (must be logged in already)
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.redirect(`${APP_URL}?error=not_authenticated`);
+    }
+
+    const githubUsername = user.user_metadata?.user_name || user.user_metadata?.preferred_username;
+    if (!githubUsername) {
+      return NextResponse.redirect(`${APP_URL}?error=no_github_username`);
+    }
+
     // Exchange code for access token
     const tokenResponse = await fetch('https://github.com/login/oauth/access_token', {
       method: 'POST',
@@ -47,7 +62,7 @@ export async function GET(request: NextRequest) {
 
     const accessToken = tokenData.access_token;
 
-    // Get user info
+    // Verify token by getting user info
     const userResponse = await fetch('https://api.github.com/user', {
       headers: {
         'Authorization': `Bearer ${accessToken}`,
@@ -55,30 +70,37 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    const userData = await userResponse.json();
+    if (!userResponse.ok) {
+      return NextResponse.redirect(`${APP_URL}?error=invalid_token`);
+    }
 
-    // Create response with redirect to repos page
-    const response = NextResponse.redirect(`${APP_URL}/repos`);
+    // Store encrypted token in database
+    if (!process.env.ENCRYPTION_KEY) {
+      return NextResponse.redirect(`${APP_URL}?error=encryption_not_configured`);
+    }
 
-    // Store token in HTTP-only cookie (secure in production)
-    response.cookies.set('github_token', accessToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 30, // 30 days
-      path: '/',
-    });
+    const serviceClient = createServiceClient();
+    const encryptedToken = encryptToken(accessToken);
 
-    // Store username in accessible cookie for UI
-    response.cookies.set('github_user', userData.login, {
-      httpOnly: false,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 30,
-      path: '/',
-    });
+    const { error: dbError } = await serviceClient.from('integration_connections').upsert(
+      {
+        user_id: githubUsername,
+        provider: 'github',
+        access_token: encryptedToken,
+        metadata: {
+          username: githubUsername,
+        },
+        updated_at: new Date().toISOString(),
+      } as never,
+      { onConflict: 'user_id,provider' }
+    );
 
-    return response;
+    if (dbError) {
+      console.error('Failed to store GitHub token in database:', dbError);
+      return NextResponse.redirect(`${APP_URL}?error=database_error`);
+    }
+
+    return NextResponse.redirect(`${APP_URL}/repos`);
   } catch (error) {
     console.error('GitHub OAuth callback error:', error);
     return NextResponse.redirect(`${APP_URL}?error=oauth_failed`);

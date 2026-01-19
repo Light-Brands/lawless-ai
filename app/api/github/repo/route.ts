@@ -4,7 +4,7 @@ import { getGitHubToken } from '@/lib/github/auth';
 export const runtime = 'nodejs';
 
 export async function GET(request: NextRequest) {
-  const token = await getGitHubToken(request);
+  const token = await getGitHubToken();
 
   if (!token) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });

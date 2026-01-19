@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getGitHubToken } from '@/lib/github/auth';
+import { createClient, createServiceClient } from '@/lib/supabase/server';
 
 export const runtime = 'nodejs';
 
@@ -9,12 +10,17 @@ interface RouteParams {
 
 // Delete a repository
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
-  const token = await getGitHubToken(request);
+  const token = await getGitHubToken();
   const { owner, repo } = await params;
 
   if (!token) {
-    return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    return NextResponse.json({ error: 'GitHub not connected. Please connect your GitHub account.' }, { status: 401 });
   }
+
+  // Get current user for database operations
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  const githubUsername = user?.user_metadata?.user_name || user?.user_metadata?.preferred_username;
 
   try {
     const response = await fetch(`https://api.github.com/repos/${owner}/${repo}`, {
@@ -26,26 +32,19 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     });
 
     if (response.status === 204) {
-      // Also clean up any integration associations
-      const existingIntegrations = request.cookies.get('repo_integrations')?.value;
-      if (existingIntegrations) {
+      // Also clean up any integration associations from database
+      if (githubUsername) {
         try {
-          const integrations = JSON.parse(existingIntegrations);
+          const serviceClient = createServiceClient();
           const fullName = `${owner}/${repo}`;
-          if (integrations[fullName]) {
-            delete integrations[fullName];
-            const res = NextResponse.json({ success: true });
-            res.cookies.set('repo_integrations', JSON.stringify(integrations), {
-              httpOnly: true,
-              secure: process.env.NODE_ENV === 'production',
-              sameSite: 'lax',
-              maxAge: 60 * 60 * 24 * 365,
-              path: '/',
-            });
-            return res;
-          }
-        } catch {
-          // Ignore cookie parse errors
+          await serviceClient
+            .from('repo_integrations')
+            .delete()
+            .eq('user_id', githubUsername)
+            .eq('repo_full_name', fullName);
+        } catch (dbError) {
+          console.error('Error cleaning up repo integrations:', dbError);
+          // Continue anyway - the repo was deleted
         }
       }
       return NextResponse.json({ success: true });
@@ -78,11 +77,11 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
 
 // Update repository (visibility, description, etc.)
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
-  const token = await getGitHubToken(request);
+  const token = await getGitHubToken();
   const { owner, repo } = await params;
 
   if (!token) {
-    return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    return NextResponse.json({ error: 'GitHub not connected. Please connect your GitHub account.' }, { status: 401 });
   }
 
   try {

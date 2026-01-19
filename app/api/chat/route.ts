@@ -10,23 +10,19 @@ const BACKEND_API_KEY = process.env.BACKEND_API_KEY || '';
 export async function POST(request: NextRequest) {
   const { message, sessionId, conversationId } = await request.json();
 
-  // Get GitHub username from cookie (direct OAuth) or Supabase Auth
-  let githubUser = request.cookies.get('github_user')?.value;
-
-  // If no direct OAuth cookie, try Supabase Auth
-  if (!githubUser) {
-    try {
-      const supabase = await createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        // Get GitHub username from user metadata or email
-        githubUser = user.user_metadata?.user_name ||
-                     user.user_metadata?.preferred_username ||
-                     user.email?.split('@')[0];
-      }
-    } catch (e) {
-      console.error('Error getting Supabase user:', e);
+  // Get GitHub username from Supabase Auth
+  let githubUser: string | undefined;
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      // Get GitHub username from user metadata or email
+      githubUser = user.user_metadata?.user_name ||
+                   user.user_metadata?.preferred_username ||
+                   user.email?.split('@')[0];
     }
+  } catch (e) {
+    console.error('Error getting Supabase user:', e);
   }
 
   console.log(`[Frontend Chat] userId resolved to: ${githubUser || 'none'}`);

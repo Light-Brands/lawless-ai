@@ -30,10 +30,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to fetch preferences' }, { status: 500 });
     }
 
+    const userData = data as { last_conversation_id?: string; last_root_conversation_id?: string; preferences?: Record<string, unknown> } | null;
+
     return NextResponse.json({
-      lastConversationId: data?.last_conversation_id,
-      lastRootConversationId: data?.last_root_conversation_id,
-      preferences: data?.preferences || {},
+      lastConversationId: userData?.last_conversation_id,
+      lastRootConversationId: userData?.last_root_conversation_id,
+      preferences: userData?.preferences || {},
     });
   } catch (error) {
     console.error('Error in GET /api/user/preferences:', error);
@@ -80,8 +82,9 @@ export async function PATCH(request: NextRequest) {
         .eq('id', githubUsername)
         .single();
 
+      const existingData = existing as { preferences?: Record<string, unknown> } | null;
       updates.preferences = {
-        ...(existing?.preferences || {}),
+        ...(existingData?.preferences || {}),
         ...preferences,
       };
     }

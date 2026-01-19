@@ -72,7 +72,7 @@ function buildTree(items: TreeItem[]): TreeNode[] {
 }
 
 export async function GET(request: NextRequest) {
-  const token = await getGitHubToken(request);
+  const token = await getGitHubToken();
 
   if (!token) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });

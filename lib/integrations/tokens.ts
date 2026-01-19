@@ -43,14 +43,15 @@ export async function getIntegrationToken(
       .eq('provider', provider)
       .single();
 
-    if (error || !data?.access_token) return null;
+    const tokenData = data as { access_token?: string } | null;
+    if (error || !tokenData?.access_token) return null;
 
     // Decrypt the token
     try {
-      return decryptToken(data.access_token);
+      return decryptToken(tokenData.access_token);
     } catch {
       // If decryption fails, the token might be stored unencrypted (legacy)
-      return data.access_token;
+      return tokenData.access_token;
     }
   } catch {
     return null;
@@ -77,9 +78,10 @@ export async function getIntegrationMetadata(
       .eq('provider', provider)
       .single();
 
-    if (error || !data?.metadata) return null;
+    const metadataData = data as { metadata?: Record<string, unknown> } | null;
+    if (error || !metadataData?.metadata) return null;
 
-    return data.metadata as Record<string, unknown>;
+    return metadataData.metadata;
   } catch {
     return null;
   }

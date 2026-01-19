@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getIntegrationToken } from '@/lib/integrations/tokens';
+import { createClient, createServiceClient } from '@/lib/supabase/server';
 
 export const runtime = 'nodejs';
 
@@ -7,10 +9,10 @@ export async function GET(
   { params }: { params: Promise<{ ref: string }> }
 ) {
   const { ref } = await params;
-  const token = request.cookies.get('supabase_token')?.value;
+  const token = await getIntegrationToken('supabase_pat');
 
   if (!token) {
-    return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    return NextResponse.json({ error: 'Supabase not connected. Please connect your Supabase account in integrations.' }, { status: 401 });
   }
 
   try {
@@ -54,11 +56,16 @@ export async function DELETE(
   { params }: { params: Promise<{ ref: string }> }
 ) {
   const { ref } = await params;
-  const token = request.cookies.get('supabase_token')?.value;
+  const token = await getIntegrationToken('supabase_pat');
 
   if (!token) {
-    return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    return NextResponse.json({ error: 'Supabase not connected. Please connect your Supabase account in integrations.' }, { status: 401 });
   }
+
+  // Get current user for database operations
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  const githubUsername = user?.user_metadata?.user_name || user?.user_metadata?.preferred_username;
 
   try {
     const response = await fetch(`https://api.supabase.com/v1/projects/${ref}`, {
@@ -69,33 +76,18 @@ export async function DELETE(
     });
 
     if (response.status === 200 || response.status === 204) {
-      // Clean up any repo integration associations that reference this project
-      const existingIntegrations = request.cookies.get('repo_integrations')?.value;
-      if (existingIntegrations) {
+      // Clean up any repo integration associations that reference this project in database
+      if (githubUsername) {
         try {
-          const integrations = JSON.parse(existingIntegrations);
-          let modified = false;
-
-          for (const repoName of Object.keys(integrations)) {
-            if (integrations[repoName].supabase?.projectRef === ref) {
-              delete integrations[repoName].supabase;
-              modified = true;
-            }
-          }
-
-          if (modified) {
-            const res = NextResponse.json({ success: true });
-            res.cookies.set('repo_integrations', JSON.stringify(integrations), {
-              httpOnly: true,
-              secure: process.env.NODE_ENV === 'production',
-              sameSite: 'lax',
-              maxAge: 60 * 60 * 24 * 365,
-              path: '/',
-            });
-            return res;
-          }
-        } catch {
-          // Ignore cookie parse errors
+          const serviceClient = createServiceClient();
+          await serviceClient
+            .from('repo_integrations')
+            .update({ supabase_project_ref: null, updated_at: new Date().toISOString() } as never)
+            .eq('user_id', githubUsername)
+            .eq('supabase_project_ref', ref);
+        } catch (dbError) {
+          console.error('Error cleaning up repo integrations:', dbError);
+          // Continue anyway - the Supabase project was deleted
         }
       }
 

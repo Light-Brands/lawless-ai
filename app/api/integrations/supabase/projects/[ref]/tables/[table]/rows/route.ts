@@ -1,56 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getIntegrationToken } from '@/lib/integrations/tokens';
 
 export const runtime = 'nodejs';
 
-interface ProjectCredentials {
-  name: string;
-  url: string;
-  serviceKey: string;
-}
-
-async function getProjectCredentials(request: NextRequest, ref: string): Promise<{ url: string; key: string } | null> {
-  const token = request.cookies.get('supabase_token')?.value;
-  if (token) {
-    try {
-      const projectRes = await fetch(`https://api.supabase.com/v1/projects/${ref}/api-keys`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      if (projectRes.ok) {
-        const keys = await projectRes.json();
-        const serviceKey = keys.find((k: any) => k.name === 'service_role')?.api_key;
-        if (serviceKey) {
-          return {
-            url: `https://${ref}.supabase.co`,
-            key: serviceKey,
-          };
-        }
-      }
-    } catch (e) {
-      console.error('Failed to get API keys from PAT:', e);
-    }
+async function getProjectCredentials(ref: string): Promise<{ url: string; key: string } | null> {
+  const token = await getIntegrationToken('supabase_pat');
+  if (!token) {
+    return null;
   }
 
-  const projectsCookie = request.cookies.get('supabase_projects')?.value;
-  if (projectsCookie) {
-    try {
-      const projects: ProjectCredentials[] = JSON.parse(projectsCookie);
-      const project = projects.find(p => {
-        const projectRef = new URL(p.url).hostname.split('.')[0];
-        return projectRef === ref;
-      });
+  try {
+    const projectRes = await fetch(`https://api.supabase.com/v1/projects/${ref}/api-keys`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
 
-      if (project) {
+    if (projectRes.ok) {
+      const keys = await projectRes.json();
+      const serviceKey = keys.find((k: any) => k.name === 'service_role')?.api_key;
+      if (serviceKey) {
         return {
-          url: project.url,
-          key: project.serviceKey,
+          url: `https://${ref}.supabase.co`,
+          key: serviceKey,
         };
       }
-    } catch (e) {
-      console.error('Failed to parse project credentials:', e);
     }
+  } catch (e) {
+    console.error('Failed to get API keys from PAT:', e);
   }
 
   return null;
@@ -63,9 +40,9 @@ export async function POST(
 ) {
   const { ref, table } = await params;
 
-  const credentials = await getProjectCredentials(request, ref);
+  const credentials = await getProjectCredentials(ref);
   if (!credentials) {
-    return NextResponse.json({ error: 'Project not found or not authenticated' }, { status: 401 });
+    return NextResponse.json({ error: 'Supabase not connected. Please connect your Supabase account in integrations.' }, { status: 401 });
   }
 
   try {
@@ -109,9 +86,9 @@ export async function PATCH(
 ) {
   const { ref, table } = await params;
 
-  const credentials = await getProjectCredentials(request, ref);
+  const credentials = await getProjectCredentials(ref);
   if (!credentials) {
-    return NextResponse.json({ error: 'Project not found or not authenticated' }, { status: 401 });
+    return NextResponse.json({ error: 'Supabase not connected. Please connect your Supabase account in integrations.' }, { status: 401 });
   }
 
   try {
@@ -164,9 +141,9 @@ export async function DELETE(
 ) {
   const { ref, table } = await params;
 
-  const credentials = await getProjectCredentials(request, ref);
+  const credentials = await getProjectCredentials(ref);
   if (!credentials) {
-    return NextResponse.json({ error: 'Project not found or not authenticated' }, { status: 401 });
+    return NextResponse.json({ error: 'Supabase not connected. Please connect your Supabase account in integrations.' }, { status: 401 });
   }
 
   try {

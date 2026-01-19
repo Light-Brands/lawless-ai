@@ -121,9 +121,11 @@ async function fetchSupabaseApiKeys(
 }
 
 export async function POST(request: NextRequest) {
-  const githubToken = request.cookies.get('github_token')?.value;
-  const vercelToken = request.cookies.get('vercel_token')?.value;
-  const supabaseToken = request.cookies.get('supabase_token')?.value;
+  // Get tokens from database
+  const { getIntegrationToken } = await import('@/lib/integrations/tokens');
+  const githubToken = await getIntegrationToken('github');
+  const vercelToken = await getIntegrationToken('vercel');
+  const supabaseToken = await getIntegrationToken('supabase_pat');
 
   try {
     const body: CreateProjectRequest = await request.json();
@@ -459,8 +461,33 @@ export async function POST(request: NextRequest) {
     const hasError = results.some(r => r.status === 'error');
     const allSkipped = results.every(r => r.status === 'skipped');
 
-    // Auto-link integrations to the repo
-    const response = NextResponse.json({
+    // Auto-link integrations to the repo in database
+    if (githubRepo && (vercelProject || supabaseProject)) {
+      try {
+        const { createClient, createServiceClient } = await import('@/lib/supabase/server');
+        const supabase = await createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        const githubUsername = user?.user_metadata?.user_name || user?.user_metadata?.preferred_username;
+
+        if (githubUsername) {
+          const serviceClient = createServiceClient();
+          await serviceClient
+            .from('repo_integrations')
+            .upsert({
+              user_id: githubUsername,
+              repo_full_name: githubRepo.fullName,
+              vercel_project_id: vercelProject?.id || null,
+              supabase_project_ref: supabaseProject?.ref || null,
+              updated_at: new Date().toISOString(),
+            } as never, { onConflict: 'user_id,repo_full_name' });
+        }
+      } catch (dbError) {
+        console.error('Error saving repo integrations:', dbError);
+        // Continue anyway - projects were created
+      }
+    }
+
+    return NextResponse.json({
       success: !hasError && !allSkipped,
       results,
       summary: {
@@ -469,52 +496,6 @@ export async function POST(request: NextRequest) {
         vercel: vercelProject,
       },
     });
-
-    // Save repo integrations to cookie if we have a GitHub repo
-    if (githubRepo) {
-      const existingIntegrations = request.cookies.get('repo_integrations')?.value;
-      let integrations: Record<string, { vercel?: { projectId: string; projectName: string }; supabase?: { projectRef: string; projectName: string } }> = {};
-
-      if (existingIntegrations) {
-        try {
-          integrations = JSON.parse(existingIntegrations);
-        } catch {
-          integrations = {};
-        }
-      }
-
-      // Initialize repo entry
-      if (!integrations[githubRepo.fullName]) {
-        integrations[githubRepo.fullName] = {};
-      }
-
-      // Link Vercel project
-      if (vercelProject) {
-        integrations[githubRepo.fullName].vercel = {
-          projectId: vercelProject.id,
-          projectName: vercelProject.name,
-        };
-      }
-
-      // Link Supabase project
-      if (supabaseProject) {
-        integrations[githubRepo.fullName].supabase = {
-          projectRef: supabaseProject.ref,
-          projectName: name,
-        };
-      }
-
-      // Save to cookie
-      response.cookies.set('repo_integrations', JSON.stringify(integrations), {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: 60 * 60 * 24 * 365, // 1 year
-        path: '/',
-      });
-    }
-
-    return response;
   } catch (error) {
     console.error('Project creation error:', error);
     return NextResponse.json({ error: 'Failed to create project' }, { status: 500 });

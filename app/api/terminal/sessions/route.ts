@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Transform to include outputs
-    const sessionsWithOutputs = sessions?.map(session => ({
+    const sessionsWithOutputs = sessions?.map((session: any) => ({
       ...session,
       outputs: session.terminal_outputs?.[0]?.output_lines || [],
     })) || [];
@@ -114,11 +114,12 @@ export async function POST(request: NextRequest) {
     }
 
     // If outputs provided, save them
-    if (outputs && Array.isArray(outputs)) {
+    if (outputs && Array.isArray(outputs) && session) {
+      const sessionData = session as { id: string };
       const { error: outputError } = await serviceClient
         .from('terminal_outputs')
         .upsert({
-          terminal_session_id: session.id,
+          terminal_session_id: sessionData.id,
           output_lines: outputs,
           updated_at: new Date().toISOString(),
         } as never, {

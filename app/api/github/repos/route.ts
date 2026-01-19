@@ -199,7 +199,7 @@ A full-stack application built with Next.js and Supabase.
 };
 
 export async function GET(request: NextRequest) {
-  const token = await getGitHubToken(request);
+  const token = await getGitHubToken();
 
   if (!token) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
@@ -287,7 +287,7 @@ export async function GET(request: NextRequest) {
 
 // Create a new repository with optional template
 export async function POST(request: NextRequest) {
-  const token = await getGitHubToken(request);
+  const token = await getGitHubToken();
 
   if (!token) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });

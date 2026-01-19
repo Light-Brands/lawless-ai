@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createClient, createServiceClient } from '@/lib/supabase/server';
+import { encryptToken } from '@/lib/encryption';
 
 export const runtime = 'nodejs';
 
@@ -20,7 +22,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(`${APP_URL}/integrations?error=no_code`);
   }
 
-  // Verify state
+  // Verify state (temporary CSRF cookie is ok for OAuth flow)
   const storedState = request.cookies.get('vercel_oauth_state')?.value;
   if (!storedState || storedState !== state) {
     return NextResponse.redirect(`${APP_URL}/integrations?error=invalid_state`);
@@ -31,6 +33,19 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    // Get current user from Supabase
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.redirect(`${APP_URL}/integrations?error=not_authenticated`);
+    }
+
+    const githubUsername = user.user_metadata?.user_name || user.user_metadata?.preferred_username;
+    if (!githubUsername) {
+      return NextResponse.redirect(`${APP_URL}/integrations?error=no_github_username`);
+    }
+
     // Exchange code for access token
     const tokenResponse = await fetch('https://api.vercel.com/v2/oauth/access_token', {
       method: 'POST',
@@ -63,6 +78,34 @@ export async function GET(request: NextRequest) {
 
     const userData = await userResponse.json();
 
+    // Store encrypted token in database
+    if (!process.env.ENCRYPTION_KEY) {
+      return NextResponse.redirect(`${APP_URL}/integrations?error=encryption_not_configured`);
+    }
+
+    const serviceClient = createServiceClient();
+    const encryptedToken = encryptToken(accessToken);
+
+    const { error: dbError } = await serviceClient.from('integration_connections').upsert(
+      {
+        user_id: githubUsername,
+        provider: 'vercel',
+        access_token: encryptedToken,
+        metadata: {
+          name: userData.user?.name || userData.user?.username || 'Vercel User',
+          email: userData.user?.email || '',
+          avatar: userData.user?.avatar,
+        },
+        updated_at: new Date().toISOString(),
+      } as never,
+      { onConflict: 'user_id,provider' }
+    );
+
+    if (dbError) {
+      console.error('Failed to store Vercel token in database:', dbError);
+      return NextResponse.redirect(`${APP_URL}/integrations?error=database_error`);
+    }
+
     // Create response with redirect to integrations page
     const response = NextResponse.redirect(`${APP_URL}/integrations/vercel`);
 
@@ -72,27 +115,6 @@ export async function GET(request: NextRequest) {
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: 0,
-      path: '/',
-    });
-
-    // Store token in HTTP-only cookie
-    response.cookies.set('vercel_token', accessToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 30, // 30 days
-      path: '/',
-    });
-
-    // Store user info in accessible cookie for UI
-    response.cookies.set('vercel_user', JSON.stringify({
-      name: userData.user?.name || userData.user?.username || 'Vercel User',
-      email: userData.user?.email || '',
-    }), {
-      httpOnly: false,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 30,
       path: '/',
     });
 

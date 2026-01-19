@@ -171,18 +171,6 @@ export async function GET(request: NextRequest) {
     console.log('Encryption key exists:', !!process.env.ENCRYPTION_KEY);
   }
 
-  // Also set legacy cookie for backward compatibility with existing code
-  // that reads github_user cookie for UI display
-  if (user.user_metadata?.user_name) {
-    response.cookies.set('github_user', user.user_metadata.user_name, {
-      httpOnly: false,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 30,
-      path: '/',
-    });
-  }
-
   // Sync GitHub repos to database on login
   if (providerToken) {
     try {

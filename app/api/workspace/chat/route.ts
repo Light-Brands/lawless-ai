@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { getIntegrationToken } from '@/lib/integrations/tokens';
 
 export const runtime = 'nodejs';
 
@@ -9,30 +10,25 @@ const BACKEND_API_KEY = process.env.BACKEND_API_KEY || '';
 export async function POST(request: NextRequest) {
   const { message, repoFullName, sessionId, workspaceSessionId, conversationId } = await request.json();
 
-  // Get GitHub token and username from cookies or Supabase Auth
-  let token = request.cookies.get('github_token')?.value;
-  let githubUser = request.cookies.get('github_user')?.value;
+  // Get GitHub token from database
+  const token = await getIntegrationToken('github');
 
-  // If no direct OAuth cookies, try Supabase Auth
-  if (!token || !githubUser) {
-    try {
-      const supabase = await createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        githubUser = user.user_metadata?.user_name ||
-                     user.user_metadata?.preferred_username ||
-                     user.email?.split('@')[0];
-        // Get GitHub token from Supabase if available
-        const { data: { session } } = await supabase.auth.getSession();
-        token = session?.provider_token || token;
-      }
-    } catch (e) {
-      console.error('Error getting Supabase user:', e);
+  // Get GitHub username from Supabase Auth
+  let githubUser: string | undefined;
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      githubUser = user.user_metadata?.user_name ||
+                   user.user_metadata?.preferred_username ||
+                   user.email?.split('@')[0];
     }
+  } catch (e) {
+    console.error('Error getting Supabase user:', e);
   }
 
   if (!token) {
-    return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    return NextResponse.json({ error: 'GitHub not connected. Please connect your GitHub account.' }, { status: 401 });
   }
 
   if (!message || !repoFullName) {
