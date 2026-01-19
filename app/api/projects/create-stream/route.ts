@@ -449,6 +449,33 @@ export async function POST(request: NextRequest) {
           }
         }
 
+        // Save integrations to database
+        if (githubRepo && (vercelProject || supabaseProject)) {
+          try {
+            progress('Saving project integrations...');
+            const { createClient, createServiceClient } = await import('@/lib/supabase/server');
+            const supabase = await createClient();
+            const { data: { user } } = await supabase.auth.getUser();
+            const githubUsername = user?.user_metadata?.user_name || user?.user_metadata?.preferred_username;
+
+            if (githubUsername) {
+              const serviceClient = createServiceClient();
+              await serviceClient
+                .from('repo_integrations')
+                .upsert({
+                  user_id: githubUsername,
+                  repo_full_name: githubRepo.fullName,
+                  vercel_project_id: vercelProject?.id || null,
+                  supabase_project_ref: supabaseProject?.ref || null,
+                  updated_at: new Date().toISOString(),
+                } as never, { onConflict: 'user_id,repo_full_name' });
+            }
+          } catch (dbError) {
+            console.error('Error saving repo integrations:', dbError);
+            // Continue anyway - projects were created successfully
+          }
+        }
+
         // Done
         sendEvent(controller, 'complete', {
           success: true,

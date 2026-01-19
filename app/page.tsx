@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, FormEvent, KeyboardEvent } from 'react';
 import { marked } from 'marked';
 import hljs from 'highlight.js';
 import { useAuth } from '@/app/contexts/AuthContext';
-import UserMenu from '@/app/components/UserMenu';
+import Header from '@/app/components/Header';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -616,35 +616,8 @@ export default function Home() {
 
       {/* Main Chat Area */}
       <main className="chat-container">
-        {/* Chat Header */}
-        <header className="chat-header">
-          <div className="header-left">
-            <button className="mobile-menu-btn" onClick={() => setSidebarOpen(true)} aria-label="Open menu">
-              <MenuIcon />
-            </button>
-            <div className="chat-title">
-              <h1>Lawless AI</h1>
-              <p>Your intelligent solution architect</p>
-            </div>
-          </div>
-          <div className="header-actions">
-            {messages.length > 0 && (
-              <button className="new-chat-btn" onClick={clearConversation} title="Start new conversation">
-                <PlusIcon />
-                <span>New Chat</span>
-              </button>
-            )}
-            <a
-              href="/repos"
-              className="github-btn"
-              title="My Repositories"
-            >
-              <GitHubIcon />
-              <span>Repos</span>
-            </a>
-            <UserMenu />
-          </div>
-        </header>
+        {/* App Header */}
+        <Header />
 
         {/* Messages Container */}
         <div className="messages-container" ref={messagesContainerRef}>
