@@ -12,7 +12,11 @@ import fs from 'fs';
 import { conversationService } from './services/conversationService';
 import { isSupabaseAvailable, Message } from './lib/supabase';
 
-dotenv.config();
+// Load environment variables from multiple locations
+// Priority: backend/.env > root/.env.local > root/.env
+dotenv.config({ path: path.join(__dirname, '..', '.env') });
+dotenv.config({ path: path.join(__dirname, '..', '..', '.env.local') });
+dotenv.config({ path: path.join(__dirname, '..', '..', '.env') });
 
 const app = express();
 const PORT = process.env.PORT || 3001;
