@@ -6,15 +6,17 @@
 
 1. [Vision & Positioning](#vision--positioning)
 2. [Architecture Overview](#architecture-overview)
-3. [Core Differentiators](#core-differentiators-vs-hosted-ide)
-4. [Phase 1: Foundation & Scaffolding](#phase-1-foundation--scaffolding)
-5. [Phase 2: AI Chat & Agent Core](#phase-2-ai-chat--agent-core)
-6. [Phase 3: Service Integrations](#phase-3-service-integrations)
-7. [Phase 4: Development Experience](#phase-4-development-experience)
-8. [Phase 5: Polish & Distribution](#phase-5-polish--distribution)
-9. [Technical Specifications](#technical-specifications)
-10. [Database Schema](#database-schema)
-11. [Deployment & Distribution](#deployment--distribution)
+3. [First-Run Setup & Service Connections](#first-run-setup--service-connections)
+4. [Complete Tooling Reference](#complete-tooling-reference)
+5. [Core Differentiators](#core-differentiators-vs-hosted-ide)
+6. [Phase 1: Foundation & Scaffolding](#phase-1-foundation--scaffolding)
+7. [Phase 2: AI Chat & Agent Core](#phase-2-ai-chat--agent-core)
+8. [Phase 3: Service Integrations](#phase-3-service-integrations)
+9. [Phase 4: Development Experience](#phase-4-development-experience)
+10. [Phase 5: Polish & Distribution](#phase-5-polish--distribution)
+11. [Technical Specifications](#technical-specifications)
+12. [Database Schema](#database-schema)
+13. [Deployment & Distribution](#deployment--distribution)
 
 ---
 
@@ -190,6 +192,1161 @@ my-project/
 
 ---
 
+## First-Run Setup & Service Connections
+
+When users first open the Local IDE Agent, they're guided through a **Setup Wizard** that connects all their services. This creates the ultimate local development experience with everything integrated from day one.
+
+### Setup Wizard Flow
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    Welcome to Your IDE                           │
+│                                                                  │
+│  Let's connect your services to unlock the full power of your   │
+│  AI-powered development environment.                             │
+│                                                                  │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │  Step 1 of 4                                             │    │
+│  │  ━━━━━━━━━━░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  │    │
+│  └─────────────────────────────────────────────────────────┘    │
+│                                                                  │
+│  🤖 Connect Claude (Anthropic)                                   │
+│  ─────────────────────────────────────                           │
+│  Claude is your AI assistant that powers code generation,        │
+│  debugging, and intelligent suggestions.                         │
+│                                                                  │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │  Anthropic API Key                                       │    │
+│  │  ┌─────────────────────────────────────────────────┐    │    │
+│  │  │ sk-ant-api03-...                            👁   │    │    │
+│  │  └─────────────────────────────────────────────────┘    │    │
+│  │                                                          │    │
+│  │  📖 Get your API key at console.anthropic.com            │    │
+│  └─────────────────────────────────────────────────────────┘    │
+│                                                                  │
+│                                    [Skip for now]  [Continue →]  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Setup Steps
+
+```
+Step 1: Claude (Anthropic)     → AI capabilities
+Step 2: GitHub                 → Code repository access
+Step 3: Supabase              → Database operations
+Step 4: Vercel                → Deployments
+         ↓
+   🎉 Setup Complete!
+   All services connected. Start building!
+```
+
+### Service Connection Cards
+
+After setup, users can manage connections via the **Settings** page, similar to the main Lawless AI integrations page.
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  ⚙️ Settings → Service Connections                               │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  ┌────────────────────────┐  ┌────────────────────────┐         │
+│  │ 🤖 Claude (Anthropic)  │  │ 🐙 GitHub              │         │
+│  │                        │  │                        │         │
+│  │ ● Connected            │  │ ● Connected            │         │
+│  │                        │  │                        │         │
+│  │ Model: claude-sonnet-4 │  │ Repo: owner/my-app     │         │
+│  │ Usage: 125K tokens     │  │ Branch: main           │         │
+│  │                        │  │                        │         │
+│  │ [Manage] [Disconnect]  │  │ [Manage] [Disconnect]  │         │
+│  └────────────────────────┘  └────────────────────────┘         │
+│                                                                  │
+│  ┌────────────────────────┐  ┌────────────────────────┐         │
+│  │ 🗄️ Supabase            │  │ ▲ Vercel               │         │
+│  │                        │  │                        │         │
+│  │ ● Connected            │  │ ● Connected            │         │
+│  │                        │  │                        │         │
+│  │ Project: my-app-db     │  │ Project: my-app        │         │
+│  │ Tables: 12             │  │ Domain: my-app.vercel  │         │
+│  │                        │  │                        │         │
+│  │ [Manage] [Disconnect]  │  │ [Manage] [Disconnect]  │         │
+│  └────────────────────────┘  └────────────────────────┘         │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Claude (Anthropic) Connection
+
+```typescript
+// Connection Configuration
+interface ClaudeConnection {
+  apiKey: string;                    // ANTHROPIC_API_KEY
+  model: string;                     // Default: claude-sonnet-4-20250514
+  maxTokens: number;                 // Default: 8096
+  temperature: number;               // Default: 0.7
+}
+
+// Verification Flow
+async function verifyClaudeConnection(apiKey: string) {
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 10,
+      messages: [{ role: 'user', content: 'Hi' }],
+    }),
+  });
+
+  if (!response.ok) throw new Error('Invalid API key');
+  return { connected: true, model: 'claude-sonnet-4-20250514' };
+}
+```
+
+**Setup UI:**
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  🤖 Connect Claude (Anthropic)                                   │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  Claude is your AI coding assistant. It powers:                  │
+│  • Code generation and editing                                   │
+│  • Intelligent debugging                                         │
+│  • Architecture suggestions                                      │
+│  • 24 specialized agents from ai-coding-config                   │
+│                                                                  │
+│  Anthropic API Key:                                              │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │ sk-ant-api03-...                                    👁   │    │
+│  └─────────────────────────────────────────────────────────┘    │
+│                                                                  │
+│  Model Selection:                                                │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │ claude-sonnet-4-20250514 (Recommended)              ▼   │    │
+│  └─────────────────────────────────────────────────────────┘    │
+│  • Sonnet: Best balance of speed and capability                 │
+│  • Opus: Most powerful, higher cost                             │
+│  • Haiku: Fastest, lower cost                                   │
+│                                                                  │
+│  📖 Get your API key: https://console.anthropic.com/settings/keys│
+│                                                                  │
+│                               [Test Connection]  [Save & Continue]│
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### GitHub Connection
+
+```typescript
+// Connection Configuration
+interface GitHubConnection {
+  token: string;                     // GITHUB_TOKEN (Personal Access Token)
+  owner: string;                     // Repository owner
+  repo: string;                      // Repository name
+  defaultBranch: string;             // Default: main
+}
+
+// Verification Flow
+async function verifyGitHubConnection(token: string, owner: string, repo: string) {
+  const octokit = new Octokit({ auth: token });
+
+  // Verify token and repo access
+  const { data: repoData } = await octokit.repos.get({ owner, repo });
+  const { data: userData } = await octokit.users.getAuthenticated();
+
+  return {
+    connected: true,
+    user: userData.login,
+    repo: repoData.full_name,
+    permissions: repoData.permissions,
+  };
+}
+```
+
+**Required Scopes:** `repo` (Full control of private repositories)
+
+**Setup UI:**
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  🐙 Connect GitHub                                               │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  GitHub integration enables:                                     │
+│  • Reading and writing files                                     │
+│  • Creating commits and branches                                 │
+│  • Opening pull requests                                         │
+│  • Managing repository settings                                  │
+│                                                                  │
+│  Personal Access Token:                                          │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │ ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx            👁   │    │
+│  └─────────────────────────────────────────────────────────┘    │
+│                                                                  │
+│  Repository:                                                     │
+│  ┌──────────────────────┐  ┌────────────────────────────────┐   │
+│  │ owner                │  │ repository-name                 │   │
+│  └──────────────────────┘  └────────────────────────────────┘   │
+│                                                                  │
+│  📖 Create token: https://github.com/settings/tokens/new         │
+│     Required scope: repo                                         │
+│                                                                  │
+│                               [Test Connection]  [Save & Continue]│
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Supabase Connection
+
+```typescript
+// Connection Configuration
+interface SupabaseConnection {
+  projectUrl: string;                // NEXT_PUBLIC_SUPABASE_URL
+  anonKey: string;                   // NEXT_PUBLIC_SUPABASE_ANON_KEY
+  serviceRoleKey: string;            // SUPABASE_SERVICE_ROLE_KEY
+  projectRef: string;                // Project reference (from URL)
+}
+
+// Verification Flow
+async function verifySupabaseConnection(url: string, serviceKey: string) {
+  const client = createClient(url, serviceKey);
+
+  // Test connection with a simple query
+  const { data, error } = await client.from('information_schema.tables')
+    .select('table_name')
+    .limit(1);
+
+  if (error && error.code !== 'PGRST116') throw error;
+
+  // Get table count
+  const { count } = await client.from('information_schema.tables')
+    .select('*', { count: 'exact', head: true })
+    .eq('table_schema', 'public');
+
+  return { connected: true, tableCount: count };
+}
+```
+
+**Setup UI:**
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  🗄️ Connect Supabase                                             │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  Supabase provides your database. Connection enables:            │
+│  • Running SQL queries                                           │
+│  • Viewing and modifying schema                                  │
+│  • Applying migrations                                           │
+│  • Managing Row Level Security                                   │
+│                                                                  │
+│  Project URL:                                                    │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │ https://xxxxxxxxxxxx.supabase.co                         │    │
+│  └─────────────────────────────────────────────────────────┘    │
+│                                                                  │
+│  Anon Key:                                                       │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │ eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...              👁   │    │
+│  └─────────────────────────────────────────────────────────┘    │
+│                                                                  │
+│  Service Role Key (for admin operations):                        │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │ eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...              👁   │    │
+│  └─────────────────────────────────────────────────────────┘    │
+│                                                                  │
+│  📖 Find these in: Supabase Dashboard → Settings → API           │
+│                                                                  │
+│                               [Test Connection]  [Save & Continue]│
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Vercel Connection
+
+```typescript
+// Connection Configuration
+interface VercelConnection {
+  token: string;                     // VERCEL_TOKEN
+  projectId: string;                 // Project ID from Vercel
+  teamId?: string;                   // Optional team ID
+}
+
+// Verification Flow
+async function verifyVercelConnection(token: string, projectId: string) {
+  const response = await fetch(
+    `https://api.vercel.com/v9/projects/${projectId}`,
+    {
+      headers: { Authorization: `Bearer ${token}` },
+    }
+  );
+
+  if (!response.ok) throw new Error('Invalid token or project');
+
+  const project = await response.json();
+  return {
+    connected: true,
+    project: project.name,
+    framework: project.framework,
+    latestDeployment: project.latestDeployments?.[0]?.url,
+  };
+}
+```
+
+**Required Scopes:**
+- `user:read` - Read user information
+- `deployments:read` - View deployments
+- `deployments:write` - Trigger deployments
+- `projects:read` - View project settings
+- `logs:read` - View deployment logs
+
+**Setup UI:**
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  ▲ Connect Vercel                                                │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  Vercel hosts your deployments. Connection enables:              │
+│  • Triggering deployments                                        │
+│  • Viewing build logs                                            │
+│  • Managing environment variables                                │
+│  • Rolling back to previous versions                             │
+│                                                                  │
+│  Access Token:                                                   │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │ xxxxxxxxxxxxxxxxxxxxxxxx                             👁   │    │
+│  └─────────────────────────────────────────────────────────┘    │
+│                                                                  │
+│  Project ID:                                                     │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │ prj_xxxxxxxxxxxxxxxxxxxxxxxxxxxx                         │    │
+│  └─────────────────────────────────────────────────────────┘    │
+│                                                                  │
+│  Team ID (optional, for team projects):                          │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │ team_xxxxxxxxxxxxxxxxxxxxxxxxxxxx                        │    │
+│  └─────────────────────────────────────────────────────────┘    │
+│                                                                  │
+│  📖 Create token: https://vercel.com/account/tokens              │
+│  📖 Find Project ID: Project Settings → General                  │
+│                                                                  │
+│                               [Test Connection]  [Save & Continue]│
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Token Storage (Local & Secure)
+
+All tokens are stored locally in `.env.local` - they never leave the user's machine.
+
+```bash
+# .env.local (auto-generated by setup wizard)
+
+# Claude (Anthropic)
+ANTHROPIC_API_KEY=sk-ant-api03-...
+
+# GitHub
+GITHUB_TOKEN=ghp_...
+GITHUB_OWNER=username
+GITHUB_REPO=my-project
+
+# Supabase
+NEXT_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
+SUPABASE_SERVICE_ROLE_KEY=eyJ...
+
+# Vercel
+VERCEL_TOKEN=...
+VERCEL_PROJECT_ID=prj_...
+VERCEL_TEAM_ID=team_...  # optional
+```
+
+### Connection Status API
+
+```typescript
+// .lawless/ide/src/app/api/status/route.ts
+export async function GET() {
+  const status = {
+    claude: await checkClaudeConnection(),
+    github: await checkGitHubConnection(),
+    supabase: await checkSupabaseConnection(),
+    vercel: await checkVercelConnection(),
+    devServer: await checkDevServer(),
+    setupComplete: false,
+  };
+
+  status.setupComplete =
+    status.claude.connected &&
+    status.github.connected &&
+    status.supabase.connected &&
+    status.vercel.connected;
+
+  return Response.json(status);
+}
+
+interface ConnectionStatus {
+  claude: {
+    connected: boolean;
+    model?: string;
+    error?: string;
+  };
+  github: {
+    connected: boolean;
+    repo?: string;
+    user?: string;
+    error?: string;
+  };
+  supabase: {
+    connected: boolean;
+    tableCount?: number;
+    error?: string;
+  };
+  vercel: {
+    connected: boolean;
+    project?: string;
+    latestDeployment?: string;
+    error?: string;
+  };
+  devServer: {
+    running: boolean;
+    port?: number;
+  };
+  setupComplete: boolean;
+}
+```
+
+---
+
+## Complete Tooling Reference
+
+The Local IDE Agent gives Claude access to a comprehensive set of tools. Here's the complete reference of everything Claude can do.
+
+### Tool Categories Overview
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    CLAUDE'S TOOL ARSENAL                         │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  📁 FILE OPERATIONS (7 tools)                                    │
+│  ├─ read_file          Read file contents                        │
+│  ├─ write_file         Create or update files                    │
+│  ├─ delete_file        Remove files                              │
+│  ├─ move_file          Rename/move files                         │
+│  ├─ search_files       Search across codebase                    │
+│  ├─ list_directory     List folder contents                      │
+│  └─ get_file_info      Get file metadata                         │
+│                                                                  │
+│  🔀 GIT OPERATIONS (9 tools)                                     │
+│  ├─ git_status         Current repo state                        │
+│  ├─ git_diff           View changes                              │
+│  ├─ git_log            Commit history                            │
+│  ├─ git_commit         Create commits                            │
+│  ├─ git_push           Push to remote                            │
+│  ├─ git_pull           Pull from remote                          │
+│  ├─ git_branch         Branch operations                         │
+│  ├─ git_checkout       Switch branches                           │
+│  └─ create_pr          Open pull request                         │
+│                                                                  │
+│  🗄️ DATABASE OPERATIONS (7 tools)                                │
+│  ├─ db_query           Execute SQL                               │
+│  ├─ db_schema          View table structure                      │
+│  ├─ db_tables          List all tables                           │
+│  ├─ db_migrate         Apply migrations                          │
+│  ├─ db_seed            Insert test data                          │
+│  ├─ db_backup          Export data                               │
+│  └─ db_rls             Manage RLS policies                       │
+│                                                                  │
+│  🚀 DEPLOYMENT OPERATIONS (6 tools)                              │
+│  ├─ deploy             Trigger deployment                        │
+│  ├─ deployment_status  Check build status                        │
+│  ├─ deployment_logs    View build logs                           │
+│  ├─ rollback           Revert to previous                        │
+│  ├─ env_vars           Manage environment                        │
+│  └─ domains            Manage custom domains                     │
+│                                                                  │
+│  🔧 SYSTEM OPERATIONS (4 tools)                                  │
+│  ├─ run_command        Execute shell commands                    │
+│  ├─ run_tests          Execute test suite                        │
+│  ├─ run_lint           Run linting                               │
+│  └─ run_build          Build the project                         │
+│                                                                  │
+│  TOTAL: 33 TOOLS                                                 │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### File Operations (7 tools)
+
+```typescript
+// 1. read_file - Read file contents
+{
+  name: 'read_file',
+  description: 'Read the contents of a file. Returns the file content as a string.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      path: {
+        type: 'string',
+        description: 'File path relative to project root (e.g., "src/app/page.tsx")'
+      },
+      encoding: {
+        type: 'string',
+        enum: ['utf-8', 'base64'],
+        default: 'utf-8',
+        description: 'File encoding (use base64 for binary files)'
+      }
+    },
+    required: ['path']
+  }
+}
+
+// 2. write_file - Create or update files
+{
+  name: 'write_file',
+  description: 'Write content to a file. Creates the file if it doesn\'t exist, overwrites if it does.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      path: { type: 'string', description: 'File path relative to project root' },
+      content: { type: 'string', description: 'Content to write to the file' },
+      createDirectories: {
+        type: 'boolean',
+        default: true,
+        description: 'Create parent directories if they don\'t exist'
+      }
+    },
+    required: ['path', 'content']
+  }
+}
+
+// 3. delete_file - Remove files
+{
+  name: 'delete_file',
+  description: 'Delete a file from the project.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      path: { type: 'string', description: 'File path to delete' }
+    },
+    required: ['path']
+  }
+}
+
+// 4. move_file - Rename or move files
+{
+  name: 'move_file',
+  description: 'Move or rename a file.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      from: { type: 'string', description: 'Current file path' },
+      to: { type: 'string', description: 'New file path' }
+    },
+    required: ['from', 'to']
+  }
+}
+
+// 5. search_files - Search across codebase
+{
+  name: 'search_files',
+  description: 'Search for text patterns across project files. Returns matching files and lines.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      query: { type: 'string', description: 'Search query (supports regex)' },
+      glob: {
+        type: 'string',
+        default: '**/*',
+        description: 'File pattern to search (e.g., "**/*.ts", "src/**/*.tsx")'
+      },
+      caseSensitive: { type: 'boolean', default: false },
+      maxResults: { type: 'number', default: 50 }
+    },
+    required: ['query']
+  }
+}
+
+// 6. list_directory - List folder contents
+{
+  name: 'list_directory',
+  description: 'List contents of a directory.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      path: {
+        type: 'string',
+        default: '.',
+        description: 'Directory path (defaults to project root)'
+      },
+      recursive: { type: 'boolean', default: false },
+      includeHidden: { type: 'boolean', default: false }
+    }
+  }
+}
+
+// 7. get_file_info - Get file metadata
+{
+  name: 'get_file_info',
+  description: 'Get metadata about a file (size, modified date, permissions).',
+  input_schema: {
+    type: 'object',
+    properties: {
+      path: { type: 'string', description: 'File path' }
+    },
+    required: ['path']
+  }
+}
+```
+
+### Git Operations (9 tools)
+
+```typescript
+// 1. git_status - Current repo state
+{
+  name: 'git_status',
+  description: 'Get the current git status including staged, unstaged, and untracked files.',
+  input_schema: {
+    type: 'object',
+    properties: {}
+  }
+}
+
+// 2. git_diff - View changes
+{
+  name: 'git_diff',
+  description: 'Show differences between commits, branches, or working directory.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      target: {
+        type: 'string',
+        description: 'What to diff against (e.g., "HEAD", "main", commit SHA)'
+      },
+      path: {
+        type: 'string',
+        description: 'Specific file or directory to diff'
+      },
+      staged: {
+        type: 'boolean',
+        default: false,
+        description: 'Show only staged changes'
+      }
+    }
+  }
+}
+
+// 3. git_log - Commit history
+{
+  name: 'git_log',
+  description: 'Get commit history.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      limit: { type: 'number', default: 10 },
+      branch: { type: 'string', description: 'Branch to show history for' },
+      path: { type: 'string', description: 'Show history for specific file' },
+      author: { type: 'string', description: 'Filter by author' }
+    }
+  }
+}
+
+// 4. git_commit - Create commits
+{
+  name: 'git_commit',
+  description: 'Stage files and create a commit.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      message: { type: 'string', description: 'Commit message' },
+      files: {
+        type: 'array',
+        items: { type: 'string' },
+        description: 'Files to stage (defaults to all changed files)'
+      },
+      all: {
+        type: 'boolean',
+        default: false,
+        description: 'Stage all changed files (git add -A)'
+      }
+    },
+    required: ['message']
+  }
+}
+
+// 5. git_push - Push to remote
+{
+  name: 'git_push',
+  description: 'Push commits to remote repository.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      branch: { type: 'string', description: 'Branch to push (defaults to current)' },
+      setUpstream: {
+        type: 'boolean',
+        default: true,
+        description: 'Set upstream tracking'
+      },
+      force: {
+        type: 'boolean',
+        default: false,
+        description: 'Force push (use with caution)'
+      }
+    }
+  }
+}
+
+// 6. git_pull - Pull from remote
+{
+  name: 'git_pull',
+  description: 'Pull changes from remote repository.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      branch: { type: 'string', description: 'Branch to pull (defaults to current)' },
+      rebase: { type: 'boolean', default: false }
+    }
+  }
+}
+
+// 7. git_branch - Branch operations
+{
+  name: 'git_branch',
+  description: 'List, create, or delete branches.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      action: {
+        type: 'string',
+        enum: ['list', 'create', 'delete'],
+        default: 'list'
+      },
+      name: { type: 'string', description: 'Branch name (for create/delete)' },
+      from: { type: 'string', description: 'Base branch (for create)' }
+    }
+  }
+}
+
+// 8. git_checkout - Switch branches
+{
+  name: 'git_checkout',
+  description: 'Switch to a different branch or restore files.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      target: { type: 'string', description: 'Branch name or commit SHA' },
+      create: {
+        type: 'boolean',
+        default: false,
+        description: 'Create branch if it doesn\'t exist'
+      },
+      files: {
+        type: 'array',
+        items: { type: 'string' },
+        description: 'Specific files to restore'
+      }
+    },
+    required: ['target']
+  }
+}
+
+// 9. create_pr - Open pull request
+{
+  name: 'create_pr',
+  description: 'Create a pull request on GitHub.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      title: { type: 'string', description: 'PR title' },
+      body: { type: 'string', description: 'PR description (markdown)' },
+      head: { type: 'string', description: 'Branch with changes' },
+      base: { type: 'string', default: 'main', description: 'Target branch' },
+      draft: { type: 'boolean', default: false }
+    },
+    required: ['title', 'head']
+  }
+}
+```
+
+### Database Operations (7 tools)
+
+```typescript
+// 1. db_query - Execute SQL
+{
+  name: 'db_query',
+  description: 'Execute a SQL query against the Supabase database. Returns results as JSON.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      query: { type: 'string', description: 'SQL query to execute' },
+      params: {
+        type: 'array',
+        items: { type: 'string' },
+        description: 'Query parameters for prepared statements'
+      },
+      readOnly: {
+        type: 'boolean',
+        default: false,
+        description: 'Enforce read-only mode (SELECT only)'
+      }
+    },
+    required: ['query']
+  }
+}
+
+// 2. db_schema - View table structure
+{
+  name: 'db_schema',
+  description: 'Get the schema for a specific table or all tables.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      table: {
+        type: 'string',
+        description: 'Table name (omit for all tables)'
+      },
+      includeConstraints: { type: 'boolean', default: true },
+      includeIndexes: { type: 'boolean', default: true }
+    }
+  }
+}
+
+// 3. db_tables - List all tables
+{
+  name: 'db_tables',
+  description: 'List all tables in the public schema with row counts.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      includeRowCounts: { type: 'boolean', default: true }
+    }
+  }
+}
+
+// 4. db_migrate - Apply migrations
+{
+  name: 'db_migrate',
+  description: 'Apply a database migration from the supabase/migrations folder.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      file: {
+        type: 'string',
+        description: 'Migration filename (e.g., "20240101_add_users.sql")'
+      },
+      dryRun: {
+        type: 'boolean',
+        default: false,
+        description: 'Show what would be executed without applying'
+      }
+    },
+    required: ['file']
+  }
+}
+
+// 5. db_seed - Insert test data
+{
+  name: 'db_seed',
+  description: 'Insert seed data into a table.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      table: { type: 'string', description: 'Table name' },
+      data: {
+        type: 'array',
+        items: { type: 'object' },
+        description: 'Array of rows to insert'
+      },
+      upsert: {
+        type: 'boolean',
+        default: false,
+        description: 'Update existing rows on conflict'
+      }
+    },
+    required: ['table', 'data']
+  }
+}
+
+// 6. db_backup - Export data
+{
+  name: 'db_backup',
+  description: 'Export table data to JSON.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      tables: {
+        type: 'array',
+        items: { type: 'string' },
+        description: 'Tables to backup (omit for all)'
+      },
+      outputPath: { type: 'string', description: 'File path to save backup' }
+    }
+  }
+}
+
+// 7. db_rls - Manage RLS policies
+{
+  name: 'db_rls',
+  description: 'View or create Row Level Security policies.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      action: {
+        type: 'string',
+        enum: ['list', 'create', 'drop'],
+        default: 'list'
+      },
+      table: { type: 'string', description: 'Table name' },
+      policy: { type: 'string', description: 'Policy name (for create/drop)' },
+      definition: { type: 'string', description: 'Policy SQL (for create)' }
+    }
+  }
+}
+```
+
+### Deployment Operations (6 tools)
+
+```typescript
+// 1. deploy - Trigger deployment
+{
+  name: 'deploy',
+  description: 'Trigger a deployment to Vercel.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      branch: { type: 'string', default: 'main', description: 'Branch to deploy' },
+      environment: {
+        type: 'string',
+        enum: ['production', 'preview'],
+        default: 'preview'
+      }
+    }
+  }
+}
+
+// 2. deployment_status - Check build status
+{
+  name: 'deployment_status',
+  description: 'Get status of recent deployments.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      deploymentId: { type: 'string', description: 'Specific deployment ID' },
+      limit: { type: 'number', default: 5, description: 'Number of recent deployments' }
+    }
+  }
+}
+
+// 3. deployment_logs - View build logs
+{
+  name: 'deployment_logs',
+  description: 'Get build logs for a deployment.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      deploymentId: { type: 'string', description: 'Deployment ID' },
+      type: {
+        type: 'string',
+        enum: ['build', 'runtime'],
+        default: 'build'
+      }
+    },
+    required: ['deploymentId']
+  }
+}
+
+// 4. rollback - Revert to previous deployment
+{
+  name: 'rollback',
+  description: 'Rollback to a previous deployment.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      deploymentId: {
+        type: 'string',
+        description: 'Deployment ID to rollback to'
+      },
+      environment: {
+        type: 'string',
+        enum: ['production', 'preview'],
+        default: 'production'
+      }
+    },
+    required: ['deploymentId']
+  }
+}
+
+// 5. env_vars - Manage environment variables
+{
+  name: 'env_vars',
+  description: 'List, create, update, or delete environment variables on Vercel.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      action: {
+        type: 'string',
+        enum: ['list', 'get', 'set', 'delete'],
+        default: 'list'
+      },
+      key: { type: 'string', description: 'Variable name' },
+      value: { type: 'string', description: 'Variable value (for set)' },
+      environment: {
+        type: 'array',
+        items: { type: 'string', enum: ['production', 'preview', 'development'] },
+        default: ['production', 'preview'],
+        description: 'Target environments'
+      }
+    }
+  }
+}
+
+// 6. domains - Manage custom domains
+{
+  name: 'domains',
+  description: 'List or configure custom domains.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      action: {
+        type: 'string',
+        enum: ['list', 'add', 'remove', 'verify'],
+        default: 'list'
+      },
+      domain: { type: 'string', description: 'Domain name (for add/remove/verify)' }
+    }
+  }
+}
+```
+
+### System Operations (4 tools)
+
+```typescript
+// 1. run_command - Execute shell commands
+{
+  name: 'run_command',
+  description: 'Execute a shell command in the project directory.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      command: { type: 'string', description: 'Command to execute' },
+      cwd: { type: 'string', description: 'Working directory (relative to project)' },
+      timeout: { type: 'number', default: 30000, description: 'Timeout in milliseconds' }
+    },
+    required: ['command']
+  }
+}
+
+// 2. run_tests - Execute test suite
+{
+  name: 'run_tests',
+  description: 'Run the project\'s test suite.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      pattern: { type: 'string', description: 'Test file pattern (e.g., "**/*.test.ts")' },
+      coverage: { type: 'boolean', default: false },
+      watch: { type: 'boolean', default: false }
+    }
+  }
+}
+
+// 3. run_lint - Run linting
+{
+  name: 'run_lint',
+  description: 'Run linting on the codebase.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      fix: { type: 'boolean', default: false, description: 'Auto-fix issues' },
+      path: { type: 'string', description: 'Specific path to lint' }
+    }
+  }
+}
+
+// 4. run_build - Build the project
+{
+  name: 'run_build',
+  description: 'Run the project build process.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      mode: {
+        type: 'string',
+        enum: ['development', 'production'],
+        default: 'production'
+      }
+    }
+  }
+}
+```
+
+### ai-coding-config Integration
+
+In addition to the 33 tools above, Claude has access to the full **ai-coding-config** ecosystem:
+
+#### Agents (24 specialized AI agents)
+
+| Agent | Purpose | When Triggered |
+|-------|---------|----------------|
+| `autonomous-developer` | Complete tasks independently | Complex multi-step tasks |
+| `debugger` | Investigate and fix bugs | Test failures, errors |
+| `security-reviewer` | Find vulnerabilities | Security audits, sensitive code |
+| `test-engineer` | Write comprehensive tests | After new features |
+| `performance-reviewer` | Optimize efficiency | Slow code, N+1 queries |
+| `architecture-auditor` | Review design patterns | Major refactors |
+| `error-handling-reviewer` | Ensure proper error handling | Try/catch, error flows |
+| `logic-reviewer` | Find correctness issues | Complex logic |
+| `ux-designer` | Polish user experience | UI components |
+| `design-reviewer` | Review UI quality | Frontend changes |
+| `style-reviewer` | Check code conventions | Code style |
+| `empathy-reviewer` | User experience perspective | User-facing features |
+| `prompt-engineer` | Write effective prompts | AI integrations |
+| `simplifier` | Reduce complexity | Over-engineered code |
+| `git-writer` | Write commit messages | Git operations |
+| `comment-analyzer` | Review documentation | Code comments |
+| `test-analyzer` | Review test quality | Test coverage |
+| `test-runner` | Run and report tests | After changes |
+| `robustness-reviewer` | Production readiness | Before deployment |
+| `site-keeper` | Monitor health | Production issues |
+| `observability-reviewer` | Logging and monitoring | Debug patterns |
+| `seo-specialist` | SEO optimization | Public pages |
+| `mobile-ux-reviewer` | Mobile experience | Responsive design |
+| `library-advisor` | Technology choices | Dependency decisions |
+
+#### Commands (18 workflow commands)
+
+| Command | Purpose |
+|---------|---------|
+| `/autotask` | Complete task autonomously and open PR |
+| `/multi-review` | Multi-agent code review |
+| `/troubleshoot` | Debug production errors |
+| `/verify-fix` | Confirm fixes work |
+| `/session` | Save/resume sessions |
+| `/repo-tooling` | Set up linting/CI |
+| `/brainstorm` | Explore options before coding |
+| `/research` | Web research for current info |
+| `/handoff-context` | Generate context for new session |
+| `/load-rules` | Load task-specific rules |
+| `/address-pr-comments` | Handle PR feedback |
+| `/cleanup-worktree` | Clean up git worktrees |
+| `/generate-llms-txt` | Generate llms.txt for AI |
+| `/ai-coding-config` | Interactive setup |
+| `/create-prompt` | Write optimized prompts |
+| `/personality-change` | Change AI personality |
+| `/setup-environment` | Initialize dev environment |
+| `/product-intel` | Research competitors |
+
+#### Skills (7 specialized skills)
+
+| Skill | Purpose |
+|-------|---------|
+| `systematic-debugging` | Root cause analysis |
+| `brainstorming` | Explore options before implementation |
+| `research` | Web research for current information |
+| `playwright-browser` | Browser automation and testing |
+| `youtube-transcript-analyzer` | Extract insights from videos |
+| `skill-creator` | Create new skills |
+| `brainstorm-synthesis` | M-of-N synthesis on complex problems |
+
+---
+
 ## Core Differentiators (vs Hosted IDE)
 
 ### Simplicity by Constraint
@@ -250,6 +1407,7 @@ These features from the hosted IDE are unnecessary for local:
 - Create the base Local IDE Agent package
 - Project scaffolding system
 - Service configuration layer
+- **First-run setup wizard with service connections**
 - Basic 3-pane layout
 
 ### Tasks
@@ -425,6 +1583,461 @@ export default function LocalIDE() {
 }
 ```
 
+#### 1.6 First-Run Setup Wizard
+
+```tsx
+// .lawless/ide/src/app/setup/page.tsx
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { ClaudeSetup } from '@/components/Setup/ClaudeSetup';
+import { GitHubSetup } from '@/components/Setup/GitHubSetup';
+import { SupabaseSetup } from '@/components/Setup/SupabaseSetup';
+import { VercelSetup } from '@/components/Setup/VercelSetup';
+import { SetupComplete } from '@/components/Setup/SetupComplete';
+
+const STEPS = ['claude', 'github', 'supabase', 'vercel', 'complete'] as const;
+type Step = typeof STEPS[number];
+
+export default function SetupWizard() {
+  const [step, setStep] = useState<Step>('claude');
+  const [connections, setConnections] = useState({
+    claude: false,
+    github: false,
+    supabase: false,
+    vercel: false,
+  });
+  const router = useRouter();
+
+  // Check if setup is already complete
+  useEffect(() => {
+    fetch('/api/status')
+      .then(res => res.json())
+      .then(data => {
+        if (data.setupComplete) {
+          router.push('/');
+        }
+      });
+  }, []);
+
+  const currentStep = STEPS.indexOf(step);
+  const progress = ((currentStep + 1) / STEPS.length) * 100;
+
+  const handleStepComplete = (service: keyof typeof connections) => {
+    setConnections(prev => ({ ...prev, [service]: true }));
+    const nextIndex = STEPS.indexOf(step) + 1;
+    if (nextIndex < STEPS.length) {
+      setStep(STEPS[nextIndex]);
+    }
+  };
+
+  const handleSkip = () => {
+    const nextIndex = STEPS.indexOf(step) + 1;
+    if (nextIndex < STEPS.length) {
+      setStep(STEPS[nextIndex]);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+      <div className="max-w-xl w-full bg-white rounded-xl shadow-lg p-8">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <h1 className="text-2xl font-bold text-gray-900">
+            Welcome to Your IDE
+          </h1>
+          <p className="text-gray-500 mt-2">
+            Let's connect your services to unlock the full power of your
+            AI-powered development environment.
+          </p>
+        </div>
+
+        {/* Progress */}
+        <div className="mb-8">
+          <div className="flex justify-between text-sm text-gray-500 mb-2">
+            <span>Step {currentStep + 1} of {STEPS.length}</span>
+            <span>{Math.round(progress)}% complete</span>
+          </div>
+          <div className="h-2 bg-gray-200 rounded-full">
+            <div
+              className="h-full bg-blue-600 rounded-full transition-all"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+        </div>
+
+        {/* Step Content */}
+        {step === 'claude' && (
+          <ClaudeSetup
+            onComplete={() => handleStepComplete('claude')}
+            onSkip={handleSkip}
+          />
+        )}
+        {step === 'github' && (
+          <GitHubSetup
+            onComplete={() => handleStepComplete('github')}
+            onSkip={handleSkip}
+          />
+        )}
+        {step === 'supabase' && (
+          <SupabaseSetup
+            onComplete={() => handleStepComplete('supabase')}
+            onSkip={handleSkip}
+          />
+        )}
+        {step === 'vercel' && (
+          <VercelSetup
+            onComplete={() => handleStepComplete('vercel')}
+            onSkip={handleSkip}
+          />
+        )}
+        {step === 'complete' && (
+          <SetupComplete
+            connections={connections}
+            onFinish={() => router.push('/')}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+```
+
+#### 1.7 Service Connection Component (Claude Example)
+
+```tsx
+// .lawless/ide/src/components/Setup/ClaudeSetup.tsx
+'use client';
+
+import { useState } from 'react';
+
+interface ClaudeSetupProps {
+  onComplete: () => void;
+  onSkip: () => void;
+}
+
+export function ClaudeSetup({ onComplete, onSkip }: ClaudeSetupProps) {
+  const [apiKey, setApiKey] = useState('');
+  const [model, setModel] = useState('claude-sonnet-4-20250514');
+  const [showKey, setShowKey] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const testConnection = async () => {
+    setTesting(true);
+    setError(null);
+
+    try {
+      const response = await fetch('/api/setup/claude', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apiKey, model }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Connection failed');
+      }
+
+      onComplete();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Connection failed');
+    } finally {
+      setTesting(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-start gap-4">
+        <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center text-2xl">
+          🤖
+        </div>
+        <div>
+          <h2 className="text-lg font-semibold">Connect Claude (Anthropic)</h2>
+          <p className="text-sm text-gray-500">
+            Claude powers all AI features in your IDE
+          </p>
+        </div>
+      </div>
+
+      <div className="bg-gray-50 rounded-lg p-4">
+        <h3 className="font-medium text-sm mb-2">What you'll unlock:</h3>
+        <ul className="text-sm text-gray-600 space-y-1">
+          <li>• Intelligent code generation and editing</li>
+          <li>• 24 specialized AI agents (debugging, security, testing...)</li>
+          <li>• 18 workflow commands (/autotask, /multi-review...)</li>
+          <li>• Natural language to code translation</li>
+        </ul>
+      </div>
+
+      <div className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Anthropic API Key
+          </label>
+          <div className="relative">
+            <input
+              type={showKey ? 'text' : 'password'}
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+              placeholder="sk-ant-api03-..."
+              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+            <button
+              type="button"
+              onClick={() => setShowKey(!showKey)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+            >
+              {showKey ? '👁️' : '👁️‍🗨️'}
+            </button>
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Model
+          </label>
+          <select
+            value={model}
+            onChange={(e) => setModel(e.target.value)}
+            className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="claude-sonnet-4-20250514">
+              Claude Sonnet 4 (Recommended)
+            </option>
+            <option value="claude-opus-4-20250514">
+              Claude Opus 4 (Most powerful)
+            </option>
+            <option value="claude-3-5-haiku-20241022">
+              Claude 3.5 Haiku (Fastest)
+            </option>
+          </select>
+          <p className="text-xs text-gray-500 mt-1">
+            Sonnet offers the best balance of speed and capability
+          </p>
+        </div>
+
+        <a
+          href="https://console.anthropic.com/settings/keys"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-sm text-blue-600 hover:underline flex items-center gap-1"
+        >
+          📖 Get your API key at console.anthropic.com
+          <span>↗</span>
+        </a>
+      </div>
+
+      {error && (
+        <div className="bg-red-50 text-red-700 px-4 py-3 rounded-lg text-sm">
+          {error}
+        </div>
+      )}
+
+      <div className="flex justify-between pt-4">
+        <button
+          onClick={onSkip}
+          className="px-4 py-2 text-gray-500 hover:text-gray-700"
+        >
+          Skip for now
+        </button>
+        <button
+          onClick={testConnection}
+          disabled={!apiKey || testing}
+          className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+        >
+          {testing ? (
+            <>
+              <span className="animate-spin">⏳</span>
+              Testing...
+            </>
+          ) : (
+            'Save & Continue'
+          )}
+        </button>
+      </div>
+    </div>
+  );
+}
+```
+
+#### 1.8 Settings Page for Service Management
+
+```tsx
+// .lawless/ide/src/app/settings/page.tsx
+'use client';
+
+import { useState, useEffect } from 'react';
+import { ServiceCard } from '@/components/Settings/ServiceCard';
+
+interface ServiceStatus {
+  connected: boolean;
+  details?: Record<string, any>;
+  error?: string;
+}
+
+export default function SettingsPage() {
+  const [status, setStatus] = useState<{
+    claude: ServiceStatus;
+    github: ServiceStatus;
+    supabase: ServiceStatus;
+    vercel: ServiceStatus;
+  }>({
+    claude: { connected: false },
+    github: { connected: false },
+    supabase: { connected: false },
+    vercel: { connected: false },
+  });
+
+  useEffect(() => {
+    fetch('/api/status')
+      .then(res => res.json())
+      .then(setStatus);
+  }, []);
+
+  return (
+    <div className="max-w-4xl mx-auto p-8">
+      <h1 className="text-2xl font-bold mb-2">Settings</h1>
+      <p className="text-gray-500 mb-8">
+        Manage your service connections and IDE preferences
+      </p>
+
+      <h2 className="text-lg font-semibold mb-4">Service Connections</h2>
+
+      <div className="grid grid-cols-2 gap-4">
+        <ServiceCard
+          icon="🤖"
+          name="Claude (Anthropic)"
+          description="AI assistant powering code generation"
+          connected={status.claude.connected}
+          details={status.claude.details}
+          onManage={() => {/* open modal */}}
+          onDisconnect={() => {/* disconnect */}}
+        />
+
+        <ServiceCard
+          icon="🐙"
+          name="GitHub"
+          description="Code repository and version control"
+          connected={status.github.connected}
+          details={status.github.details}
+          onManage={() => {/* open modal */}}
+          onDisconnect={() => {/* disconnect */}}
+        />
+
+        <ServiceCard
+          icon="🗄️"
+          name="Supabase"
+          description="Database and backend services"
+          connected={status.supabase.connected}
+          details={status.supabase.details}
+          onManage={() => {/* open modal */}}
+          onDisconnect={() => {/* disconnect */}}
+        />
+
+        <ServiceCard
+          icon="▲"
+          name="Vercel"
+          description="Deployment and hosting"
+          connected={status.vercel.connected}
+          details={status.vercel.details}
+          onManage={() => {/* open modal */}}
+          onDisconnect={() => {/* disconnect */}}
+        />
+      </div>
+    </div>
+  );
+}
+```
+
+#### 1.9 Setup API Endpoints
+
+```typescript
+// .lawless/ide/src/app/api/setup/claude/route.ts
+import { writeEnvVariable } from '@/lib/env';
+
+export async function POST(req: Request) {
+  const { apiKey, model } = await req.json();
+
+  // Verify the API key works
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        model,
+        max_tokens: 10,
+        messages: [{ role: 'user', content: 'test' }],
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      return Response.json(
+        { error: error.error?.message || 'Invalid API key' },
+        { status: 400 }
+      );
+    }
+
+    // Save to .env.local
+    await writeEnvVariable('ANTHROPIC_API_KEY', apiKey);
+    await writeEnvVariable('CLAUDE_MODEL', model);
+
+    return Response.json({ success: true, model });
+  } catch (error) {
+    return Response.json(
+      { error: 'Failed to verify API key' },
+      { status: 500 }
+    );
+  }
+}
+
+// .lawless/ide/src/lib/env.ts
+import fs from 'fs/promises';
+import path from 'path';
+
+const PROJECT_ROOT = process.env.PROJECT_ROOT || process.cwd().replace('/.lawless/ide', '');
+const ENV_FILE = path.join(PROJECT_ROOT, '.env.local');
+
+export async function writeEnvVariable(key: string, value: string) {
+  let content = '';
+
+  try {
+    content = await fs.readFile(ENV_FILE, 'utf-8');
+  } catch {
+    // File doesn't exist, will create
+  }
+
+  const lines = content.split('\n');
+  const keyIndex = lines.findIndex(line => line.startsWith(`${key}=`));
+
+  if (keyIndex >= 0) {
+    lines[keyIndex] = `${key}=${value}`;
+  } else {
+    lines.push(`${key}=${value}`);
+  }
+
+  await fs.writeFile(ENV_FILE, lines.filter(Boolean).join('\n') + '\n');
+}
+
+export async function readEnvVariable(key: string): Promise<string | null> {
+  try {
+    const content = await fs.readFile(ENV_FILE, 'utf-8');
+    const match = content.match(new RegExp(`^${key}=(.*)$`, 'm'));
+    return match ? match[1] : null;
+  } catch {
+    return null;
+  }
+}
+```
+
 ### Deliverables
 - [ ] IDE agent package template
 - [ ] Service configuration schema
@@ -433,6 +2046,14 @@ export default function LocalIDE() {
 - [ ] 3-pane layout component
 - [ ] Basic routing (single page)
 - [ ] Environment variable handling
+- [ ] **First-run setup wizard with 4-step flow**
+- [ ] **Claude connection setup with model selection**
+- [ ] **GitHub connection setup with token verification**
+- [ ] **Supabase connection setup with project linking**
+- [ ] **Vercel connection setup with project verification**
+- [ ] **Settings page for managing connections**
+- [ ] **API endpoints for each service connection**
+- [ ] **Secure token storage in .env.local**
 
 ---
 
@@ -2218,6 +3839,36 @@ The Local IDE Agent is the **development environment** users get when they creat
 
 ---
 
-*Document Version: 1.0*
+*Document Version: 1.1*
 *Created: January 2026*
+*Last Updated: January 2026*
 *Parallel to: IDE_IMPLEMENTATION_PLAN.md v2.2*
+
+---
+
+## Changelog
+
+### v1.1 (Service Connections & Tooling)
+- **First-Run Setup Wizard**: 4-step guided onboarding for connecting all services
+- **Claude Connection**: Full Anthropic API integration with model selection (Sonnet/Opus/Haiku)
+- **GitHub Connection**: Token-based auth with repository verification
+- **Supabase Connection**: Project URL, anon key, and service role key setup
+- **Vercel Connection**: Token and project ID configuration
+- **Settings Page**: Card-based UI for managing all service connections post-setup
+- **Complete Tooling Reference**: Comprehensive documentation of all 33 tools available to Claude
+  - 7 File Operations (read, write, delete, move, search, list, info)
+  - 9 Git Operations (status, diff, log, commit, push, pull, branch, checkout, PR)
+  - 7 Database Operations (query, schema, tables, migrate, seed, backup, RLS)
+  - 6 Deployment Operations (deploy, status, logs, rollback, env vars, domains)
+  - 4 System Operations (command, tests, lint, build)
+- **ai-coding-config Integration**: Full documentation of 24 agents, 18 commands, and 7 skills
+- **Secure Token Storage**: All credentials stored locally in .env.local
+
+### v1.0 (Initial Release)
+- Basic 3-pane layout (Chat, Editor, Preview)
+- Project scaffolding system
+- Service connector architecture
+- Monaco editor integration
+- File tree with search
+- Live preview integration
+- CLI distribution support
