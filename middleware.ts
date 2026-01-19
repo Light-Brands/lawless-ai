@@ -1,11 +1,8 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { updateSession } from '@/lib/supabase/middleware';
 
-// Routes that don't require authentication
-const PUBLIC_ROUTES = [
-  '/login',
-  '/api/auth',
-  '/api/health',
+// Routes that skip session refresh entirely
+const SKIP_MIDDLEWARE = [
   '/_next',
   '/favicon.ico',
   '/icons',
@@ -14,33 +11,19 @@ const PUBLIC_ROUTES = [
   '/sw.js',
 ];
 
-// Check if a path is a public route
-function isPublicRoute(pathname: string): boolean {
-  return PUBLIC_ROUTES.some(route => pathname.startsWith(route));
-}
-
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Skip middleware for public routes and static assets
-  if (isPublicRoute(pathname)) {
+  // Skip middleware entirely for static assets
+  if (SKIP_MIDDLEWARE.some(route => pathname.startsWith(route))) {
     return NextResponse.next();
   }
 
-  // Update Supabase session and check authentication
-  const { supabaseResponse, user } = await updateSession(request);
+  // For all other routes, refresh the Supabase session
+  // This keeps the session alive and syncs cookies
+  // Auth redirects are handled client-side by AuthGate
+  const { supabaseResponse } = await updateSession(request);
 
-  // If user is not authenticated, redirect to login
-  if (!user) {
-    const loginUrl = new URL('/login', request.url);
-    // Add the original path as redirect target
-    if (pathname !== '/') {
-      loginUrl.searchParams.set('next', pathname);
-    }
-    return NextResponse.redirect(loginUrl);
-  }
-
-  // User is authenticated - continue with the request
   return supabaseResponse;
 }
 

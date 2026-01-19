@@ -64,7 +64,18 @@ export async function GET(request: NextRequest) {
   if (USE_SUPABASE_AUTH) {
     try {
       const supabase = await createClient();
-      const { data: { user } } = await supabase.auth.getUser();
+
+      // Debug: Log available cookies
+      const allCookies = request.cookies.getAll();
+      console.log('Auth status - Available cookies:', allCookies.map(c => c.name));
+
+      const { data: { user }, error } = await supabase.auth.getUser();
+
+      console.log('Auth status - getUser result:', {
+        hasUser: !!user,
+        userId: user?.id,
+        error: error?.message
+      });
 
       if (user) {
         result.authenticated = true;
