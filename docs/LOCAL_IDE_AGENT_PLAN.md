@@ -3210,7 +3210,493 @@ export default function PreviewPane() {
 }
 ```
 
-#### 4.5 Local File Operations
+#### 4.5 Interactive Component Selection (Click-to-Edit)
+
+A powerful inspection layer that lets users click on any component in the browser preview and immediately start editing it with Claude. This creates the ultimate visual development experience.
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ Preview                [🎯 Inspect] [↻]                     [↗] │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │                                                          │    │
+│  │    ┌──────────────────────────────────┐                  │    │
+│  │    │ ┌────────────────────────────────┼──────────────┐   │    │
+│  │    │ │  Hero Section                  │ ← Highlighted│   │    │
+│  │    │ │  ═══════════════               │   on hover   │   │    │
+│  │    │ │  Welcome to My App             │              │   │    │
+│  │    │ │  [Get Started]                 │              │   │    │
+│  │    │ └────────────────────────────────┼──────────────┘   │    │
+│  │    │                                  │                  │    │
+│  │    │  ┌─────────┐ ┌─────────┐         │                  │    │
+│  │    │  │ Card 1  │ │ Card 2  │         │                  │    │
+│  │    │  └─────────┘ └─────────┘         │                  │    │
+│  │    └──────────────────────────────────┘                  │    │
+│  │                                                          │    │
+│  └─────────────────────────────────────────────────────────┘    │
+│                                                                  │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │ 📍 Selected: <HeroSection>                               │    │
+│  │    src/components/HeroSection.tsx:12                     │    │
+│  │    [Open in Editor] [✨ Edit with Claude] [View Props]   │    │
+│  └─────────────────────────────────────────────────────────┘    │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**How It Works:**
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    CLICK-TO-EDIT FLOW                            │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  1. USER ENABLES INSPECT MODE                                    │
+│     └─ Click "🎯 Inspect" button in preview header               │
+│                                                                  │
+│  2. COMPONENT OVERLAY ACTIVATES                                  │
+│     └─ Hover highlights components with blue bounding box        │
+│     └─ Shows component name tooltip (e.g., "<HeroSection>")      │
+│                                                                  │
+│  3. USER CLICKS A COMPONENT                                      │
+│     └─ Component selection panel appears below preview           │
+│     └─ Source file identified via React fiber + source maps      │
+│                                                                  │
+│  4. CONTEXT LOADED INTO CHAT                                     │
+│     └─ Component code, props, and styles extracted               │
+│     └─ Chat pane receives full context                           │
+│     └─ User types what they want to change                       │
+│                                                                  │
+│  5. REAL-TIME UPDATES                                            │
+│     └─ Claude edits the component file                           │
+│     └─ HMR (Hot Module Replacement) updates preview              │
+│     └─ User sees changes instantly - no refresh needed           │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Enhanced Preview Pane with Inspect Mode:**
+
+```tsx
+// .lawless/ide/src/components/PreviewPane/index.tsx
+'use client';
+
+import { useState, useEffect, useRef } from 'react';
+import { ComponentSelectionPanel } from './ComponentSelectionPanel';
+import { useIDEStore } from '@/stores/ideStore';
+
+interface ComponentInfo {
+  displayName: string;
+  source: {
+    fileName: string;
+    lineNumber: number;
+    columnNumber: number;
+  } | null;
+  props: Record<string, any>;
+  boundingRect: DOMRect;
+}
+
+export default function PreviewPane() {
+  const [url, setUrl] = useState('http://localhost:3000');
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [inspectMode, setInspectMode] = useState(false);
+  const [selectedComponent, setSelectedComponent] = useState<ComponentInfo | null>(null);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const { openFile, sendChatMessage, setComponentContext } = useIDEStore();
+
+  // Inject inspector script when inspect mode changes
+  useEffect(() => {
+    const iframe = iframeRef.current;
+    if (!iframe?.contentWindow) return;
+
+    iframe.contentWindow.postMessage({
+      type: 'SET_INSPECT_MODE',
+      enabled: inspectMode,
+    }, '*');
+  }, [inspectMode]);
+
+  // Listen for component selection from iframe
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data.type === 'COMPONENT_SELECTED') {
+        setSelectedComponent(event.data.payload);
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, []);
+
+  // Handle "Edit with Claude" click
+  const handleEditWithClaude = async (component: ComponentInfo) => {
+    if (!component.source) return;
+
+    // Read the component source file
+    const response = await fetch('/api/files/read', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path: component.source.fileName }),
+    });
+    const { content: sourceCode } = await response.json();
+
+    // Set context for chat
+    setComponentContext({
+      type: 'component',
+      displayName: component.displayName,
+      file: component.source.fileName,
+      line: component.source.lineNumber,
+      sourceCode,
+      props: component.props,
+    });
+
+    // Focus chat input - user can now describe changes
+    document.getElementById('chat-input')?.focus();
+  };
+
+  const handleOpenInEditor = (path: string, line: number) => {
+    openFile(path, line);
+  };
+
+  return (
+    <div className="flex flex-col h-full relative">
+      {/* Header */}
+      <div className="h-10 border-b flex items-center px-3 gap-2">
+        <span className="text-sm font-medium">Preview</span>
+        <input
+          type="text"
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
+          className="flex-1 px-2 py-1 text-xs border rounded"
+        />
+
+        {/* Inspect Mode Toggle */}
+        <button
+          onClick={() => {
+            setInspectMode(!inspectMode);
+            if (inspectMode) setSelectedComponent(null);
+          }}
+          className={`px-2 py-1 text-xs rounded flex items-center gap-1 ${
+            inspectMode
+              ? 'bg-blue-600 text-white'
+              : 'bg-gray-100 hover:bg-gray-200'
+          }`}
+        >
+          🎯 {inspectMode ? 'Inspecting' : 'Inspect'}
+        </button>
+
+        <button
+          onClick={() => {
+            const iframe = iframeRef.current;
+            if (iframe) iframe.src = iframe.src;
+          }}
+          className="p-1 hover:bg-gray-100 rounded"
+        >
+          ↻
+        </button>
+        <a
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="p-1 hover:bg-gray-100 rounded"
+        >
+          ↗
+        </a>
+      </div>
+
+      {/* Preview */}
+      <div className="flex-1 bg-white relative">
+        {error ? (
+          <div className="h-full flex flex-col items-center justify-center text-gray-500">
+            <p className="mb-4">{error}</p>
+            <p className="text-sm">
+              Run <code className="bg-gray-100 px-2 py-1 rounded">npm run dev</code>
+            </p>
+          </div>
+        ) : (
+          <iframe
+            ref={iframeRef}
+            id="preview-frame"
+            src={url}
+            className={`w-full h-full border-0 ${inspectMode ? 'cursor-crosshair' : ''}`}
+            onLoad={() => {
+              setIsLoading(false);
+              // Inject inspector script on load
+              if (inspectMode) {
+                iframeRef.current?.contentWindow?.postMessage({
+                  type: 'SET_INSPECT_MODE',
+                  enabled: true,
+                }, '*');
+              }
+            }}
+          />
+        )}
+
+        {/* Component Selection Panel */}
+        {selectedComponent && (
+          <ComponentSelectionPanel
+            component={selectedComponent}
+            onOpenInEditor={handleOpenInEditor}
+            onEditWithClaude={handleEditWithClaude}
+            onClose={() => setSelectedComponent(null)}
+          />
+        )}
+      </div>
+
+      {/* Inspect Mode Hint */}
+      {inspectMode && !selectedComponent && (
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/80 text-white px-4 py-2 rounded-full text-sm">
+          Click on any component to select it
+        </div>
+      )}
+    </div>
+  );
+}
+```
+
+**Component Selection Panel:**
+
+```tsx
+// .lawless/ide/src/components/PreviewPane/ComponentSelectionPanel.tsx
+interface ComponentSelectionPanelProps {
+  component: ComponentInfo;
+  onOpenInEditor: (path: string, line: number) => void;
+  onEditWithClaude: (component: ComponentInfo) => void;
+  onClose: () => void;
+}
+
+export function ComponentSelectionPanel({
+  component,
+  onOpenInEditor,
+  onEditWithClaude,
+  onClose,
+}: ComponentSelectionPanelProps) {
+  return (
+    <div className="absolute bottom-0 left-0 right-0 bg-white border-t shadow-lg p-3 animate-slide-up">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="text-blue-600">📍</span>
+          <span className="font-mono font-medium">
+            &lt;{component.displayName}&gt;
+          </span>
+          {component.source && (
+            <span className="text-gray-500 text-sm">
+              {component.source.fileName}:{component.source.lineNumber}
+            </span>
+          )}
+        </div>
+        <button
+          onClick={onClose}
+          className="text-gray-400 hover:text-gray-600 p-1"
+        >
+          ✕
+        </button>
+      </div>
+
+      <div className="flex gap-2 mt-3">
+        <button
+          onClick={() =>
+            component.source &&
+            onOpenInEditor(component.source.fileName, component.source.lineNumber)
+          }
+          disabled={!component.source}
+          className="px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 rounded disabled:opacity-50"
+        >
+          Open in Editor
+        </button>
+
+        <button
+          onClick={() => onEditWithClaude(component)}
+          disabled={!component.source}
+          className="px-3 py-1.5 text-sm bg-blue-600 text-white hover:bg-blue-700 rounded disabled:opacity-50 flex items-center gap-1"
+        >
+          ✨ Edit with Claude
+        </button>
+
+        <button
+          onClick={() => {
+            // Show props in modal or panel
+            console.log('Props:', component.props);
+          }}
+          className="px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 rounded"
+        >
+          View Props ({Object.keys(component.props).length})
+        </button>
+      </div>
+    </div>
+  );
+}
+```
+
+**Inspector Injection Script:**
+
+```typescript
+// .lawless/ide/public/inspector.js
+// This script is injected into the user's app via Next.js middleware or manually
+
+(function() {
+  const HIGHLIGHT_COLOR = 'rgba(59, 130, 246, 0.3)';
+  const BORDER_COLOR = 'rgb(59, 130, 246)';
+
+  let inspectMode = false;
+  let highlightOverlay = null;
+
+  // Find React fiber from DOM element
+  function findReactFiber(element) {
+    const key = Object.keys(element).find(
+      k => k.startsWith('__reactFiber$') || k.startsWith('__reactInternalInstance$')
+    );
+    return key ? element[key] : null;
+  }
+
+  // Extract component info
+  function getComponentInfo(element) {
+    const fiber = findReactFiber(element);
+    if (!fiber) return null;
+
+    let current = fiber;
+    while (current) {
+      if (current.type && typeof current.type !== 'string') {
+        const source = current._debugSource || current.type._source;
+        return {
+          displayName:
+            current.type.displayName || current.type.name || 'Anonymous',
+          source: source
+            ? {
+                fileName: source.fileName,
+                lineNumber: source.lineNumber,
+                columnNumber: source.columnNumber || 0,
+              }
+            : null,
+          props: current.memoizedProps || {},
+          boundingRect: element.getBoundingClientRect(),
+        };
+      }
+      current = current.return;
+    }
+    return null;
+  }
+
+  // Create highlight overlay
+  function createHighlight(rect, name) {
+    if (!highlightOverlay) {
+      highlightOverlay = document.createElement('div');
+      highlightOverlay.id = 'lawless-inspector-overlay';
+      document.body.appendChild(highlightOverlay);
+    }
+
+    highlightOverlay.style.cssText = `
+      position: fixed;
+      pointer-events: none;
+      z-index: 999999;
+      background: ${HIGHLIGHT_COLOR};
+      border: 2px solid ${BORDER_COLOR};
+      top: ${rect.top}px;
+      left: ${rect.left}px;
+      width: ${rect.width}px;
+      height: ${rect.height}px;
+      transition: all 0.1s ease;
+    `;
+
+    highlightOverlay.innerHTML = `
+      <div style="
+        position: absolute;
+        top: -24px;
+        left: 0;
+        background: ${BORDER_COLOR};
+        color: white;
+        padding: 2px 8px;
+        font-size: 12px;
+        font-family: ui-monospace, monospace;
+        border-radius: 4px;
+        white-space: nowrap;
+      ">${name}</div>
+    `;
+  }
+
+  function clearHighlight() {
+    if (highlightOverlay) {
+      highlightOverlay.remove();
+      highlightOverlay = null;
+    }
+  }
+
+  // Event handlers
+  function handleMouseMove(e) {
+    if (!inspectMode) return;
+
+    const element = document.elementFromPoint(e.clientX, e.clientY);
+    if (!element || element.id === 'lawless-inspector-overlay') return;
+
+    const info = getComponentInfo(element);
+    if (info) {
+      createHighlight(info.boundingRect, `<${info.displayName}>`);
+    } else {
+      clearHighlight();
+    }
+  }
+
+  function handleClick(e) {
+    if (!inspectMode) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    const element = document.elementFromPoint(e.clientX, e.clientY);
+    if (!element) return;
+
+    const info = getComponentInfo(element);
+    if (info) {
+      window.parent.postMessage(
+        { type: 'COMPONENT_SELECTED', payload: info },
+        '*'
+      );
+    }
+  }
+
+  // Listen for messages from IDE
+  window.addEventListener('message', (e) => {
+    if (e.data.type === 'SET_INSPECT_MODE') {
+      inspectMode = e.data.enabled;
+      document.body.style.cursor = inspectMode ? 'crosshair' : '';
+      if (!inspectMode) clearHighlight();
+    }
+  });
+
+  document.addEventListener('mousemove', handleMouseMove, true);
+  document.addEventListener('click', handleClick, true);
+
+  console.log('[Lawless Inspector] Ready');
+})();
+```
+
+**Real-Time Update Flow:**
+
+```
+User clicks        Claude edits       HMR detects        Preview
+component    →     the file      →    file change   →   updates
+    │                  │                   │               │
+    │                  │                   │               │
+    ▼                  ▼                   ▼               ▼
+┌────────┐       ┌────────┐         ┌────────┐      ┌────────┐
+│ Select │       │ Write  │         │ Next.js│      │ Iframe │
+│<Button>│ ────▶ │Button. │ ─────▶  │ HMR    │ ───▶ │reflects│
+│        │       │tsx     │         │ Push   │      │change  │
+└────────┘       └────────┘         └────────┘      └────────┘
+                                                         │
+                                                         │
+                                              User sees change
+                                              instantly! ⚡
+```
+
+This creates a truly visual development experience where users can:
+1. See their app running live
+2. Click any component they want to change
+3. Tell Claude what they want (in natural language)
+4. Watch the changes appear in real-time
+
+#### 4.6 Local File Operations
 
 ```typescript
 // .lawless/ide/src/lib/files.ts
@@ -3309,6 +3795,14 @@ function buildTree(files: string[]): TreeNode[] {
 - [ ] Keyboard shortcuts (Cmd+S to save)
 - [ ] Dirty file indicators
 - [ ] Language detection for syntax highlighting
+- [ ] **Inspect mode toggle in preview header**
+- [ ] **Component highlight overlay on hover**
+- [ ] **React fiber traversal for component detection**
+- [ ] **Source map integration for file location**
+- [ ] **Component selection panel with actions**
+- [ ] **"Edit with Claude" context loading**
+- [ ] **Real-time preview updates via HMR**
+- [ ] **Inspector injection script**
 
 ---
 
@@ -3839,14 +4333,24 @@ The Local IDE Agent is the **development environment** users get when they creat
 
 ---
 
-*Document Version: 1.1*
+*Document Version: 1.2*
 *Created: January 2026*
 *Last Updated: January 2026*
-*Parallel to: IDE_IMPLEMENTATION_PLAN.md v2.2*
+*Parallel to: IDE_IMPLEMENTATION_PLAN.md v2.3*
 
 ---
 
 ## Changelog
+
+### v1.2 (Interactive Component Selection)
+- **Click-to-Edit Feature**: Click any component in the preview to select it
+- **Inspect Mode**: Toggle button to enable component highlighting on hover
+- **Component Detection**: React fiber traversal to identify component source files
+- **Source Map Integration**: Automatically find the file and line number for any component
+- **Component Selection Panel**: Shows component name, file location, and action buttons
+- **"Edit with Claude" Flow**: One click loads full component context into chat
+- **Real-Time Updates**: HMR ensures changes appear instantly without refresh
+- **Inspector Script**: Injection script for component highlighting and selection
 
 ### v1.1 (Service Connections & Tooling)
 - **First-Run Setup Wizard**: 4-step guided onboarding for connecting all services
