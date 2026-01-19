@@ -13,11 +13,17 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
 
+    // Use GitHub username as user_id (matches our schema)
+    const githubUsername = user.user_metadata?.user_name || user.user_metadata?.preferred_username;
+    if (!githubUsername) {
+      return NextResponse.json({ error: 'No GitHub username found' }, { status: 400 });
+    }
+
     const { data: repos, error } = await supabase
       .from('user_repos')
       .select('*')
-      .eq('user_id', user.id)
-      .order('last_accessed_at', { ascending: false });
+      .eq('user_id', githubUsername)
+      .order('last_accessed_at', { ascending: false, nullsFirst: false });
 
     if (error) {
       console.error('Error fetching user repos:', error);
@@ -41,6 +47,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
 
+    // Use GitHub username as user_id (matches our schema)
+    const githubUsername = user.user_metadata?.user_name || user.user_metadata?.preferred_username;
+    if (!githubUsername) {
+      return NextResponse.json({ error: 'No GitHub username found' }, { status: 400 });
+    }
+
     const { repos } = await request.json();
 
     if (!repos || !Array.isArray(repos)) {
@@ -62,7 +74,7 @@ export async function POST(request: NextRequest) {
       htmlUrl: string;
       cloneUrl: string;
     }) => ({
-      user_id: user.id,
+      user_id: githubUsername,
       repo_id: repo.id,
       repo_full_name: repo.fullName,
       repo_name: repo.name,
@@ -103,6 +115,12 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
 
+    // Use GitHub username as user_id (matches our schema)
+    const githubUsername = user.user_metadata?.user_name || user.user_metadata?.preferred_username;
+    if (!githubUsername) {
+      return NextResponse.json({ error: 'No GitHub username found' }, { status: 400 });
+    }
+
     const { repoId, isFavorite, markAccessed } = await request.json();
 
     if (!repoId) {
@@ -126,7 +144,7 @@ export async function PATCH(request: NextRequest) {
     const { error } = await serviceClient
       .from('user_repos')
       .update(updates as never)
-      .eq('user_id', user.id)
+      .eq('user_id', githubUsername)
       .eq('repo_id', repoId);
 
     if (error) {
