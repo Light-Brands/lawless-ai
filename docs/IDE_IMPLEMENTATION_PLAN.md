@@ -5,6 +5,8 @@
 ## Table of Contents
 
 1. [Vision & Architecture](#vision--architecture)
+   - [Foundation: ai-coding-config Tooling Ecosystem](#foundation-ai-coding-config-tooling-ecosystem)
+   - [Core Concept](#core-concept)
 2. [Technical Architecture](#technical-architecture)
 3. [Phase 1: Foundation & Chat](#phase-1-foundation--chat)
 4. [Phase 2: File Editor](#phase-2-file-editor)
@@ -18,6 +20,68 @@
 ---
 
 ## Vision & Architecture
+
+### Foundation: ai-coding-config Tooling Ecosystem
+
+Every IDE session starts with the **ai-coding-config** tooling ecosystem pre-loaded from [github.com/TechNickAI/ai-coding-config](https://github.com/TechNickAI/ai-coding-config). This provides a powerful foundation that empowers Claude with specialized capabilities out of the box.
+
+**What Every Session Gets:**
+
+```
+~/.ai_coding_config/                    # Pre-loaded in every session
+├── .claude/
+│   ├── agents/                         # 24 specialized AI agents
+│   │   ├── autonomous-developer.md     # Complete tasks independently
+│   │   ├── debugger.md                 # Investigate and fix bugs
+│   │   ├── security-reviewer.md        # Find vulnerabilities
+│   │   ├── test-engineer.md            # Write comprehensive tests
+│   │   ├── performance-reviewer.md     # Optimize efficiency
+│   │   ├── architecture-auditor.md     # Review design patterns
+│   │   ├── error-handling-reviewer.md  # Ensure proper error handling
+│   │   ├── logic-reviewer.md           # Find correctness issues
+│   │   ├── ux-designer.md              # Polish user experience
+│   │   └── ... (15 more)
+│   │
+│   ├── commands/                       # 18 workflow commands
+│   │   ├── /autotask                   # Autonomous task completion
+│   │   ├── /multi-review               # Multi-agent code review
+│   │   ├── /troubleshoot               # Production error resolution
+│   │   ├── /verify-fix                 # Confirm fixes work
+│   │   ├── /session                    # Save/resume sessions
+│   │   ├── /repo-tooling               # Set up linting/CI
+│   │   └── ... (12 more)
+│   │
+│   └── skills/                         # 7 specialized skills
+│       ├── systematic-debugging/       # Root cause analysis
+│       ├── brainstorming/              # Explore options before coding
+│       ├── research/                   # Web research for current info
+│       ├── playwright-browser/         # Browser automation
+│       └── ... (3 more)
+│
+└── .cursor/rules/                      # Coding standards and patterns
+    ├── python/                         # Python best practices
+    ├── typescript/                     # TypeScript conventions
+    └── ...
+```
+
+**Why This Matters:**
+
+1. **Immediate Power**: Users don't need to configure anything - every session has access to 24+ specialized agents, 18 workflow commands, and 7 skills that enhance Claude's capabilities
+2. **Consistent Experience**: Same powerful tooling across all projects, all sessions
+3. **Easy Understanding**: The AI Context Panel (see Phase 1) exposes these tools visually, making discovery natural
+4. **Composable Workflows**: Commands like `/autotask` and `/multi-review` orchestrate multiple agents automatically
+
+**Integration Points:**
+
+| IDE Feature | ai-coding-config Integration |
+|-------------|------------------------------|
+| AI Chat Pane | Access all `/commands`, agents trigger automatically based on context |
+| Terminal Mode | Run `/autotask` for autonomous work, `/troubleshoot` for production issues |
+| AI Context Panel | Shows available agents, commands, skills with descriptions |
+| Prompt Templates | Pre-built templates using powerful commands |
+| Activity Timeline | Logs agent activations and command executions |
+| File Editor | Agents like `test-engineer` and `security-reviewer` review changes |
+| Deployments | `/troubleshoot` integrates with failed deployment alerts |
 
 ### Core Concept
 
@@ -319,11 +383,17 @@ class OfflineQueue {
 - Toggle Pane (1-6)
 - Open File...
 - Search in Files...
-- Run Command...
 - Apply Migration
 - Trigger Deployment
 - View Deployment Logs
 - Open Settings
+- **ai-coding-config Commands:**
+  - `/autotask` - Autonomous task completion
+  - `/multi-review` - Multi-agent code review
+  - `/troubleshoot` - Debug production errors
+  - `/verify-fix` - Confirm fixes work
+  - `/repo-tooling` - Set up linting/CI
+  - All 18 commands searchable and executable
 
 #### 1.4 AI Chat Pane
 
@@ -350,18 +420,24 @@ class OfflineQueue {
 └─────────────────────────────────────┘
 ```
 
-**AI Context Panel:**
+**AI Context Panel (Powered by ai-coding-config):**
 - Shows what Claude can "see" in current session
 - Repo, branch, worktree info
 - Files recently read/in memory
-- Available tools
-- Helps users understand Claude's capabilities
+- **Available Tooling from ai-coding-config:**
+  - Agents (expandable): `debugger`, `security-reviewer`, `test-engineer`, etc.
+  - Commands (expandable): `/autotask`, `/multi-review`, `/troubleshoot`, etc.
+  - Skills (expandable): `systematic-debugging`, `brainstorming`, `research`, etc.
+- Click any tool to see its description and usage
+- Helps users discover and understand Claude's enhanced capabilities
 
-**Prompt Templates:**
-- "Fix the TypeScript errors"
-- "Write tests for this function"
-- "Explain this code"
-- "Refactor for readability"
+**Prompt Templates (Built on ai-coding-config Commands):**
+- `/autotask` - "Complete this task autonomously and open a PR"
+- `/multi-review` - "Review this code from multiple perspectives"
+- `/troubleshoot` - "Debug this error"
+- `/verify-fix` - "Confirm this fix actually works"
+- "Write tests for this function" (triggers `test-engineer` agent)
+- "Is this code secure?" (triggers `security-reviewer` agent)
 - Custom templates (user-configurable)
 
 #### 1.5 Session Management
@@ -772,7 +848,10 @@ async function assignPort(sessionId: string): Promise<number> {
 **Failed Deployment Alert:**
 - Prominent alert at top
 - Toast notification across IDE
-- **"Fix It" button**: Sends error + logs to Claude in Chat pane
+- **"Fix It" button**: Triggers `/troubleshoot` command with error context
+  - Automatically activates `debugger` agent from ai-coding-config
+  - Passes deployment logs, error messages, and relevant files
+  - Claude proposes fixes using systematic debugging skill
 - Auto-scroll to relevant logs
 
 **Build Logs:**
@@ -880,6 +959,9 @@ ideEvents.on('file:changed', (e) => {
 - Chronological timeline of all session events
 - Event types:
   - 🤖 Claude actions (edits, commands, tool usage)
+  - 🧩 **Agent activations** (ai-coding-config agents: debugger, security-reviewer, etc.)
+  - ⚡ **Command executions** (/autotask, /multi-review, /troubleshoot, etc.)
+  - 🎯 **Skill usage** (systematic-debugging, brainstorming, research)
   - 📝 User actions (file opens, edits)
   - 📤 Git operations (commits, pushes, PRs)
   - 🚀 Deployments (started, completed, failed)
@@ -1333,16 +1415,18 @@ SELECT cron.schedule(
 ### MVP (End of Sprint 3)
 - [ ] Can create session with notes
 - [ ] Can chat with Claude in Terminal or Workspace mode
-- [ ] Can see Claude's context (files, tools)
+- [ ] Can see Claude's context (files, tools, **ai-coding-config agents/commands/skills**)
+- [ ] Can use ai-coding-config commands via `/command` or Command Palette
 - [ ] Can edit files with split view and diff view
 - [ ] Can commit to GitHub
 - [ ] Can preview running dev server (local)
 - [ ] Keyboard shortcuts work
-- [ ] Command palette works
+- [ ] Command palette works (includes all ai-coding-config commands)
 
 ### Full Release (End of Sprint 5)
 - [ ] All 6 panes fully functional
-- [ ] Activity timeline captures all events
+- [ ] ai-coding-config tooling fully integrated (agents, commands, skills)
+- [ ] Activity timeline captures all events (including agent activations, command executions)
 - [ ] Cross-pane integration via event bus
 - [ ] Optimistic UI for all actions
 - [ ] Offline resilience with IndexedDB
@@ -1350,29 +1434,31 @@ SELECT cron.schedule(
 - [ ] Session persistence and recovery
 - [ ] Production-ready security (RLS, rate limiting)
 - [ ] Comprehensive test coverage
-- [ ] User documentation
+- [ ] User documentation (including ai-coding-config tooling guide)
 
 ---
 
 ## Resolved Decisions
 
-1. **Vercel Integration**: Use Vercel API directly with stored tokens. No separate MCP.
+1. **ai-coding-config as Foundation**: Every session pre-loads the ai-coding-config tooling ecosystem (24 agents, 18 commands, 7 skills) from [github.com/TechNickAI/ai-coding-config](https://github.com/TechNickAI/ai-coding-config). This is the same powerful toolkit used by the "Create New Project" flow, now available to all sessions.
 
-2. **Session Cleanup**: Supabase scheduled function with configurable expiration (default 7 days).
+2. **Vercel Integration**: Use Vercel API directly with stored tokens. No separate MCP.
 
-3. **Preview Approach**:
+3. **Session Cleanup**: Supabase scheduled function with configurable expiration (default 7 days).
+
+4. **Preview Approach**:
    - Phase 3: WebSocket tunnel (simpler, no infrastructure changes)
    - Phase 5: Optional upgrade to reverse proxy if needed
 
-4. **State Management**: Zustand for simplicity and performance.
+5. **State Management**: Zustand for simplicity and performance.
 
-5. **Data Fetching**: TanStack Query for caching, retries, and optimistic updates.
+6. **Data Fetching**: TanStack Query for caching, retries, and optimistic updates.
 
-6. **Port Range**: Expanded to 3000-3099 (100 concurrent sessions).
+7. **Port Range**: Expanded to 3000-3099 (100 concurrent sessions).
 
-7. **6th Pane**: Activity/Timeline pane for session history.
+8. **6th Pane**: Activity/Timeline pane for session history.
 
-8. **Sprint Order**: Reordered to prioritize core loop (Chat → Edit → Preview → Commit).
+9. **Sprint Order**: Reordered to prioritize core loop (Chat → Edit → Preview → Commit).
 
 ---
 
@@ -1466,13 +1552,22 @@ SELECT cron.schedule(
 
 ---
 
-*Document Version: 2.0*
+*Document Version: 2.1*
 *Created: January 2025*
-*Last Updated: January 2025*
+*Last Updated: January 2026*
 
 ---
 
 ## Changelog
+
+### v2.1 (ai-coding-config Integration)
+- **ai-coding-config Foundation**: Every session pre-loads the full tooling ecosystem (24 agents, 18 commands, 7 skills)
+- **AI Context Panel**: Now displays available agents, commands, and skills from ai-coding-config
+- **Prompt Templates**: Built on ai-coding-config commands (`/autotask`, `/multi-review`, `/troubleshoot`, etc.)
+- **Command Palette**: Includes all ai-coding-config commands, searchable and executable
+- **Activity Timeline**: Logs agent activations, command executions, and skill usage
+- **"Fix It" Integration**: Failed deployments trigger `/troubleshoot` with `debugger` agent
+- **Success Criteria**: Updated to include ai-coding-config tooling integration
 
 ### v2.0 (Major Update)
 - **Added 6th pane**: Activity/Timeline for session history
