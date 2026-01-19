@@ -13,16 +13,15 @@ interface CookieToSet {
 }
 
 function getAppUrl(request: NextRequest): string {
-  // Use VERCEL_URL in production, or detect from request
-  if (process.env.VERCEL_URL) {
-    return `https://${process.env.VERCEL_URL}`;
-  }
-  // For custom domains, use the request host
+  // IMPORTANT: Prefer the request host to ensure cookies are set on the correct domain
+  // VERCEL_URL is deployment-specific and causes cookie domain mismatches
   const host = request.headers.get('host');
   const protocol = request.headers.get('x-forwarded-proto') || 'https';
+
   if (host && !host.includes('localhost')) {
     return `${protocol}://${host}`;
   }
+
   // Fallback for local development
   return process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 }
