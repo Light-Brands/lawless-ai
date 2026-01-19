@@ -1,6 +1,6 @@
 # Local IDE Agent - Implementation Plan
 
-> A self-contained, vanilla AI-powered development environment deployed into every user project. 1:1 association with a single repo and database, running locally with full autonomy.
+> **Agent-First Development.** A minimal, user-friendly AI development environment that lets you talk to Claude and see changes in real-time. Focus on the conversation, not the complexity.
 
 ## Table of Contents
 
@@ -9,14 +9,12 @@
 3. [First-Run Setup & Service Connections](#first-run-setup--service-connections)
 4. [Complete Tooling Reference](#complete-tooling-reference)
 5. [Core Differentiators](#core-differentiators-vs-hosted-ide)
-6. [Phase 1: Foundation & Scaffolding](#phase-1-foundation--scaffolding)
-7. [Phase 2: AI Chat & Agent Core](#phase-2-ai-chat--agent-core)
-8. [Phase 3: Service Integrations](#phase-3-service-integrations)
-9. [Phase 4: Development Experience](#phase-4-development-experience)
-10. [Phase 5: Polish & Distribution](#phase-5-polish--distribution)
-11. [Technical Specifications](#technical-specifications)
-12. [Database Schema](#database-schema)
-13. [Deployment & Distribution](#deployment--distribution)
+6. [Phase 1: Foundation & Agent Core](#phase-1-foundation--agent-core)
+7. [Phase 2: Browser Integration & Click-to-Edit](#phase-2-browser-integration--click-to-edit)
+8. [Phase 3: Polish & Distribution](#phase-3-polish--distribution)
+9. [Technical Specifications](#technical-specifications)
+10. [Database Schema](#database-schema)
+11. [Deployment & Distribution](#deployment--distribution)
 
 ---
 
@@ -24,71 +22,113 @@
 
 ### What Is the Local IDE Agent?
 
-A **self-contained web-based IDE** that gets deployed into every user's project when they create one through Lawless AI. Unlike the hosted IDE which runs on our infrastructure, this runs **locally on the user's machine** and has direct, dedicated access to:
+A **minimal, agent-first development environment** designed for maximum usability and adoption. Talk to Claude, see your app update in real-time. That's it.
 
-- **One GitHub repo** - The project being developed
-- **One Supabase database** - The project's database
-- **One Vercel project** - The project's deployments
+**Design Philosophy: Simplicity Drives Adoption**
+- Two panes: Chat + Browser. Nothing else visible by default.
+- File editor is there when you need it, hidden when you don't.
+- Deployments happen automatically when you push to GitHub.
+- User-friendly interface that anyone can use, not just developers.
+
+**Core Connections:**
+- **One GitHub repo** - Your code lives here, push to deploy
+- **One Supabase database** - Your data
+- **One Vercel project** - Auto-deploys from GitHub
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                    User's Local Machine                          │
+│                    Local IDE Agent                               │
+│                    http://localhost:3001                         │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                  │
-│   ┌───────────────────────────────────────────────────────┐     │
-│   │              Local IDE Agent                           │     │
-│   │                                                        │     │
-│   │   ┌──────────┐  ┌──────────┐  ┌──────────┐            │     │
-│   │   │ AI Chat  │  │  Editor  │  │ Preview  │            │     │
-│   │   │  Pane    │  │   Pane   │  │  Pane    │            │     │
-│   │   └────┬─────┘  └────┬─────┘  └────┬─────┘            │     │
-│   │        │             │             │                   │     │
-│   │   ┌────┴─────────────┴─────────────┴────┐             │     │
-│   │   │         Service Connectors           │             │     │
-│   │   └────┬─────────────┬─────────────┬────┘             │     │
-│   └────────┼─────────────┼─────────────┼────────────────────┘     │
-│            │             │             │                          │
-│            ▼             ▼             ▼                          │
-│       ┌────────┐   ┌──────────┐   ┌────────┐                     │
-│       │ GitHub │   │ Supabase │   │ Vercel │                     │
-│       │  Repo  │   │    DB    │   │Project │                     │
-│       └────────┘   └──────────┘   └────────┘                     │
+│   ┌─────────────────────┐  ┌─────────────────────────────────┐  │
+│   │                     │  │                                 │  │
+│   │    💬 AI Chat       │  │      🌐 Live Browser            │  │
+│   │                     │  │                                 │  │
+│   │  "Make the header   │  │  ┌─────────────────────────┐   │  │
+│   │   blue and add a    │  │  │                         │   │  │
+│   │   login button"     │  │  │    Your App Preview     │   │  │
+│   │                     │  │  │                         │   │  │
+│   │  ┌───────────────┐  │  │  │   [Click any element    │   │  │
+│   │  │ Claude is     │  │  │  │    to edit with AI]    │   │  │
+│   │  │ making changes│  │  │  │                         │   │  │
+│   │  │ ████████░░ 80%│  │  │  └─────────────────────────┘   │  │
+│   │  └───────────────┘  │  │                                 │  │
+│   │                     │  │  ● Services: ✓ ✓ ✓ ✓           │  │
+│   │  [Type here...]     │  │  ● Last deploy: 2 min ago       │  │
+│   │                     │  │                                 │  │
+│   └─────────────────────┘  └─────────────────────────────────┘  │
 │                                                                  │
-│   Project Root: ~/projects/my-app/                               │
-│   IDE URL: http://localhost:3001                                 │
+│   📁 [Show Files]  ─────────────────────────────  [⚙️ Settings]  │
 │                                                                  │
 └─────────────────────────────────────────────────────────────────┘
+
+Hidden by default (accessible via "Show Files"):
+┌─────────────────────────────────────────────────────────────────┐
+│   ┌─────────────────────┐  ┌─────────────────┐  ┌───────────┐  │
+│   │ 💬 Chat             │  │ 📝 File Editor  │  │ 🌐 Browser│  │
+│   └─────────────────────┘  └─────────────────┘  └───────────┘  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Deployment Philosophy: Git Push = Auto Deploy
+
+**No deploy buttons.** When you push to GitHub, Vercel automatically deploys.
+
+```
+┌────────────────────────────────────────────────────────────────┐
+│                    Deployment Flow                              │
+├────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│   1. You: "Add a contact form to the homepage"                  │
+│                      ↓                                          │
+│   2. Claude makes the changes                                   │
+│                      ↓                                          │
+│   3. You see it live in the browser (HMR)                       │
+│                      ↓                                          │
+│   4. You: "Looks good, let's ship it"                           │
+│                      ↓                                          │
+│   5. Claude: git commit && git push                             │
+│                      ↓                                          │
+│   6. Vercel auto-deploys (GitHub integration)                   │
+│                      ↓                                          │
+│   7. Status shows: "Deployed ✓"                                 │
+│                                                                 │
+│   That's it. No buttons. No complexity.                         │
+│                                                                 │
+└────────────────────────────────────────────────────────────────┘
 ```
 
 ### Why Local?
 
 | Aspect | Hosted IDE | Local IDE Agent |
 |--------|-----------|-----------------|
-| **Deployment** | Runs on Oracle Cloud | Runs on user's machine |
-| **Scope** | Multi-tenant, multi-repo | Single project, single database |
-| **Ownership** | We manage infrastructure | User owns everything |
-| **Scaling** | Our problem | User's machine capacity |
-| **Data** | Passes through our servers | Stays local (API keys too) |
-| **Offline** | Requires internet | Works partially offline |
-| **Cost** | We pay for compute | User uses own resources |
+| **Complexity** | 6 panes, full IDE | 2 panes, minimal UI |
+| **Focus** | Power users | Everyone |
+| **Deployment** | Click to deploy | Git push auto-deploys |
+| **Ownership** | We manage | User owns everything |
+| **Data** | Through our servers | Stays on user machine |
+| **Learning Curve** | Higher | Near zero |
 
 ### User Journey
 
 ```
 1. User creates project on Lawless AI platform
-   └── Selects "Download Project" or "Clone Locally"
+   └── Gets a project with Local IDE Agent included
 
-2. Project scaffolded with Local IDE Agent baked in
-   └── .lawless/ directory contains the IDE agent
-
-3. User runs: npm install && npm run dev
+2. User runs: npm install && npm run dev
    └── App starts on :3000, IDE starts on :3001
 
-4. User opens http://localhost:3001
-   └── Full IDE experience with AI, editor, preview
+3. User opens http://localhost:3001
+   └── Sees: Chat on left, their app on right. That's it.
 
-5. User builds their entire app within this environment
-   └── Claude assists, code changes, deploys to Vercel
+4. User talks to Claude
+   └── "Make the header blue" → sees it change instantly
+
+5. User says "Ship it"
+   └── Claude commits and pushes → Vercel auto-deploys
+
+No complexity. No learning curve. Just conversation and results.
 ```
 
 ---
@@ -1349,66 +1389,110 @@ In addition to the 33 tools above, Claude has access to the full **ai-coding-con
 
 ## Core Differentiators (vs Hosted IDE)
 
-### Simplicity by Constraint
+### Agent-First, Not IDE-First
 
 | Feature | Hosted IDE | Local IDE Agent |
 |---------|-----------|-----------------|
-| Panes | 6 collapsible panes | 3 essential panes |
-| Multi-repo | Yes | No (1 repo only) |
-| Multi-session | Yes | No (1 session = 1 project) |
-| Port management | 100 concurrent sessions | 1 port for app, 1 for IDE |
-| Worktrees | Dynamic worktree creation | Direct on main or branches |
-| Session expiry | 7-day auto-cleanup | Never (user controls) |
+| **Default View** | 6 collapsible panes | 2 panes (Chat + Browser) |
+| **File Editor** | Always visible | Hidden by default |
+| **Deployment** | Deploy button | Git push auto-deploys |
+| **Target User** | Power users | Everyone |
+| **Complexity** | Full IDE | Minimal, conversational |
+| **Learning Curve** | Medium | Near zero |
 
-### What We Remove
+### Design Principles
 
-These features from the hosted IDE are unnecessary for local:
+**1. Conversation is the Interface**
+- Users talk to Claude, not to an IDE
+- The chat pane is the primary interaction point
+- Everything else supports the conversation
 
-- **Session management** - One project = one session
-- **Port assignment system** - Fixed ports (3000 for app, 3001 for IDE)
-- **Worktree orchestration** - Work directly on branches
-- **Multi-tenant isolation** - User owns everything
-- **Deployment pane** - Simplified to status indicator + "Deploy" button
-- **Activity timeline** - Git history serves this purpose
-- **Automation config** - Simpler on/off toggles
+**2. Browser Shows Results**
+- See your app live, updated in real-time
+- Click on any component to edit it with Claude
+- Visual feedback is immediate
 
-### What We Keep (Simplified)
+**3. Files are Implementation Details**
+- Most users don't need to see files
+- Claude handles file operations
+- Power users can reveal the file editor
+
+**4. Deployment is Invisible**
+- No deploy buttons
+- Git push triggers Vercel auto-deploy
+- Status bar shows deployment state
+
+### The 2-Pane Default Layout
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│  Local IDE Agent - 3-Pane Layout                                 │
-├─────────┬───────────────────────────────────────┬───────────────┤
-│         │                                       │               │
-│  Pane 1 │              Pane 2                   │    Pane 3     │
-│   AI    │           File Editor                 │   Preview     │
-│  Chat   │                                       │   + Status    │
-│         │                                       │               │
-│         │  ┌─────────────────────────────────┐  │  ┌─────────┐  │
-│ ┌─────┐ │  │                                 │  │  │         │  │
-│ │Chat │ │  │         Code Editor             │  │  │  Live   │  │
-│ │     │ │  │         (Monaco/CM6)            │  │  │ Preview │  │
-│ │     │ │  │                                 │  │  │         │  │
-│ │     │ │  │                                 │  │  │         │  │
-│ │     │ │  └─────────────────────────────────┘  │  └─────────┘  │
-│ └─────┘ │                                       │               │
-│         │  ┌──────────────────┐                 │  ┌─────────┐  │
-│ ┌─────┐ │  │    File Tree     │                 │  │ Services│  │
-│ │Tools│ │  │                  │                 │  │ Status  │  │
-│ └─────┘ │  └──────────────────┘                 │  │ ●●●●    │  │
-│         │                                       │  └─────────┘  │
-└─────────┴───────────────────────────────────────┴───────────────┘
+│  Local IDE Agent - Agent-First Design                            │
+├─────────────────────────────┬───────────────────────────────────┤
+│                             │                                   │
+│        💬 Chat Pane         │        🌐 Browser Pane            │
+│        (Primary)            │        (Visual Feedback)          │
+│                             │                                   │
+│  ┌───────────────────────┐  │  ┌─────────────────────────────┐  │
+│  │                       │  │  │                             │  │
+│  │  Conversation with    │  │  │    Live App Preview         │  │
+│  │  Claude               │  │  │                             │  │
+│  │                       │  │  │    [Click any element       │  │
+│  │  • Ask questions      │  │  │     to edit with AI]        │  │
+│  │  • Request changes    │  │  │                             │  │
+│  │  • See what Claude    │  │  │                             │  │
+│  │    is doing           │  │  │                             │  │
+│  │                       │  │  │                             │  │
+│  └───────────────────────┘  │  └─────────────────────────────┘  │
+│                             │                                   │
+│  ┌───────────────────────┐  │  ┌─────────────────────────────┐  │
+│  │ Type a message...     │  │  │ Services: ● ● ● ●           │  │
+│  └───────────────────────┘  │  │ Deploy: ✓ Live (2m ago)     │  │
+│                             │  └─────────────────────────────┘  │
+│                             │                                   │
+├─────────────────────────────┴───────────────────────────────────┤
+│  [📁 Show Files]                              [⚙️ Settings]      │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Expanded 3-Pane Layout (Optional)
+
+When user clicks "Show Files":
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  Local IDE Agent - Files Visible                                 │
+├───────────────┬─────────────────────────┬───────────────────────┤
+│               │                         │                       │
+│  💬 Chat      │    📝 File Editor       │    🌐 Browser         │
+│               │                         │                       │
+│  [Narrower]   │  ┌───────────────────┐  │  ┌─────────────────┐  │
+│               │  │ // page.tsx       │  │  │                 │  │
+│  ┌─────────┐  │  │                   │  │  │  Live Preview   │  │
+│  │ Chat    │  │  │ export default    │  │  │                 │  │
+│  │ history │  │  │ function Page() { │  │  │                 │  │
+│  │         │  │  │   return (        │  │  │                 │  │
+│  └─────────┘  │  │     <div>...</div>│  │  │                 │  │
+│               │  │   )               │  │  │                 │  │
+│  ┌─────────┐  │  │ }                 │  │  └─────────────────┘  │
+│  │ Input   │  │  └───────────────────┘  │                       │
+│  └─────────┘  │  ┌───────────────────┐  │  ┌─────────────────┐  │
+│               │  │ 📁 File Tree      │  │  │ Services Status │  │
+│               │  └───────────────────┘  │  └─────────────────┘  │
+├───────────────┴─────────────────────────┴───────────────────────┤
+│  [📁 Hide Files]                              [⚙️ Settings]      │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Phase 1: Foundation & Scaffolding
+## Phase 1: Foundation & Agent Core
 
 ### Goals
-- Create the base Local IDE Agent package
-- Project scaffolding system
-- Service configuration layer
-- **First-run setup wizard with service connections**
-- Basic 3-pane layout
+- Create the minimal, agent-first Local IDE Agent
+- 2-pane layout (Chat + Browser) with optional file editor
+- First-run setup wizard connecting all services
+- Claude integration with full tool suite
+- Git push = auto-deploy workflow
 
 ### Tasks
 
@@ -1539,45 +1623,131 @@ npm pkg set scripts.dev:all="concurrently \"npm run dev\" \"npm run ide\""
 echo "Done! Run 'npm run dev:all' to start both your app and the IDE."
 ```
 
-#### 1.5 Basic Layout Component
+#### 1.5 Agent-First Layout Component
 
 ```tsx
 // .lawless/ide/src/app/page.tsx
 'use client';
 
 import { useState } from 'react';
-import ChatPane from '@/components/ChatPane';
-import EditorPane from '@/components/EditorPane';
-import PreviewPane from '@/components/PreviewPane';
-import ServiceStatus from '@/components/ServiceStatus';
+import { ChatPane } from '@/components/ChatPane';
+import { BrowserPane } from '@/components/BrowserPane';
+import { EditorPane } from '@/components/EditorPane';
+import { StatusBar } from '@/components/StatusBar';
+import { useIDEStore } from '@/stores/ideStore';
 
 export default function LocalIDE() {
-  const [selectedFile, setSelectedFile] = useState<string | null>(null);
+  const { showFiles, setShowFiles } = useIDEStore();
 
   return (
-    <div className="h-screen flex">
-      {/* Pane 1: AI Chat */}
-      <div className="w-[350px] border-r flex flex-col">
-        <ChatPane />
-      </div>
+    <div className="h-screen flex flex-col bg-gray-50">
+      {/* Main Content Area */}
+      <div className="flex-1 flex overflow-hidden">
 
-      {/* Pane 2: File Editor */}
-      <div className="flex-1 flex flex-col">
-        <EditorPane
-          selectedFile={selectedFile}
-          onFileSelect={setSelectedFile}
-        />
-      </div>
-
-      {/* Pane 3: Preview + Status */}
-      <div className="w-[400px] border-l flex flex-col">
-        <div className="flex-1">
-          <PreviewPane />
+        {/* Chat Pane - Always visible, primary interaction */}
+        <div className={`${showFiles ? 'w-[300px]' : 'w-[400px]'} border-r bg-white flex flex-col transition-all`}>
+          <ChatPane />
         </div>
-        <div className="h-[150px] border-t">
-          <ServiceStatus />
+
+        {/* Editor Pane - Hidden by default */}
+        {showFiles && (
+          <div className="w-[400px] border-r bg-white flex flex-col">
+            <EditorPane />
+          </div>
+        )}
+
+        {/* Browser Pane - Live preview of the app */}
+        <div className="flex-1 flex flex-col bg-white">
+          <BrowserPane />
         </div>
       </div>
+
+      {/* Bottom Status Bar */}
+      <StatusBar
+        showFiles={showFiles}
+        onToggleFiles={() => setShowFiles(!showFiles)}
+      />
+    </div>
+  );
+}
+```
+
+#### 1.6 Minimal Status Bar
+
+```tsx
+// .lawless/ide/src/components/StatusBar.tsx
+'use client';
+
+import { useServiceStatus } from '@/hooks/useServiceStatus';
+import { useDeploymentStatus } from '@/hooks/useDeploymentStatus';
+
+interface StatusBarProps {
+  showFiles: boolean;
+  onToggleFiles: () => void;
+}
+
+export function StatusBar({ showFiles, onToggleFiles }: StatusBarProps) {
+  const services = useServiceStatus();
+  const deployment = useDeploymentStatus();
+
+  return (
+    <div className="h-12 border-t bg-white px-4 flex items-center justify-between">
+      {/* Left: Toggle Files */}
+      <button
+        onClick={onToggleFiles}
+        className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900"
+      >
+        <span>📁</span>
+        <span>{showFiles ? 'Hide Files' : 'Show Files'}</span>
+      </button>
+
+      {/* Center: Service Status */}
+      <div className="flex items-center gap-3">
+        <ServiceDot label="Claude" connected={services.claude} />
+        <ServiceDot label="GitHub" connected={services.github} />
+        <ServiceDot label="Supabase" connected={services.supabase} />
+        <ServiceDot label="Vercel" connected={services.vercel} />
+      </div>
+
+      {/* Right: Deployment Status + Settings */}
+      <div className="flex items-center gap-4">
+        <DeploymentIndicator status={deployment} />
+        <button className="text-gray-600 hover:text-gray-900">
+          ⚙️ Settings
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ServiceDot({ label, connected }: { label: string; connected: boolean }) {
+  return (
+    <div className="flex items-center gap-1" title={`${label}: ${connected ? 'Connected' : 'Disconnected'}`}>
+      <span className={`w-2 h-2 rounded-full ${connected ? 'bg-green-500' : 'bg-red-500'}`} />
+      <span className="text-xs text-gray-500 hidden sm:inline">{label}</span>
+    </div>
+  );
+}
+
+function DeploymentIndicator({ status }: { status: { state: string; url?: string; time?: string } }) {
+  const stateColors = {
+    live: 'text-green-600',
+    building: 'text-yellow-600',
+    error: 'text-red-600',
+    idle: 'text-gray-500',
+  };
+
+  const stateIcons = {
+    live: '✓',
+    building: '⏳',
+    error: '✗',
+    idle: '○',
+  };
+
+  return (
+    <div className={`text-sm ${stateColors[status.state as keyof typeof stateColors] || 'text-gray-500'}`}>
+      <span>{stateIcons[status.state as keyof typeof stateIcons] || '○'}</span>
+      <span className="ml-1">{status.state === 'live' && status.time ? `Live (${status.time})` : status.state}</span>
     </div>
   );
 }
@@ -2040,34 +2210,78 @@ export async function readEnvVariable(key: string): Promise<string | null> {
 
 ### Deliverables
 - [ ] IDE agent package template
-- [ ] Service configuration schema
-- [ ] Agent configuration schema
-- [ ] Scaffolding script
-- [ ] 3-pane layout component
-- [ ] Basic routing (single page)
-- [ ] Environment variable handling
-- [ ] **First-run setup wizard with 4-step flow**
-- [ ] **Claude connection setup with model selection**
-- [ ] **GitHub connection setup with token verification**
-- [ ] **Supabase connection setup with project linking**
-- [ ] **Vercel connection setup with project verification**
-- [ ] **Settings page for managing connections**
-- [ ] **API endpoints for each service connection**
-- [ ] **Secure token storage in .env.local**
+- [ ] **2-pane agent-first layout (Chat + Browser)**
+- [ ] **Optional 3-pane with file editor toggle**
+- [ ] **Minimal status bar with service/deploy status**
+- [ ] First-run setup wizard with 4-step flow
+- [ ] Claude connection setup with model selection
+- [ ] GitHub connection setup with token verification
+- [ ] Supabase connection setup with project linking
+- [ ] Vercel connection setup with project verification
+- [ ] Settings page for managing connections
+- [ ] Full Claude tool suite (files, git, db, deploy)
+- [ ] **Git push = auto-deploy workflow**
+- [ ] Secure token storage in .env.local
 
 ---
 
-## Phase 2: AI Chat & Agent Core
+## Phase 2: Browser Integration & Click-to-Edit
 
 ### Goals
-- Claude integration with tool calling
-- Full tool suite (files, git, db, deploy)
-- Context management from project files
-- ai-coding-config agent system
+- Interactive browser preview with component inspection
+- Click any element to load its context into Claude
+- Real-time HMR updates for instant visual feedback
+- The "magic" moment: click, describe, see it change
 
-### Tasks
+### Core Experience
 
-#### 2.1 Claude Integration
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    THE CLICK-TO-EDIT EXPERIENCE                  │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│   1. User enables "Inspect Mode" (🎯 button)                     │
+│      └─ Browser pane enters inspection state                     │
+│                                                                  │
+│   2. User hovers over components                                 │
+│      └─ Blue highlight appears around components                 │
+│      └─ Tooltip shows component name: "<HeroSection>"            │
+│                                                                  │
+│   3. User clicks a component                                     │
+│      └─ Selection panel appears with component info              │
+│      └─ Source file identified via React fiber + source maps     │
+│                                                                  │
+│   4. User clicks "Edit with Claude"                              │
+│      └─ Component code loaded into chat context                  │
+│      └─ User types: "Make this header blue"                      │
+│                                                                  │
+│   5. Claude edits the file                                       │
+│      └─ HMR triggers automatically                               │
+│      └─ User sees change in browser instantly                    │
+│                                                                  │
+│   This is the core loop: Click → Describe → See it change        │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Deliverables
+- [ ] Browser pane with inspect mode toggle
+- [ ] Component overlay/highlight on hover
+- [ ] React fiber traversal for component detection
+- [ ] Source map integration for file location
+- [ ] Component selection panel
+- [ ] "Edit with Claude" button that loads context
+- [ ] Chat context injection for selected components
+- [ ] HMR integration for instant updates
+- [ ] Inspector injection script for iframe preview
+
+---
+
+## Technical Reference: AI Integration (Phase 1)
+
+> The following code is implemented in Phase 1 as part of the agent core.
+
+### Claude Integration
 
 ```typescript
 // .lawless/ide/src/lib/claude.ts
@@ -2412,9 +2626,11 @@ export default function ChatPane() {
 
 ---
 
-## Phase 3: Service Integrations
+## Service Integrations (Reference - Now in Phase 1)
 
-### Goals
+> **Note:** Service integrations are now part of Phase 1's setup wizard. This section is kept as technical reference.
+
+### Technical Implementation Details
 - GitHub connector (read/write files, branches, PRs)
 - Supabase connector (queries, migrations, schema)
 - Vercel connector (deploy, logs, env vars)
@@ -2809,13 +3025,15 @@ export default function ServiceStatus() {
 
 ---
 
-## Phase 4: Development Experience
+## Development Experience (Reference - Now in Phase 1 & 2)
 
-### Goals
-- File editor with Monaco
-- File tree browser
-- Live preview integration
-- Local file system operations
+> **Note:** Editor/file browser functionality is optional (Phase 1). Click-to-edit is Phase 2. This section is kept as technical reference.
+
+### Technical Implementation Details
+- File editor with Monaco (optional, hidden by default)
+- File tree browser (optional, hidden by default)
+- Live preview integration (Phase 2)
+- Interactive component selection (Phase 2)
 
 ### Tasks
 
@@ -3806,13 +4024,41 @@ function buildTree(files: string[]): TreeNode[] {
 
 ---
 
-## Phase 5: Polish & Distribution
+## Phase 3: Polish & Distribution
 
 ### Goals
-- Package for distribution
-- Update mechanism
-- Documentation
-- Error handling and edge cases
+- Package for distribution (baked into project scaffolds)
+- Update mechanism for Local IDE Agent
+- User documentation (simple, focused on conversation)
+- Error handling and helpful messages
+
+### Design Philosophy Reminders
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    POLISH CHECKLIST                              │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  ✓ Every interaction feels simple and obvious                    │
+│  ✓ Errors are friendly and suggest next steps                   │
+│  ✓ Default state is minimal (2 panes, no clutter)               │
+│  ✓ Power features are available but not prominent               │
+│  ✓ Git push = auto deploy (no deploy buttons!)                  │
+│  ✓ Status bar tells you everything at a glance                  │
+│                                                                  │
+│  Target: Someone who's never used a code editor should be       │
+│  able to make changes to their app by talking to Claude.        │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Deliverables
+- [ ] Package distribution script
+- [ ] Update check mechanism
+- [ ] Simple user onboarding
+- [ ] Error messages with recovery suggestions
+- [ ] Offline/degraded mode handling
+- [ ] Performance optimization
 
 ### Tasks
 
@@ -4232,63 +4478,68 @@ npx @lawless/cli set-channel beta
 
 ## Implementation Order
 
-### Sprint 1: Foundation (1.5 weeks)
-- IDE package structure
-- Service configuration schema
-- Basic 3-pane layout
-- Scaffolding script
-- Environment variable handling
+### Phase 1: Foundation & Agent Core
+**Focus: Get the 2-pane agent-first experience working**
 
-### Sprint 2: AI Core (2 weeks)
-- Claude API integration
-- Tool definitions (all tools)
-- Tool execution handlers
-- Context loading
-- Chat pane UI
+- Agent-first 2-pane layout (Chat + Browser)
+- Optional 3-pane layout with file editor toggle
+- First-run setup wizard for all services
+- Claude API integration with full tool suite
+- Chat pane with conversation UI
+- Browser pane with live preview
+- Status bar with service/deploy indicators
+- Git push → auto-deploy workflow
 
-### Sprint 3: Service Connectors (1.5 weeks)
-- GitHub connector
-- Supabase connector
-- Vercel connector
-- Service status component
+### Phase 2: Browser Integration & Click-to-Edit
+**Focus: Make visual editing magical**
 
-### Sprint 4: Development Experience (1.5 weeks)
-- Monaco editor integration
-- File tree component
-- Local file operations
-- Preview pane
-- Keyboard shortcuts
+- Inspect mode for component selection
+- Component highlight overlay on hover
+- React fiber traversal for component detection
+- Source map integration for file location
+- Component selection panel
+- "Edit with Claude" context loading
+- HMR integration for instant updates
+- Inspector injection script
 
-### Sprint 5: Distribution & Polish (1 week)
-- Build and packaging
-- CLI create command
+### Phase 3: Polish & Distribution
+**Focus: Make it feel professional and reliable**
+
+- Package for project scaffolds
 - Update mechanism
-- Documentation
-- Error handling
+- User onboarding documentation
+- Error handling and recovery
+- Performance optimization
+- CLI distribution
 
 ---
 
 ## Success Criteria
 
-### MVP
-- [ ] Can scaffold new project with Local IDE Agent
-- [ ] IDE opens at localhost:3001
-- [ ] Can chat with Claude
-- [ ] Claude can read/write files
-- [ ] Claude can commit and push
-- [ ] Can see live preview of app
-- [ ] Service status shows connection state
+### MVP (Phase 1 Complete)
+- [ ] 2-pane layout: Chat + Browser (file editor hidden)
+- [ ] First-run setup wizard connects all services
+- [ ] Can chat with Claude and see responses
+- [ ] Claude can read/write files in the project
+- [ ] Claude can commit and push to GitHub
+- [ ] Git push auto-deploys to Vercel
+- [ ] Status bar shows services + deploy state
+- [ ] Non-developer can make changes by talking
 
-### Full Release
+### Phase 2 Complete
+- [ ] Inspect mode highlights components on hover
+- [ ] Clicking a component shows selection panel
+- [ ] "Edit with Claude" loads component context
+- [ ] Changes appear instantly via HMR
+- [ ] Can edit any visible component visually
+
+### Full Release (Phase 3 Complete)
 - [ ] All tools working (files, git, db, deploy)
-- [ ] Monaco editor with syntax highlighting
-- [ ] File tree with search
-- [ ] Seamless GitHub integration
-- [ ] Supabase queries and migrations
-- [ ] Vercel deployments
-- [ ] Update mechanism
-- [ ] Documentation complete
-- [ ] CLI distribution working
+- [ ] Optional file editor available when needed
+- [ ] Update mechanism working
+- [ ] Error messages are friendly and helpful
+- [ ] Documentation is simple and clear
+- [ ] Someone's mom could use it
 
 ---
 
@@ -4333,7 +4584,7 @@ The Local IDE Agent is the **development environment** users get when they creat
 
 ---
 
-*Document Version: 1.2*
+*Document Version: 1.3*
 *Created: January 2026*
 *Last Updated: January 2026*
 *Parallel to: IDE_IMPLEMENTATION_PLAN.md v2.3*
@@ -4341,6 +4592,18 @@ The Local IDE Agent is the **development environment** users get when they creat
 ---
 
 ## Changelog
+
+### v1.3 (Agent-First Redesign)
+- **2-Pane Default Layout**: Chat + Browser as the primary view
+- **Hidden File Editor**: File editor accessible via "Show Files" but hidden by default
+- **Simplified Deployment**: Git push = auto-deploy via Vercel GitHub integration (no deploy buttons)
+- **User-Friendly Focus**: Designed for adoption, minimal learning curve
+- **Consolidated Phases**: Reduced from 5 phases to 3 focused phases
+  - Phase 1: Foundation & Agent Core (includes setup wizard, tools, services)
+  - Phase 2: Browser Integration & Click-to-Edit (visual editing experience)
+  - Phase 3: Polish & Distribution
+- **Agent-First Philosophy**: Conversation is the primary interface, not the IDE
+- **Updated Success Criteria**: "Someone's mom could use it" as the bar
 
 ### v1.2 (Interactive Component Selection)
 - **Click-to-Edit Feature**: Click any component in the preview to select it
