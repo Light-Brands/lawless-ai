@@ -39,12 +39,16 @@ export async function GET(request: NextRequest) {
   const errorDescription = searchParams.get('error_description');
   const next = searchParams.get('next') || '/repos';
 
+  console.log('[Auth Callback] Starting - APP_URL:', APP_URL);
+  console.log('[Auth Callback] Has code:', !!code, 'Has error:', !!error);
+
   if (error) {
-    console.error('Supabase OAuth error:', error, errorDescription);
+    console.error('[Auth Callback] OAuth error:', error, errorDescription);
     return NextResponse.redirect(`${APP_URL}/login?error=${error}`);
   }
 
   if (!code) {
+    console.error('[Auth Callback] No code provided');
     return NextResponse.redirect(`${APP_URL}/login?error=no_code`);
   }
 
@@ -183,14 +187,18 @@ export async function GET(request: NextRequest) {
   // Sync GitHub repos to database on login
   if (providerToken) {
     try {
-      console.log('Syncing GitHub repos for user:', githubUsername);
+      console.log('[Auth Callback] Starting repo sync for user:', githubUsername);
       await syncGitHubRepos(serviceClient, githubUsername, providerToken);
+      console.log('[Auth Callback] Repo sync completed successfully');
     } catch (err) {
-      console.error('Repo sync error:', err);
+      console.error('[Auth Callback] Repo sync error:', err);
       // Don't fail auth if repo sync fails
     }
+  } else {
+    console.log('[Auth Callback] Skipping repo sync - no provider token');
   }
 
+  console.log('[Auth Callback] Complete - redirecting to:', redirectUrl);
   return response;
 }
 
