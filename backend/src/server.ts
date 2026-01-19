@@ -248,6 +248,8 @@ function buildPromptWithHistory(messages: Array<{ role: string; content: string 
 app.post('/api/chat', authenticateApiKey, async (req: Request, res: Response) => {
   const { message, sessionId, userId, conversationId } = req.body;
 
+  console.log(`[Chat] Request received - userId: ${userId || 'none'}, sessionId: ${sessionId || 'none'}, supabase: ${isSupabaseAvailable()}`);
+
   if (!message) {
     res.status(400).json({ error: 'Message is required' });
     return;
@@ -259,6 +261,7 @@ app.post('/api/chat', authenticateApiKey, async (req: Request, res: Response) =>
 
   // If user is authenticated and Supabase is available, use Supabase for persistence
   if (userId && isSupabaseAvailable()) {
+    console.log(`[Chat] Using Supabase for user: ${userId}`);
     try {
       supabaseConversation = await conversationService.getOrCreateRoot(userId, conversationId);
       if (supabaseConversation) {
