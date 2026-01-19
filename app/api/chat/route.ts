@@ -11,6 +11,9 @@ export async function POST(request: NextRequest) {
 
   // Get GitHub username from cookie for database persistence
   const githubUser = request.cookies.get('github_user')?.value;
+  const githubToken = request.cookies.get('github_token')?.value;
+
+  console.log(`[Frontend Chat] Cookies - github_user: ${githubUser || 'NOT SET'}, github_token: ${githubToken ? 'SET' : 'NOT SET'}`);
 
   if (!message) {
     return new Response(JSON.stringify({ error: 'Message is required' }), {
