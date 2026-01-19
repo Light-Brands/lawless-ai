@@ -4,6 +4,7 @@ import './globals.css';
 import { ToastProvider } from './components/Toast';
 import MobileBottomNav from './components/MobileBottomNav';
 import { AuthProvider } from './contexts/AuthContext';
+import { ConversationProvider } from './contexts/ConversationContext';
 import AuthGate from './components/AuthGate';
 
 const spaceGrotesk = Space_Grotesk({
@@ -56,12 +57,14 @@ export default function RootLayout({
       </head>
       <body className={`${spaceGrotesk.variable} ${jetbrainsMono.variable}`}>
         <AuthProvider>
-          <AuthGate>
-            <ToastProvider>
-              {children}
-              <MobileBottomNav />
-            </ToastProvider>
-          </AuthGate>
+          <ConversationProvider>
+            <AuthGate>
+              <ToastProvider>
+                {children}
+                <MobileBottomNav />
+              </ToastProvider>
+            </AuthGate>
+          </ConversationProvider>
         </AuthProvider>
       </body>
     </html>

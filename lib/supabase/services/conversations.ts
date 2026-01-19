@@ -1,25 +1,77 @@
 import { SupabaseClient } from '@supabase/supabase-js';
-import type { Database, Conversation, Json } from '@/types/database';
+import type {
+  Database,
+  Conversation,
+  ConversationInsert,
+  ConversationType,
+  Json,
+} from '@/types/database';
 
 export type Message = {
   role: 'user' | 'assistant';
   content: string;
+  timestamp?: string;
+  metadata?: Record<string, unknown>;
 };
 
+export interface ListConversationsOptions {
+  type?: ConversationType | ConversationType[];
+  workspaceSessionId?: string;
+  repoFullName?: string;
+  includeArchived?: boolean;
+  limit?: number;
+  offset?: number;
+}
+
+export interface CreateConversationOptions {
+  userId: string;
+  type?: ConversationType;
+  workspaceSessionId?: string;
+  repoFullName?: string;
+  title?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export async function createConversation(
+  supabase: SupabaseClient<Database>,
+  options: CreateConversationOptions
+): Promise<Conversation | null>;
 export async function createConversation(
   supabase: SupabaseClient<Database>,
   userId: string,
   workspaceSessionId?: string,
   title?: string
+): Promise<Conversation | null>;
+export async function createConversation(
+  supabase: SupabaseClient<Database>,
+  userIdOrOptions: string | CreateConversationOptions,
+  workspaceSessionId?: string,
+  title?: string
 ): Promise<Conversation | null> {
+  // Handle both old and new signatures
+  const options: CreateConversationOptions =
+    typeof userIdOrOptions === 'string'
+      ? {
+          userId: userIdOrOptions,
+          workspaceSessionId,
+          title,
+          type: workspaceSessionId ? 'workspace' : 'root',
+        }
+      : userIdOrOptions;
+
+  const insertData: ConversationInsert = {
+    user_id: options.userId,
+    conversation_type: options.type || (options.workspaceSessionId ? 'workspace' : 'root'),
+    workspace_session_id: options.workspaceSessionId,
+    repo_full_name: options.repoFullName,
+    title: options.title,
+    metadata: (options.metadata || {}) as Json,
+    messages: [],
+  };
+
   const { data, error } = await supabase
     .from('conversations')
-    .insert({
-      user_id: userId,
-      workspace_session_id: workspaceSessionId,
-      title,
-      messages: [],
-    } as never)
+    .insert(insertData as never)
     .select()
     .single();
 
@@ -75,17 +127,45 @@ export async function getConversationByWorkspaceSession(
 
 export async function listConversations(
   supabase: SupabaseClient<Database>,
-  workspaceSessionId?: string,
-  limit = 50
+  options?: ListConversationsOptions | string,
+  legacyLimit?: number
 ): Promise<Conversation[]> {
+  // Handle legacy signature: listConversations(supabase, workspaceSessionId, limit)
+  const opts: ListConversationsOptions =
+    typeof options === 'string'
+      ? { workspaceSessionId: options, limit: legacyLimit }
+      : options || {};
+
+  const { type, workspaceSessionId, repoFullName, includeArchived, limit = 50, offset = 0 } = opts;
+
   let query = supabase
     .from('conversations')
     .select('*')
-    .order('updated_at', { ascending: false })
-    .limit(limit);
+    .order('last_message_at', { ascending: false })
+    .range(offset, offset + limit - 1);
 
+  // Filter by conversation type
+  if (type) {
+    if (Array.isArray(type)) {
+      query = query.in('conversation_type', type);
+    } else {
+      query = query.eq('conversation_type', type);
+    }
+  }
+
+  // Filter by workspace session
   if (workspaceSessionId) {
     query = query.eq('workspace_session_id', workspaceSessionId);
+  }
+
+  // Filter by repo
+  if (repoFullName) {
+    query = query.eq('repo_full_name', repoFullName);
+  }
+
+  // Filter archived
+  if (!includeArchived) {
+    query = query.eq('is_archived', false);
   }
 
   const { data, error } = await query;
@@ -96,6 +176,28 @@ export async function listConversations(
   }
 
   return (data as Conversation[]) || [];
+}
+
+/**
+ * List conversations by type for a user
+ */
+export async function listConversationsByType(
+  supabase: SupabaseClient<Database>,
+  userId: string,
+  type: ConversationType | ConversationType[],
+  options?: Omit<ListConversationsOptions, 'type'>
+): Promise<Conversation[]> {
+  return listConversations(supabase, { ...options, type });
+}
+
+/**
+ * Get recent conversations across all types for sidebar display
+ */
+export async function getRecentConversations(
+  supabase: SupabaseClient<Database>,
+  limit = 20
+): Promise<Conversation[]> {
+  return listConversations(supabase, { limit, includeArchived: false });
 }
 
 export async function appendMessages(
@@ -187,7 +289,8 @@ export async function deleteConversationsByWorkspaceSession(
 export async function getOrCreateConversation(
   supabase: SupabaseClient<Database>,
   userId: string,
-  workspaceSessionId: string
+  workspaceSessionId: string,
+  repoFullName?: string
 ): Promise<Conversation | null> {
   // Try to find existing conversation
   const existing = await getConversationByWorkspaceSession(supabase, workspaceSessionId);
@@ -196,5 +299,103 @@ export async function getOrCreateConversation(
   }
 
   // Create new conversation
-  return createConversation(supabase, userId, workspaceSessionId);
+  return createConversation(supabase, {
+    userId,
+    type: 'workspace',
+    workspaceSessionId,
+    repoFullName,
+  });
+}
+
+/**
+ * Archive a conversation (soft delete)
+ */
+export async function archiveConversation(
+  supabase: SupabaseClient<Database>,
+  conversationId: string
+): Promise<boolean> {
+  const { error } = await supabase
+    .from('conversations')
+    .update({ is_archived: true, updated_at: new Date().toISOString() } as never)
+    .eq('id', conversationId);
+
+  if (error) {
+    console.error('Error archiving conversation:', error);
+    return false;
+  }
+
+  return true;
+}
+
+/**
+ * Unarchive a conversation
+ */
+export async function unarchiveConversation(
+  supabase: SupabaseClient<Database>,
+  conversationId: string
+): Promise<boolean> {
+  const { error } = await supabase
+    .from('conversations')
+    .update({ is_archived: false, updated_at: new Date().toISOString() } as never)
+    .eq('id', conversationId);
+
+  if (error) {
+    console.error('Error unarchiving conversation:', error);
+    return false;
+  }
+
+  return true;
+}
+
+/**
+ * Get or create a root conversation (not tied to workspace)
+ */
+export async function getOrCreateRootConversation(
+  supabase: SupabaseClient<Database>,
+  userId: string,
+  conversationId?: string
+): Promise<Conversation | null> {
+  // If ID provided, try to fetch it
+  if (conversationId) {
+    const existing = await getConversation(supabase, conversationId);
+    if (existing) {
+      return existing;
+    }
+  }
+
+  // Create new root conversation
+  return createConversation(supabase, {
+    userId,
+    type: 'root',
+  });
+}
+
+/**
+ * Get or create a direct conversation (Claude workspace sidebar)
+ */
+export async function getOrCreateDirectConversation(
+  supabase: SupabaseClient<Database>,
+  userId: string,
+  localSessionId: string,
+  repoFullName?: string
+): Promise<Conversation | null> {
+  // Try to find by metadata
+  const { data } = await supabase
+    .from('conversations')
+    .select('*')
+    .eq('conversation_type', 'direct')
+    .eq('metadata->claudeSessionId', localSessionId)
+    .single();
+
+  if (data) {
+    return data as Conversation;
+  }
+
+  // Create new direct conversation
+  return createConversation(supabase, {
+    userId,
+    type: 'direct',
+    repoFullName,
+    metadata: { claudeSessionId: localSessionId },
+  });
 }

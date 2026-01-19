@@ -9,6 +9,8 @@ import http from 'http';
 import { WebSocketServer, WebSocket } from 'ws';
 import * as pty from 'node-pty';
 import fs from 'fs';
+import { conversationService } from './services/conversationService';
+import { isSupabaseAvailable, Message } from './lib/supabase';
 
 dotenv.config();
 
@@ -238,8 +240,9 @@ function buildPromptWithHistory(messages: Array<{ role: string; content: string 
 }
 
 // Chat endpoint with SSE streaming using Claude CLI SDK mode
-app.post('/api/chat', authenticateApiKey, (req: Request, res: Response) => {
-  const { message, sessionId } = req.body;
+// Now supports Supabase persistence for authenticated users
+app.post('/api/chat', authenticateApiKey, async (req: Request, res: Response) => {
+  const { message, sessionId, userId, conversationId } = req.body;
 
   if (!message) {
     res.status(400).json({ error: 'Message is required' });
@@ -247,10 +250,30 @@ app.post('/api/chat', authenticateApiKey, (req: Request, res: Response) => {
   }
 
   const activeSessionId = sessionId || uuidv4();
+  let supabaseConversationId = conversationId;
+  let supabaseConversation = null;
 
-  // Get conversation history
-  const row = db.prepare('SELECT messages FROM conversations WHERE session_id = ?').get(activeSessionId) as { messages: string } | undefined;
-  const history: Array<{ role: string; content: string }> = row ? JSON.parse(row.messages) : [];
+  // If user is authenticated and Supabase is available, use Supabase for persistence
+  if (userId && isSupabaseAvailable()) {
+    try {
+      supabaseConversation = await conversationService.getOrCreateRoot(userId, conversationId);
+      if (supabaseConversation) {
+        supabaseConversationId = supabaseConversation.id;
+      }
+    } catch (e) {
+      console.error('Error getting/creating Supabase conversation:', e);
+    }
+  }
+
+  // Get conversation history - prefer Supabase, fall back to SQLite
+  let history: Array<{ role: string; content: string }> = [];
+
+  if (supabaseConversation?.messages) {
+    history = supabaseConversation.messages as Array<{ role: string; content: string }>;
+  } else {
+    const row = db.prepare('SELECT messages FROM conversations WHERE session_id = ?').get(activeSessionId) as { messages: string } | undefined;
+    history = row ? JSON.parse(row.messages) : [];
+  }
 
   // Add user message to history
   history.push({ role: 'user', content: message });
@@ -376,7 +399,7 @@ app.post('/api/chat', authenticateApiKey, (req: Request, res: Response) => {
 
 
   // Handle process exit
-  claude.on('close', (code: number | null) => {
+  claude.on('close', async (code: number | null) => {
     // Process any remaining buffer
     if (buffer.trim()) {
       try {
@@ -393,15 +416,36 @@ app.post('/api/chat', authenticateApiKey, (req: Request, res: Response) => {
       // Save successful response to database
       history.push({ role: 'assistant', content: responseContent.trim() });
 
+      // Save to SQLite (backward compatibility)
       db.prepare(`
         INSERT OR REPLACE INTO conversations (session_id, messages, updated_at)
         VALUES (?, ?, CURRENT_TIMESTAMP)
       `).run(activeSessionId, JSON.stringify(history));
 
+      // Save to Supabase if available
+      if (supabaseConversationId && isSupabaseAvailable()) {
+        try {
+          const newMessages: Message[] = [
+            { role: 'user', content: message, timestamp: new Date().toISOString() },
+            { role: 'assistant', content: responseContent.trim(), timestamp: new Date().toISOString() },
+          ];
+          await conversationService.appendMessages(supabaseConversationId, newMessages);
+
+          // Update title if this is the first message
+          if (supabaseConversation && (!supabaseConversation.title || supabaseConversation.messages.length === 0)) {
+            const title = conversationService.extractTitle(message);
+            await conversationService.updateTitle(supabaseConversationId, title);
+          }
+        } catch (e) {
+          console.error('Error saving to Supabase:', e);
+        }
+      }
+
       res.write(`data: ${JSON.stringify({
         type: 'done',
         content: responseContent.trim(),
-        sessionId: activeSessionId
+        sessionId: activeSessionId,
+        conversationId: supabaseConversationId
       })}\n\n`);
     } else if (!hasError && !responseContent) {
       res.write(`data: ${JSON.stringify({
@@ -464,7 +508,7 @@ app.delete('/api/session/:sessionId', authenticateApiKey, (req: Request, res: Re
   res.json({ success: true, message: 'Session deleted' });
 });
 
-// List recent sessions
+// List recent sessions (SQLite - legacy)
 app.get('/api/sessions', authenticateApiKey, (req: Request, res: Response) => {
   const limit = Math.min(parseInt(req.query.limit as string) || 20, 100);
 
@@ -489,6 +533,179 @@ app.get('/api/sessions', authenticateApiKey, (req: Request, res: Response) => {
       updatedAt: row.updated_at
     }))
   });
+});
+
+// ============================================
+// Supabase-backed Conversation API Endpoints
+// ============================================
+
+// List conversations for a user (Supabase)
+app.get('/api/conversations', authenticateApiKey, async (req: Request, res: Response) => {
+  const userId = req.query.userId as string;
+  const type = req.query.type as string;
+  const repoFullName = req.query.repo as string;
+  const workspaceSessionId = req.query.workspaceSessionId as string;
+  const includeArchived = req.query.includeArchived === 'true';
+  const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
+
+  if (!userId) {
+    res.status(400).json({ error: 'userId is required' });
+    return;
+  }
+
+  if (!isSupabaseAvailable()) {
+    res.status(503).json({ error: 'Supabase not configured' });
+    return;
+  }
+
+  try {
+    const conversations = await conversationService.list({
+      userId,
+      type: type as 'root' | 'workspace' | 'direct' | undefined,
+      repoFullName,
+      workspaceSessionId,
+      includeArchived,
+      limit,
+    });
+
+    res.json({ conversations });
+  } catch (error: any) {
+    console.error('Error listing conversations:', error);
+    res.status(500).json({ error: `Failed to list conversations: ${error.message}` });
+  }
+});
+
+// Get a specific conversation (Supabase)
+app.get('/api/conversations/:conversationId', authenticateApiKey, async (req: Request, res: Response) => {
+  const { conversationId } = req.params;
+
+  if (!isSupabaseAvailable()) {
+    res.status(503).json({ error: 'Supabase not configured' });
+    return;
+  }
+
+  try {
+    const conversation = await conversationService.get(conversationId);
+
+    if (!conversation) {
+      res.status(404).json({ error: 'Conversation not found' });
+      return;
+    }
+
+    res.json({ conversation });
+  } catch (error: any) {
+    console.error('Error getting conversation:', error);
+    res.status(500).json({ error: `Failed to get conversation: ${error.message}` });
+  }
+});
+
+// Create a new conversation (Supabase)
+app.post('/api/conversations', authenticateApiKey, async (req: Request, res: Response) => {
+  const { userId, type, workspaceSessionId, repoFullName, title, metadata } = req.body;
+
+  if (!userId) {
+    res.status(400).json({ error: 'userId is required' });
+    return;
+  }
+
+  if (!isSupabaseAvailable()) {
+    res.status(503).json({ error: 'Supabase not configured' });
+    return;
+  }
+
+  try {
+    const conversation = await conversationService.create({
+      userId,
+      type: type || 'root',
+      workspaceSessionId,
+      repoFullName,
+      title,
+      metadata,
+    });
+
+    if (!conversation) {
+      res.status(500).json({ error: 'Failed to create conversation' });
+      return;
+    }
+
+    res.json({ conversation });
+  } catch (error: any) {
+    console.error('Error creating conversation:', error);
+    res.status(500).json({ error: `Failed to create conversation: ${error.message}` });
+  }
+});
+
+// Update conversation title (Supabase)
+app.patch('/api/conversations/:conversationId', authenticateApiKey, async (req: Request, res: Response) => {
+  const { conversationId } = req.params;
+  const { title } = req.body;
+
+  if (!isSupabaseAvailable()) {
+    res.status(503).json({ error: 'Supabase not configured' });
+    return;
+  }
+
+  try {
+    const success = await conversationService.updateTitle(conversationId, title);
+
+    if (!success) {
+      res.status(500).json({ error: 'Failed to update conversation' });
+      return;
+    }
+
+    res.json({ success: true });
+  } catch (error: any) {
+    console.error('Error updating conversation:', error);
+    res.status(500).json({ error: `Failed to update conversation: ${error.message}` });
+  }
+});
+
+// Archive a conversation (Supabase)
+app.post('/api/conversations/:conversationId/archive', authenticateApiKey, async (req: Request, res: Response) => {
+  const { conversationId } = req.params;
+
+  if (!isSupabaseAvailable()) {
+    res.status(503).json({ error: 'Supabase not configured' });
+    return;
+  }
+
+  try {
+    const success = await conversationService.archive(conversationId);
+
+    if (!success) {
+      res.status(500).json({ error: 'Failed to archive conversation' });
+      return;
+    }
+
+    res.json({ success: true });
+  } catch (error: any) {
+    console.error('Error archiving conversation:', error);
+    res.status(500).json({ error: `Failed to archive conversation: ${error.message}` });
+  }
+});
+
+// Delete a conversation (Supabase)
+app.delete('/api/conversations/:conversationId', authenticateApiKey, async (req: Request, res: Response) => {
+  const { conversationId } = req.params;
+
+  if (!isSupabaseAvailable()) {
+    res.status(503).json({ error: 'Supabase not configured' });
+    return;
+  }
+
+  try {
+    const success = await conversationService.delete(conversationId);
+
+    if (!success) {
+      res.status(500).json({ error: 'Failed to delete conversation' });
+      return;
+    }
+
+    res.json({ success: true });
+  } catch (error: any) {
+    console.error('Error deleting conversation:', error);
+    res.status(500).json({ error: `Failed to delete conversation: ${error.message}` });
+  }
 });
 
 // Ensure data directory exists
@@ -744,8 +961,9 @@ app.post('/api/workspace/setup', authenticateApiKey, async (req: Request, res: R
 });
 
 // Chat with Claude about code in workspace
-app.post('/api/workspace/chat', authenticateApiKey, (req: Request, res: Response) => {
-  const { message, repoFullName, sessionId, workspaceSessionId, conversationHistory: clientHistory } = req.body;
+// Persists to Supabase when userId is provided
+app.post('/api/workspace/chat', authenticateApiKey, async (req: Request, res: Response) => {
+  const { message, repoFullName, sessionId, workspaceSessionId, conversationHistory: clientHistory, userId } = req.body;
 
   if (!message || !repoFullName) {
     res.status(400).json({ error: 'Message and repository required' });
@@ -801,24 +1019,53 @@ app.post('/api/workspace/chat', authenticateApiKey, (req: Request, res: Response
     cwd: workspacePath
   });
 
-  // Retrieve conversation history - first try database, then fall back to client-provided history
+  // Track Supabase conversation for later saving
+  let supabaseConversation = null;
+  let supabaseConversationId: string | null = null;
+
+  // Retrieve conversation history - try Supabase first, then SQLite, then client-provided
   let conversationHistory = '';
   if (workspaceSessionId) {
-    try {
-      const existingConv = db.prepare(`
-        SELECT messages FROM conversations WHERE workspace_session_id = ? LIMIT 1
-      `).get(workspaceSessionId) as { messages: string } | undefined;
-
-      if (existingConv) {
-        const messages = JSON.parse(existingConv.messages) as Array<{ role: string; content: string }>;
-        // Build conversation history string
-        conversationHistory = messages.map(msg => {
-          const prefix = msg.role === 'user' ? 'User' : 'Assistant';
-          return `${prefix}: ${msg.content}`;
-        }).join('\n\n');
+    // Try Supabase first if user is authenticated
+    if (userId && isSupabaseAvailable()) {
+      try {
+        supabaseConversation = await conversationService.getOrCreateForWorkspace(
+          userId,
+          workspaceSessionId,
+          repoFullName
+        );
+        if (supabaseConversation) {
+          supabaseConversationId = supabaseConversation.id;
+          const messages = supabaseConversation.messages as Array<{ role: string; content: string }>;
+          if (messages && messages.length > 0) {
+            conversationHistory = messages.map(msg => {
+              const prefix = msg.role === 'user' ? 'User' : 'Assistant';
+              return `${prefix}: ${msg.content}`;
+            }).join('\n\n');
+          }
+        }
+      } catch (e) {
+        console.error('Failed to load Supabase conversation:', e);
       }
-    } catch (e) {
-      console.error('Failed to load conversation history:', e);
+    }
+
+    // Fall back to SQLite if no Supabase history
+    if (!conversationHistory) {
+      try {
+        const existingConv = db.prepare(`
+          SELECT messages FROM conversations WHERE workspace_session_id = ? LIMIT 1
+        `).get(workspaceSessionId) as { messages: string } | undefined;
+
+        if (existingConv) {
+          const messages = JSON.parse(existingConv.messages) as Array<{ role: string; content: string }>;
+          conversationHistory = messages.map(msg => {
+            const prefix = msg.role === 'user' ? 'User' : 'Assistant';
+            return `${prefix}: ${msg.content}`;
+          }).join('\n\n');
+        }
+      } catch (e) {
+        console.error('Failed to load SQLite conversation history:', e);
+      }
     }
   }
 
@@ -970,11 +1217,31 @@ User request: ${message}`;
     console.error('Claude stderr:', data.toString());
   });
 
-  claude.on('close', (code: number | null) => {
+  claude.on('close', async (code: number | null) => {
     // Save messages if we have a workspace session
     if (workspaceSessionId && responseContent.trim()) {
+      const newMessages: Message[] = [
+        { role: 'user', content: message, timestamp: new Date().toISOString() },
+        { role: 'assistant', content: responseContent.trim(), timestamp: new Date().toISOString() },
+      ];
+
+      // Save to Supabase if available
+      if (supabaseConversationId && isSupabaseAvailable()) {
+        try {
+          await conversationService.appendMessages(supabaseConversationId, newMessages);
+
+          // Update title if first message
+          if (supabaseConversation && (!supabaseConversation.title || supabaseConversation.messages.length === 0)) {
+            const title = conversationService.extractTitle(message);
+            await conversationService.updateTitle(supabaseConversationId, title);
+          }
+        } catch (e) {
+          console.error('Failed to save to Supabase:', e);
+        }
+      }
+
+      // Also save to SQLite for backward compatibility
       try {
-        // Get existing conversation or create new one
         const existingConv = db.prepare(`
           SELECT session_id, messages FROM conversations WHERE workspace_session_id = ? LIMIT 1
         `).get(workspaceSessionId) as { session_id: string; messages: string } | undefined;
@@ -998,14 +1265,15 @@ User request: ${message}`;
           `).run(convId, JSON.stringify(messages), workspaceSessionId);
         }
       } catch (e) {
-        console.error('Failed to save workspace chat messages:', e);
+        console.error('Failed to save workspace chat messages to SQLite:', e);
       }
     }
 
     res.write(`data: ${JSON.stringify({
       type: 'done',
       content: responseContent.trim(),
-      sessionId: activeSessionId
+      sessionId: activeSessionId,
+      conversationId: supabaseConversationId
     })}\n\n`);
     res.end();
   });
