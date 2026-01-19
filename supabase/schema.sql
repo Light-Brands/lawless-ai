@@ -77,12 +77,18 @@ CREATE TABLE IF NOT EXISTS public.workspace_sessions (
 );
 
 -- Conversations
+-- Supports multiple chat contexts: 'root' (general), 'workspace' (repo-bound), 'direct' (Claude sidebar)
 CREATE TABLE IF NOT EXISTS public.conversations (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
   workspace_session_id UUID REFERENCES public.workspace_sessions(id) ON DELETE SET NULL,
+  conversation_type TEXT DEFAULT 'workspace', -- 'root' | 'workspace' | 'direct'
+  repo_full_name TEXT, -- For root/direct chats not tied to workspace sessions
   messages JSONB DEFAULT '[]',
+  metadata JSONB DEFAULT '{}', -- Context-specific data
   title TEXT,
+  last_message_at TIMESTAMPTZ DEFAULT NOW(),
+  is_archived BOOLEAN DEFAULT false,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -132,6 +138,10 @@ CREATE INDEX IF NOT EXISTS idx_workspace_sessions_user ON public.workspace_sessi
 CREATE INDEX IF NOT EXISTS idx_workspace_sessions_repo ON public.workspace_sessions(repo_full_name);
 CREATE INDEX IF NOT EXISTS idx_conversations_user ON public.conversations(user_id);
 CREATE INDEX IF NOT EXISTS idx_conversations_workspace ON public.conversations(workspace_session_id);
+CREATE INDEX IF NOT EXISTS idx_conversations_type ON public.conversations(user_id, conversation_type);
+CREATE INDEX IF NOT EXISTS idx_conversations_last_message ON public.conversations(user_id, last_message_at DESC);
+CREATE INDEX IF NOT EXISTS idx_conversations_active ON public.conversations(user_id, is_archived, last_message_at DESC);
+CREATE INDEX IF NOT EXISTS idx_conversations_repo ON public.conversations(user_id, repo_full_name);
 CREATE INDEX IF NOT EXISTS idx_terminal_sessions_user ON public.terminal_sessions(user_id);
 CREATE INDEX IF NOT EXISTS idx_terminal_sessions_repo ON public.terminal_sessions(repo_full_name);
 CREATE INDEX IF NOT EXISTS idx_sql_history_user ON public.sql_query_history(user_id);
@@ -235,6 +245,21 @@ CREATE TRIGGER update_repo_integrations_updated_at
 CREATE TRIGGER update_conversations_updated_at
   BEFORE UPDATE ON public.conversations
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Function to auto-update last_message_at when messages change
+CREATE OR REPLACE FUNCTION update_conversation_last_message_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.messages IS DISTINCT FROM OLD.messages THEN
+    NEW.last_message_at = NOW();
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER update_conversations_last_message_at
+  BEFORE UPDATE ON public.conversations
+  FOR EACH ROW EXECUTE FUNCTION update_conversation_last_message_at();
 
 CREATE TRIGGER update_terminal_outputs_updated_at
   BEFORE UPDATE ON public.terminal_outputs

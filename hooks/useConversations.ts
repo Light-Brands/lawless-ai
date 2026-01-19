@@ -1,18 +1,28 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { getSupabaseClient } from '@/lib/supabase/client';
-import type { Conversation } from '@/types/database';
+import type { Conversation, ConversationType } from '@/types/database';
 
 export type Message = {
   role: 'user' | 'assistant';
   content: string;
+  timestamp?: string;
+  metadata?: Record<string, unknown>;
 };
 
 interface UseConversationOptions {
   workspaceSessionId?: string;
   conversationId?: string;
   enabled?: boolean;
+}
+
+interface UseConversationsOptions {
+  type?: ConversationType | ConversationType[];
+  workspaceSessionId?: string;
+  repoFullName?: string;
+  includeArchived?: boolean;
+  limit?: number;
 }
 
 interface UseConversationReturn {
@@ -110,13 +120,15 @@ export function useConversation({
             prev ? { ...prev, messages: updatedMessages as unknown as Conversation['messages'] } : null
           );
         } else if (workspaceSessionId) {
-          // Create new conversation
+          // Create new conversation with proper type
           const { data: newConv, error: insertError } = await supabase
             .from('conversations')
             .insert({
               user_id: user.id,
               workspace_session_id: workspaceSessionId,
+              conversation_type: 'workspace',
               messages: newMessages as unknown,
+              metadata: {},
             } as never)
             .select()
             .single();
@@ -186,8 +198,10 @@ export function useConversation({
   };
 }
 
-// Hook for listing recent conversations
-export function useConversations(limit = 20) {
+// Hook for listing recent conversations with filtering support
+export function useConversationsList(options: UseConversationsOptions = {}) {
+  const { type, workspaceSessionId, repoFullName, includeArchived = false, limit = 50 } = options;
+
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -199,11 +213,37 @@ export function useConversations(limit = 20) {
       setLoading(true);
       setError(null);
 
-      const { data, error: fetchError } = await supabase
+      let query = supabase
         .from('conversations')
         .select('*')
-        .order('updated_at', { ascending: false })
+        .order('last_message_at', { ascending: false })
         .limit(limit);
+
+      // Filter by type
+      if (type) {
+        if (Array.isArray(type)) {
+          query = query.in('conversation_type', type);
+        } else {
+          query = query.eq('conversation_type', type);
+        }
+      }
+
+      // Filter by workspace session
+      if (workspaceSessionId) {
+        query = query.eq('workspace_session_id', workspaceSessionId);
+      }
+
+      // Filter by repo
+      if (repoFullName) {
+        query = query.eq('repo_full_name', repoFullName);
+      }
+
+      // Filter archived
+      if (!includeArchived) {
+        query = query.eq('is_archived', false);
+      }
+
+      const { data, error: fetchError } = await query;
 
       if (fetchError) {
         throw new Error(fetchError.message);
@@ -217,11 +257,41 @@ export function useConversations(limit = 20) {
     } finally {
       setLoading(false);
     }
-  }, [supabase, limit]);
+  }, [supabase, type, workspaceSessionId, repoFullName, includeArchived, limit]);
 
   useEffect(() => {
     refresh();
   }, [refresh]);
 
+  // Memoized filtered lists by type
+  const rootConversations = useMemo(
+    () => conversations.filter((c) => c.conversation_type === 'root'),
+    [conversations]
+  );
+
+  const workspaceConversations = useMemo(
+    () => conversations.filter((c) => c.conversation_type === 'workspace'),
+    [conversations]
+  );
+
+  const directConversations = useMemo(
+    () => conversations.filter((c) => c.conversation_type === 'direct'),
+    [conversations]
+  );
+
+  return {
+    conversations,
+    rootConversations,
+    workspaceConversations,
+    directConversations,
+    loading,
+    error,
+    refresh,
+  };
+}
+
+// Legacy hook - maintains backward compatibility
+export function useConversations(limit = 20) {
+  const { conversations, loading, error, refresh } = useConversationsList({ limit });
   return { conversations, loading, error, refresh };
 }

@@ -170,7 +170,7 @@ export function useRealtimeWorkspaceSessions(
 }
 
 /**
- * Hook for syncing conversations in real-time
+ * Hook for syncing conversations in real-time (by workspace session)
  */
 export function useRealtimeConversation(
   workspaceSessionId: string | null,
@@ -197,6 +197,67 @@ export function useRealtimeConversation(
     onUpdate: handleUpdate,
     onInsert: handleUpdate,
     enabled: !!workspaceSessionId,
+  });
+
+  return { isSubscribed, error };
+}
+
+/**
+ * Hook for syncing a specific conversation by ID in real-time
+ */
+export function useRealtimeConversationById(
+  conversationId: string | null,
+  onConversationUpdate: (conversation: Database['public']['Tables']['conversations']['Row']) => void
+) {
+  const handleUpdate = useCallback(
+    (conversation: Database['public']['Tables']['conversations']['Row']) => {
+      onConversationUpdate(conversation);
+    },
+    [onConversationUpdate]
+  );
+
+  const { isSubscribed, error } = useRealtimeSync<
+    Database['public']['Tables']['conversations']['Row']
+  >({
+    table: 'conversations',
+    filter: conversationId
+      ? {
+          column: 'id',
+          value: conversationId,
+        }
+      : undefined,
+    onUpdate: handleUpdate,
+    onInsert: handleUpdate,
+    enabled: !!conversationId,
+  });
+
+  return { isSubscribed, error };
+}
+
+/**
+ * Hook for syncing all user conversations in real-time
+ * Useful for sidebar updates
+ */
+export function useRealtimeConversationsList(
+  userId: string | null,
+  onUpdate: (conversation: Database['public']['Tables']['conversations']['Row']) => void,
+  onInsert: (conversation: Database['public']['Tables']['conversations']['Row']) => void,
+  onDelete: (conversation: Database['public']['Tables']['conversations']['Row']) => void
+) {
+  const { isSubscribed, error } = useRealtimeSync<
+    Database['public']['Tables']['conversations']['Row']
+  >({
+    table: 'conversations',
+    filter: userId
+      ? {
+          column: 'user_id',
+          value: userId,
+        }
+      : undefined,
+    onUpdate,
+    onInsert,
+    onDelete,
+    enabled: !!userId,
   });
 
   return { isSubscribed, error };

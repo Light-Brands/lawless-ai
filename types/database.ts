@@ -6,6 +6,12 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[];
 
+// Conversation type discriminator
+// 'root' - General chat not tied to a workspace
+// 'workspace' - Chat tied to a workspace session (repo-bound)
+// 'direct' - Claude workspace sidebar sessions
+export type ConversationType = 'root' | 'workspace' | 'direct';
+
 export interface Database {
   public: {
     Tables: {
@@ -198,8 +204,13 @@ export interface Database {
           id: string;
           user_id: string;
           workspace_session_id: string | null;
+          conversation_type: ConversationType;
+          repo_full_name: string | null;
           messages: Json;
+          metadata: Json;
           title: string | null;
+          last_message_at: string;
+          is_archived: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -207,8 +218,13 @@ export interface Database {
           id?: string;
           user_id: string;
           workspace_session_id?: string | null;
+          conversation_type?: ConversationType;
+          repo_full_name?: string | null;
           messages?: Json;
+          metadata?: Json;
           title?: string | null;
+          last_message_at?: string;
+          is_archived?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -216,8 +232,13 @@ export interface Database {
           id?: string;
           user_id?: string;
           workspace_session_id?: string | null;
+          conversation_type?: ConversationType;
+          repo_full_name?: string | null;
           messages?: Json;
+          metadata?: Json;
           title?: string | null;
+          last_message_at?: string;
+          is_archived?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -332,6 +353,37 @@ export type UserRepo = Database['public']['Tables']['user_repos']['Row'];
 export type RepoIntegration = Database['public']['Tables']['repo_integrations']['Row'];
 export type WorkspaceSession = Database['public']['Tables']['workspace_sessions']['Row'];
 export type Conversation = Database['public']['Tables']['conversations']['Row'];
+export type ConversationInsert = Database['public']['Tables']['conversations']['Insert'];
+export type ConversationUpdate = Database['public']['Tables']['conversations']['Update'];
 export type TerminalSession = Database['public']['Tables']['terminal_sessions']['Row'];
 export type TerminalOutput = Database['public']['Tables']['terminal_outputs']['Row'];
 export type SqlQueryHistory = Database['public']['Tables']['sql_query_history']['Row'];
+
+// Message types for conversation messages array
+export interface ConversationMessage {
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  timestamp?: string;
+  metadata?: {
+    toolUse?: boolean;
+    thinking?: boolean;
+    [key: string]: unknown;
+  };
+}
+
+// Metadata types for different conversation contexts
+export interface WorkspaceConversationMetadata {
+  repoFullName?: string;
+  branchName?: string;
+  sessionName?: string;
+}
+
+export interface RootConversationMetadata {
+  source?: string;
+  context?: string;
+}
+
+export interface DirectConversationMetadata {
+  claudeSessionId?: string;
+  localStorageKey?: string;
+}
