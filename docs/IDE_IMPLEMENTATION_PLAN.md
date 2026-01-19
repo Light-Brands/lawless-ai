@@ -1035,6 +1035,501 @@ async function assignPort(sessionId: string): Promise<number> {
 - Link to full deployment logs (opens Deployments pane)
 - **Event emission**: `deployment:completed` or `deployment:failed`
 
+#### 3.6 Interactive Component Selection (Click-to-Edit)
+
+A powerful inspection layer that lets users click on any component in the browser preview and immediately start editing it with Claude.
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ [Local ●] [Deployed]              [🎯 Inspect Mode ON]     [↻]  │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │                                                          │    │
+│  │    ┌──────────────────────────────────┐                  │    │
+│  │    │ ┌────────────────────────────────┼──────────────┐   │    │
+│  │    │ │  Hero Section                  │ ← Highlighted│   │    │
+│  │    │ │  ═══════════════               │   on hover   │   │    │
+│  │    │ │  Welcome to My App             │              │   │    │
+│  │    │ │  [Get Started]                 │              │   │    │
+│  │    │ └────────────────────────────────┼──────────────┘   │    │
+│  │    │                                  │                  │    │
+│  │    │  ┌─────────┐ ┌─────────┐         │                  │    │
+│  │    │  │ Card 1  │ │ Card 2  │         │                  │    │
+│  │    │  └─────────┘ └─────────┘         │                  │    │
+│  │    └──────────────────────────────────┘                  │    │
+│  │                                                          │    │
+│  └─────────────────────────────────────────────────────────┘    │
+│                                                                  │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │ 📍 Selected: <HeroSection>                               │    │
+│  │    src/components/HeroSection.tsx:12                     │    │
+│  │    [Open in Editor] [Edit with Claude] [View Props]      │    │
+│  └─────────────────────────────────────────────────────────┘    │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**How It Works:**
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    CLICK-TO-EDIT FLOW                            │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  1. USER ENABLES INSPECT MODE                                    │
+│     └─ Click "🎯 Inspect Mode" button in preview header          │
+│                                                                  │
+│  2. COMPONENT OVERLAY ACTIVATES                                  │
+│     └─ Hover highlights components with bounding box             │
+│     └─ Shows component name tooltip                              │
+│                                                                  │
+│  3. USER CLICKS A COMPONENT                                      │
+│     └─ Component selection panel appears                         │
+│     └─ Source file identified via source maps                    │
+│                                                                  │
+│  4. CONTEXT LOADED INTO CHAT                                     │
+│     └─ Component code, props, and styles extracted               │
+│     └─ Chat pane receives full context                           │
+│     └─ User can immediately ask Claude to modify it              │
+│                                                                  │
+│  5. REAL-TIME UPDATES                                            │
+│     └─ Claude edits the component file                           │
+│     └─ HMR (Hot Module Replacement) updates preview              │
+│     └─ User sees changes instantly                               │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Implementation Architecture:**
+
+```typescript
+// Injected into preview iframe
+interface ComponentInspector {
+  // Enable/disable inspect mode
+  setInspectMode(enabled: boolean): void;
+
+  // Get component info at a point
+  getComponentAtPoint(x: number, y: number): ComponentInfo | null;
+
+  // Highlight a component
+  highlightComponent(element: Element): void;
+
+  // Clear all highlights
+  clearHighlights(): void;
+}
+
+interface ComponentInfo {
+  // Display name (e.g., "HeroSection", "Button")
+  displayName: string;
+
+  // React fiber/component type
+  componentType: 'function' | 'class' | 'forwardRef' | 'memo' | 'html';
+
+  // Source file location (from source maps)
+  source: {
+    fileName: string;      // "src/components/HeroSection.tsx"
+    lineNumber: number;    // 12
+    columnNumber: number;  // 0
+  };
+
+  // Component props
+  props: Record<string, any>;
+
+  // Current state (if stateful)
+  state?: Record<string, any>;
+
+  // Computed styles
+  computedStyles: CSSStyleDeclaration;
+
+  // Bounding rect for highlighting
+  boundingRect: DOMRect;
+
+  // Parent component chain
+  parents: Array<{ displayName: string; source: ComponentInfo['source'] }>;
+
+  // Child components
+  children: Array<{ displayName: string; source: ComponentInfo['source'] }>;
+}
+```
+
+**Injection Script (React DevTools-like):**
+
+```typescript
+// .lawless/ide/src/lib/inspector/inject.ts
+// This script is injected into the preview iframe
+
+(function() {
+  const HIGHLIGHT_COLOR = 'rgba(59, 130, 246, 0.3)'; // Blue overlay
+  const BORDER_COLOR = 'rgb(59, 130, 246)';
+
+  let inspectMode = false;
+  let highlightOverlay: HTMLDivElement | null = null;
+  let selectedComponent: ComponentInfo | null = null;
+
+  // Find React fiber from DOM element
+  function findReactFiber(element: Element): any {
+    const key = Object.keys(element).find(
+      key => key.startsWith('__reactFiber$') ||
+             key.startsWith('__reactInternalInstance$')
+    );
+    return key ? (element as any)[key] : null;
+  }
+
+  // Extract component info from fiber
+  function getComponentInfo(element: Element): ComponentInfo | null {
+    const fiber = findReactFiber(element);
+    if (!fiber) return null;
+
+    // Walk up to find the owning component
+    let current = fiber;
+    while (current) {
+      if (current.type && typeof current.type !== 'string') {
+        const source = current._debugSource || current.type._source;
+        return {
+          displayName: current.type.displayName ||
+                       current.type.name ||
+                       'Anonymous',
+          componentType: getComponentType(current.type),
+          source: source ? {
+            fileName: source.fileName,
+            lineNumber: source.lineNumber,
+            columnNumber: source.columnNumber || 0,
+          } : null,
+          props: current.memoizedProps || {},
+          state: current.memoizedState,
+          computedStyles: window.getComputedStyle(element),
+          boundingRect: element.getBoundingClientRect(),
+          parents: getParentChain(current),
+          children: getChildComponents(current),
+        };
+      }
+      current = current.return;
+    }
+    return null;
+  }
+
+  // Create highlight overlay
+  function createHighlight(rect: DOMRect, name: string) {
+    if (!highlightOverlay) {
+      highlightOverlay = document.createElement('div');
+      highlightOverlay.id = 'lawless-inspector-overlay';
+      document.body.appendChild(highlightOverlay);
+    }
+
+    highlightOverlay.style.cssText = `
+      position: fixed;
+      pointer-events: none;
+      z-index: 999999;
+      background: ${HIGHLIGHT_COLOR};
+      border: 2px solid ${BORDER_COLOR};
+      top: ${rect.top}px;
+      left: ${rect.left}px;
+      width: ${rect.width}px;
+      height: ${rect.height}px;
+    `;
+
+    // Add tooltip with component name
+    highlightOverlay.innerHTML = `
+      <div style="
+        position: absolute;
+        top: -24px;
+        left: 0;
+        background: ${BORDER_COLOR};
+        color: white;
+        padding: 2px 8px;
+        font-size: 12px;
+        font-family: monospace;
+        border-radius: 4px;
+        white-space: nowrap;
+      ">${name}</div>
+    `;
+  }
+
+  // Handle mouse move in inspect mode
+  function handleMouseMove(e: MouseEvent) {
+    if (!inspectMode) return;
+
+    const element = document.elementFromPoint(e.clientX, e.clientY);
+    if (!element) return;
+
+    const info = getComponentInfo(element);
+    if (info) {
+      createHighlight(info.boundingRect, `<${info.displayName}>`);
+    }
+  }
+
+  // Handle click in inspect mode
+  function handleClick(e: MouseEvent) {
+    if (!inspectMode) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    const element = document.elementFromPoint(e.clientX, e.clientY);
+    if (!element) return;
+
+    const info = getComponentInfo(element);
+    if (info) {
+      selectedComponent = info;
+
+      // Send to parent frame (IDE)
+      window.parent.postMessage({
+        type: 'COMPONENT_SELECTED',
+        payload: info,
+      }, '*');
+    }
+  }
+
+  // Listen for messages from IDE
+  window.addEventListener('message', (e) => {
+    if (e.data.type === 'SET_INSPECT_MODE') {
+      inspectMode = e.data.enabled;
+      if (!inspectMode && highlightOverlay) {
+        highlightOverlay.remove();
+        highlightOverlay = null;
+      }
+      document.body.style.cursor = inspectMode ? 'crosshair' : '';
+    }
+  });
+
+  document.addEventListener('mousemove', handleMouseMove);
+  document.addEventListener('click', handleClick, true);
+})();
+```
+
+**Component Selection Panel:**
+
+```tsx
+// components/PreviewPane/ComponentSelectionPanel.tsx
+interface ComponentSelectionPanelProps {
+  component: ComponentInfo | null;
+  onOpenInEditor: (path: string, line: number) => void;
+  onEditWithClaude: (component: ComponentInfo) => void;
+  onClose: () => void;
+}
+
+function ComponentSelectionPanel({
+  component,
+  onOpenInEditor,
+  onEditWithClaude,
+  onClose,
+}: ComponentSelectionPanelProps) {
+  if (!component) return null;
+
+  return (
+    <div className="absolute bottom-0 left-0 right-0 bg-white border-t shadow-lg p-3">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="text-blue-600">📍</span>
+          <span className="font-mono font-medium">
+            &lt;{component.displayName}&gt;
+          </span>
+          {component.source && (
+            <span className="text-gray-500 text-sm">
+              {component.source.fileName}:{component.source.lineNumber}
+            </span>
+          )}
+        </div>
+        <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+          ✕
+        </button>
+      </div>
+
+      <div className="flex gap-2 mt-2">
+        <button
+          onClick={() => component.source &&
+            onOpenInEditor(component.source.fileName, component.source.lineNumber)
+          }
+          className="px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 rounded"
+        >
+          Open in Editor
+        </button>
+
+        <button
+          onClick={() => onEditWithClaude(component)}
+          className="px-3 py-1.5 text-sm bg-blue-600 text-white hover:bg-blue-700 rounded"
+        >
+          ✨ Edit with Claude
+        </button>
+
+        <button
+          onClick={() => {/* show props modal */}}
+          className="px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 rounded"
+        >
+          View Props
+        </button>
+      </div>
+    </div>
+  );
+}
+```
+
+**Chat Integration (Context Loading):**
+
+```typescript
+// When user clicks "Edit with Claude"
+async function handleEditWithClaude(component: ComponentInfo) {
+  // Read the full component source
+  const sourceCode = await readFile(component.source.fileName);
+
+  // Build context message
+  const contextMessage = `
+I want to edit the **${component.displayName}** component.
+
+**File:** \`${component.source.fileName}\`
+**Line:** ${component.source.lineNumber}
+
+**Current Props:**
+\`\`\`json
+${JSON.stringify(component.props, null, 2)}
+\`\`\`
+
+**Component Source:**
+\`\`\`tsx
+${sourceCode}
+\`\`\`
+
+**What would you like to change?**
+`;
+
+  // Send to chat pane with component context
+  chatPane.setContext({
+    type: 'component',
+    component: component.displayName,
+    file: component.source.fileName,
+    line: component.source.lineNumber,
+    sourceCode,
+    props: component.props,
+  });
+
+  // Focus chat input
+  chatPane.focusInput();
+
+  // Emit event for activity tracking
+  ideEvents.emit({
+    type: 'component:selected',
+    component: component.displayName,
+    file: component.source.fileName,
+  });
+}
+```
+
+**Real-Time Update Flow:**
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    REAL-TIME EDIT CYCLE                          │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐          │
+│  │   Preview   │    │    Chat     │    │   Editor    │          │
+│  │    Pane     │───▶│    Pane     │───▶│    Pane     │          │
+│  └─────────────┘    └─────────────┘    └─────────────┘          │
+│        │                  │                   │                  │
+│        │ Click component  │ User requests     │                  │
+│        │                  │ change            │                  │
+│        │                  ▼                   │                  │
+│        │            ┌───────────┐             │                  │
+│        │            │  Claude   │             │                  │
+│        │            │  Edits    │─────────────┘                  │
+│        │            │  File     │                                │
+│        │            └───────────┘                                │
+│        │                  │                                      │
+│        │                  │ File saved                           │
+│        │                  ▼                                      │
+│        │            ┌───────────┐                                │
+│        │            │    HMR    │                                │
+│        │◀───────────│  Update   │                                │
+│        │            └───────────┘                                │
+│        │                                                         │
+│        │ Preview updates                                         │
+│        │ instantly!                                              │
+│        ▼                                                         │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │  User sees the change reflected immediately in the       │    │
+│  │  browser preview without manual refresh                  │    │
+│  └─────────────────────────────────────────────────────────┘    │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Event Bus Integration:**
+
+```typescript
+// New events for component inspection
+type IDEEvent =
+  | { type: 'file:changed'; ... }
+  // ... existing events
+  | { type: 'inspect:enabled'; }
+  | { type: 'inspect:disabled'; }
+  | { type: 'component:hovered'; component: string; file: string; }
+  | { type: 'component:selected'; component: string; file: string; }
+  | { type: 'component:edited'; component: string; file: string; changes: string; };
+
+// When component is selected, sync across panes
+ideEvents.on('component:selected', (e) => {
+  // Highlight file in editor pane
+  editorPane.highlightFile(e.file);
+
+  // Log in activity pane
+  activityPane.log({
+    type: 'component_selected',
+    component: e.component,
+    file: e.file,
+  });
+
+  // Update chat context
+  chatPane.setComponentContext(e);
+});
+```
+
+**Source Map Requirements:**
+
+For this feature to work, projects need source maps enabled:
+
+```javascript
+// next.config.js
+module.exports = {
+  // Enable source maps in development
+  productionBrowserSourceMaps: false,
+  webpack: (config, { dev }) => {
+    if (dev) {
+      config.devtool = 'eval-source-map';
+    }
+    return config;
+  },
+};
+```
+
+**React DevTools Data Attributes (Fallback):**
+
+For production or when source maps aren't available, we can inject data attributes:
+
+```typescript
+// Babel plugin to add component source info
+// babel-plugin-lawless-inspector.js
+module.exports = function({ types: t }) {
+  return {
+    visitor: {
+      JSXOpeningElement(path, state) {
+        const location = path.node.loc;
+        if (location) {
+          path.node.attributes.push(
+            t.jsxAttribute(
+              t.jsxIdentifier('data-lawless-source'),
+              t.stringLiteral(
+                `${state.filename}:${location.start.line}:${location.start.column}`
+              )
+            )
+          );
+        }
+      },
+    },
+  };
+};
+```
+
 ### Deliverables
 - [ ] WebSocket tunnel implementation
 - [ ] Port assignment system (3000-3099)
@@ -1046,6 +1541,15 @@ async function assignPort(sessionId: string): Promise<number> {
 - [ ] Mini console for server logs
 - [ ] Deployment status indicator
 - [ ] Hot reload working through tunnel
+- [ ] **Inspect mode toggle button**
+- [ ] **Component highlight overlay on hover**
+- [ ] **Component info extraction (React fiber)**
+- [ ] **Source map integration for file location**
+- [ ] **Component selection panel with actions**
+- [ ] **"Edit with Claude" context loading**
+- [ ] **Real-time preview updates via HMR**
+- [ ] **Event bus integration for component events**
+- [ ] **Babel plugin for source attribution (fallback)**
 
 ---
 
