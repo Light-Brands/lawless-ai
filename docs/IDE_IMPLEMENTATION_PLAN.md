@@ -6,6 +6,7 @@
 
 1. [Vision & Architecture](#vision--architecture)
    - [Foundation: ai-coding-config Tooling Ecosystem](#foundation-ai-coding-config-tooling-ecosystem)
+   - [Automated Workflow Orchestration](#automated-workflow-orchestration)
    - [Core Concept](#core-concept)
 2. [Technical Architecture](#technical-architecture)
 3. [Phase 1: Foundation & Chat](#phase-1-foundation--chat)
@@ -82,6 +83,298 @@ Every IDE session starts with the **ai-coding-config** tooling ecosystem pre-loa
 | Activity Timeline | Logs agent activations and command executions |
 | File Editor | Agents like `test-engineer` and `security-reviewer` review changes |
 | Deployments | `/troubleshoot` integrates with failed deployment alerts |
+
+### Automated Workflow Orchestration
+
+The IDE orchestrates agents in **sequences** that chain together automatically based on task complexity. This creates a development pipeline where each phase flows into the next.
+
+#### Session Initialization (Every Session)
+
+When a session loads, the following happens automatically:
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                     SESSION INITIALIZATION                          │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│  1. Load Session Context                                            │
+│     ├─ Restore pane states, open files, notes                       │
+│     └─ If resuming: /session resume → reload previous progress      │
+│                                                                     │
+│  2. /load-rules (ALWAYS)                                            │
+│     ├─ Analyze project type (Next.js, Python, etc.)                 │
+│     ├─ Load relevant coding standards                               │
+│     └─ Inject into Claude's context                                 │
+│                                                                     │
+│  3. Populate AI Context Panel                                       │
+│     ├─ Show loaded rules                                            │
+│     ├─ Display available agents (24)                                │
+│     ├─ Display available commands (18)                              │
+│     └─ Display available skills (7)                                 │
+│                                                                     │
+│  4. Emit: session:initialized                                       │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+#### Task Execution Pipeline
+
+Every development task flows through this pipeline. Complexity is **auto-detected** or user-specified:
+
+```
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                          TASK EXECUTION PIPELINE                             │
+├──────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  ┌─────────────┐      ┌─────────────┐      ┌─────────────┐      ┌─────────┐ │
+│  │   INTAKE    │ ───▶ │  PLANNING   │ ───▶ │  EXECUTION  │ ───▶ │ REVIEW  │ │
+│  └─────────────┘      └─────────────┘      └─────────────┘      └─────────┘ │
+│        │                    │                    │                    │      │
+│        ▼                    ▼                    ▼                    ▼      │
+│  ┌───────────┐        ┌───────────┐        ┌───────────┐        ┌─────────┐ │
+│  │ Complexity│        │ Strategy  │        │ Implement │        │ Validate│ │
+│  │ Detection │        │ Selection │        │ + Test    │        │ + Ship  │ │
+│  └───────────┘        └───────────┘        └───────────┘        └─────────┘ │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+```
+
+#### Complexity Detection & Scaling
+
+The system auto-detects complexity based on task signals:
+
+| Signal | Quick | Balanced | Deep |
+|--------|-------|----------|------|
+| Files touched | 1-2 | 3-10 | 10+ |
+| New patterns | None | Some | New architecture |
+| Dependencies | None | Existing | New/external |
+| Risk level | Low | Medium | High |
+| Keywords | "fix", "typo", "update" | "add", "implement" | "redesign", "migrate", "refactor" |
+
+#### Agent Sequences by Complexity
+
+**Quick Path (Single-file fixes)**
+```
+User: "Fix the login redirect bug"
+         │
+         ▼
+┌────────────────────────────────────────────────┐
+│  QUICK PATH (~5 minutes)                       │
+├────────────────────────────────────────────────┤
+│  1. Skip formal planning                       │
+│  2. autonomous-developer → writes fix          │
+│  3. Git hooks validate (lint, format, types)   │
+│  4. Create PR                                  │
+│  5. Wait for bots (~2 min)                     │
+│  6. /address-pr-comments                       │
+│  7. ✓ Done                                     │
+└────────────────────────────────────────────────┘
+```
+
+**Balanced Path (Multi-file features)**
+```
+User: "Add OAuth2 authentication"
+         │
+         ▼
+┌────────────────────────────────────────────────────────────────────┐
+│  BALANCED PATH (~30 minutes)                                       │
+├────────────────────────────────────────────────────────────────────┤
+│                                                                    │
+│  PLANNING                                                          │
+│  ├─ /load-rules (auth patterns, security standards)               │
+│  └─ Light exploration via sub-agents                               │
+│                                                                    │
+│  EXECUTION                                                         │
+│  ├─ autonomous-developer → implements feature                     │
+│  └─ test-engineer → writes comprehensive tests                    │
+│                                                                    │
+│  REVIEW                                                            │
+│  ├─ /multi-review (balanced) with 2-3 agents:                     │
+│  │   ├─ security-reviewer (auth security)                         │
+│  │   └─ logic-reviewer (auth flow correctness)                    │
+│  └─ Fix all issues found                                          │
+│                                                                    │
+│  SHIP                                                              │
+│  ├─ Create PR                                                      │
+│  ├─ Wait for bots (~5 min)                                        │
+│  ├─ /address-pr-comments                                          │
+│  └─ ✓ Done                                                         │
+│                                                                    │
+└────────────────────────────────────────────────────────────────────┘
+```
+
+**Deep Path (Architectural changes)**
+```
+User: "Migrate from REST to event-driven architecture"
+         │
+         ▼
+┌────────────────────────────────────────────────────────────────────────────┐
+│  DEEP PATH (~2-4 hours)                                                    │
+├────────────────────────────────────────────────────────────────────────────┤
+│                                                                            │
+│  EXPLORATION                                                               │
+│  ├─ Full codebase exploration via sub-agents                              │
+│  ├─ /brainstorm-synthesis for architectural decision:                     │
+│  │   ├─ Pragmatist agent → Simplest approach?                             │
+│  │   ├─ Architect agent → Long-term sustainability?                       │
+│  │   ├─ Performance agent → Scalability impact?                           │
+│  │   ├─ Security agent → Attack surface?                                  │
+│  │   └─ Synthesize → Unified recommendation                               │
+│  └─ Output: Design document in docs/plans/                                │
+│                                                                            │
+│  PLAN REVIEW                                                               │
+│  ├─ /multi-review on PLAN (before coding!)                                │
+│  │   └─ architecture-auditor → Validate design decisions                  │
+│  └─ Revise plan based on feedback                                         │
+│                                                                            │
+│  EXECUTION                                                                 │
+│  ├─ autonomous-developer → Implements validated design                    │
+│  ├─ test-engineer → Comprehensive test coverage                           │
+│  │   ├─ Unit tests (90%+ line coverage)                                   │
+│  │   ├─ Integration tests                                                 │
+│  │   └─ E2E critical paths                                                │
+│  └─ /verify-fix → Confirm behavior from user perspective                  │
+│                                                                            │
+│  COMPREHENSIVE REVIEW                                                      │
+│  ├─ /multi-review (deep) with 5+ agents in parallel:                      │
+│  │   ├─ architecture-auditor → Structural integrity                       │
+│  │   ├─ security-reviewer → Security posture                              │
+│  │   ├─ performance-reviewer → Efficiency                                 │
+│  │   ├─ error-handling-reviewer → Failure modes                           │
+│  │   ├─ logic-reviewer → Correctness                                      │
+│  │   └─ domain-specific reviewers as needed                               │
+│  └─ Fix all critical/high issues                                          │
+│                                                                            │
+│  SHIP                                                                      │
+│  ├─ Create PR with detailed design rationale                              │
+│  ├─ Wait for all bots (~15 min)                                           │
+│  ├─ /address-pr-comments                                                  │
+│  ├─ Iterate until critical issues resolved                                │
+│  └─ ✓ Done                                                                 │
+│                                                                            │
+└────────────────────────────────────────────────────────────────────────────┘
+```
+
+#### Parallel Error Fixing Pipeline
+
+For production errors, a specialized pipeline handles multiple bugs simultaneously:
+
+```
+Production errors detected (Sentry/Vercel)
+         │
+         ▼
+┌────────────────────────────────────────────────────────────────────────────┐
+│  PARALLEL ERROR FIXING PIPELINE                                            │
+├────────────────────────────────────────────────────────────────────────────┤
+│                                                                            │
+│  /troubleshoot auto 5                                                      │
+│  ├─ Fetch top 5 unresolved errors                                         │
+│  ├─ Cluster errors sharing root causes                                     │
+│  └─ Triage: skip rate-limiting, external failures, etc.                   │
+│                                                                            │
+│  FOR EACH ERROR (parallel worktrees):                                      │
+│  ┌────────────────────────────────────────────────────────────────────┐   │
+│  │  Worktree: claude/fix-error-{id}                                   │   │
+│  │  ├─ debugger → Root cause analysis                                 │   │
+│  │  │   ├─ Form hypotheses from error + stack trace                   │   │
+│  │  │   ├─ Investigate systematically                                  │   │
+│  │  │   └─ Output: Root cause + evidence + minimal fix                │   │
+│  │  ├─ autonomous-developer → Implement fix                           │   │
+│  │  ├─ test-engineer → Write regression test                          │   │
+│  │  └─ Create PR                                                       │   │
+│  └────────────────────────────────────────────────────────────────────┘   │
+│                                                                            │
+│  PARALLEL PR PROCESSING:                                                   │
+│  ├─ Wait for CI on all PRs                                                │
+│  ├─ /address-pr-comments (each PR)                                        │
+│  └─ Track error rates after merge                                         │
+│                                                                            │
+└────────────────────────────────────────────────────────────────────────────┘
+```
+
+#### Multi-Agent Review Orchestration
+
+The `/multi-review` command orchestrates parallel agents:
+
+```
+Code ready for review
+         │
+         ▼
+┌────────────────────────────────────────────────────────────────────────────┐
+│  MULTI-AGENT REVIEW ORCHESTRATION                                          │
+├────────────────────────────────────────────────────────────────────────────┤
+│                                                                            │
+│  1. AGENT SELECTION (based on depth + code type)                           │
+│     ├─ Quick: 1-2 agents (logic-reviewer + domain-specific)               │
+│     ├─ Balanced: 2-3 agents (security + logic + domain)                   │
+│     └─ Deep: 5+ agents (full spectrum)                                    │
+│                                                                            │
+│  2. PARALLEL EXECUTION                                                     │
+│     ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐       │
+│     │   logic-    │ │  security-  │ │performance- │ │architecture-│       │
+│     │  reviewer   │ │  reviewer   │ │  reviewer   │ │   auditor   │       │
+│     └──────┬──────┘ └──────┬──────┘ └──────┬──────┘ └──────┬──────┘       │
+│            │               │               │               │               │
+│            ▼               ▼               ▼               ▼               │
+│     ┌─────────────────────────────────────────────────────────────┐       │
+│     │                      SYNTHESIS                               │       │
+│     │  ├─ Deduplicate findings                                    │       │
+│     │  ├─ Group by severity (critical/high/medium/low)            │       │
+│     │  └─ Assign: fix now / wontfix (with reason) / defer         │       │
+│     └─────────────────────────────────────────────────────────────┘       │
+│                                                                            │
+│  3. RESOLUTION                                                             │
+│     ├─ Fix all "fix now" issues immediately                               │
+│     ├─ Document wontfix decisions with rationale                          │
+│     └─ Create follow-up tasks for deferred items                          │
+│                                                                            │
+└────────────────────────────────────────────────────────────────────────────┘
+```
+
+#### Event-Driven Agent Triggers
+
+The IDE automatically triggers agents based on events:
+
+| Event | Auto-Triggered Agent/Command |
+|-------|------------------------------|
+| `deployment:failed` | `/troubleshoot` with error context |
+| `migration:detected` | Prompt to apply or `/troubleshoot` if fails |
+| `conflict:detected` | Prompt for resolution or ask Claude |
+| `test:failed` | `debugger` with test output context |
+| `security:alert` | `security-reviewer` on affected files |
+| `pr:created` | Wait for bots → `/address-pr-comments` |
+| `pr:feedback` | `/address-pr-comments` auto-triggered |
+
+#### Automation Configuration
+
+Users control automation levels per session:
+
+```typescript
+interface AutomationConfig {
+  // Session initialization
+  auto_load_rules: boolean;           // Default: true
+
+  // Task execution
+  auto_detect_complexity: boolean;    // Default: true
+  default_complexity: 'quick' | 'balanced' | 'deep';  // Default: 'balanced'
+
+  // Review
+  auto_multi_review: boolean;         // Default: true
+  review_depth: 'quick' | 'balanced' | 'deep';  // Default: 'balanced'
+
+  // PR handling
+  auto_address_pr_comments: boolean;  // Default: true
+  wait_for_bots_timeout: number;      // Default: 900000 (15 min)
+
+  // Error handling
+  auto_troubleshoot_failures: boolean; // Default: false (user confirms)
+  auto_apply_migrations: boolean;      // Default: false
+
+  // Git
+  auto_commit: boolean;               // Default: false (user confirms)
+  auto_push: boolean;                 // Default: false (user confirms)
+}
+```
 
 ### Core Concept
 
@@ -447,6 +740,11 @@ class OfflineQueue {
 - **Session notes**: Attach persistent notes to session for context when resuming
 - **Auto-expire**: Supabase scheduled function (default 7 days, configurable)
 - **Resume session**: Load all pane states, restore unsaved changes from IndexedDB
+- **Auto-initialization** (see [Automated Workflow Orchestration](#automated-workflow-orchestration)):
+  - `/load-rules` runs automatically on session load
+  - `/session resume` restores previous progress if applicable
+  - AI Context Panel populated with available agents/commands/skills
+  - Automation config applied from user preferences
 
 #### 1.6 Default State
 - On first load: Pane 1 (Chat) + Pane 2 (File Editor) visible
@@ -1552,13 +1850,24 @@ SELECT cron.schedule(
 
 ---
 
-*Document Version: 2.1*
+*Document Version: 2.2*
 *Created: January 2025*
 *Last Updated: January 2026*
 
 ---
 
 ## Changelog
+
+### v2.2 (Automated Workflow Orchestration)
+- **Automated Workflow Orchestration**: Complete section detailing agent sequences and pipelines
+- **Session Auto-Initialization**: `/load-rules` runs automatically, `/session resume` for continuity
+- **Task Execution Pipeline**: Intake → Planning → Execution → Review flow with complexity scaling
+- **Complexity Detection**: Auto-detect quick/balanced/deep based on task signals
+- **Agent Sequences**: Detailed flows for quick, balanced, and deep paths
+- **Parallel Error Fixing**: `/troubleshoot` pipeline for handling multiple production errors
+- **Multi-Agent Review**: Orchestration pattern for parallel review agents with synthesis
+- **Event-Driven Triggers**: Agents auto-trigger on deployment:failed, test:failed, etc.
+- **Automation Configuration**: User-controllable automation levels per session
 
 ### v2.1 (ai-coding-config Integration)
 - **ai-coding-config Foundation**: Every session pre-loads the full tooling ecosystem (24 agents, 18 commands, 7 skills)
