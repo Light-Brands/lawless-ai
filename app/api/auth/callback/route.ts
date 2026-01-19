@@ -172,5 +172,95 @@ export async function GET(request: NextRequest) {
     });
   }
 
+  // Sync GitHub repos to database on login
+  if (providerToken) {
+    try {
+      console.log('Syncing GitHub repos for user:', user.id);
+      await syncGitHubRepos(serviceClient, user.id, providerToken);
+    } catch (err) {
+      console.error('Repo sync error:', err);
+      // Don't fail auth if repo sync fails
+    }
+  }
+
   return response;
+}
+
+/**
+ * Fetch all GitHub repos (owned, collaborator, and org repos) and sync to database
+ */
+async function syncGitHubRepos(
+  serviceClient: ReturnType<typeof createServiceClient>,
+  userId: string,
+  token: string
+): Promise<void> {
+  const headers = {
+    Authorization: `Bearer ${token}`,
+    Accept: 'application/vnd.github.v3+json',
+  };
+
+  // Fetch user's repositories (owned + collaborator access)
+  const userReposResponse = await fetch(
+    'https://api.github.com/user/repos?per_page=100&sort=updated&affiliation=owner,collaborator',
+    { headers }
+  );
+
+  if (!userReposResponse.ok) {
+    console.error('Failed to fetch user repos:', userReposResponse.status);
+    return;
+  }
+
+  const userRepos = await userReposResponse.json();
+
+  // Fetch user's organizations
+  const orgsResponse = await fetch('https://api.github.com/user/orgs?per_page=100', { headers });
+  const orgs = orgsResponse.ok ? await orgsResponse.json() : [];
+
+  // Fetch repos for each org in parallel
+  const orgRepoPromises = orgs.map((org: { login: string }) =>
+    fetch(`https://api.github.com/orgs/${org.login}/repos?per_page=100&sort=updated`, { headers })
+      .then(res => (res.ok ? res.json() : []))
+      .catch(() => [])
+  );
+
+  const orgReposArrays = await Promise.all(orgRepoPromises);
+  const orgRepos = orgReposArrays.flat();
+
+  // Combine and deduplicate repos
+  const allRepos = [...userRepos, ...orgRepos];
+  const uniqueRepos = Array.from(
+    new Map(allRepos.map((repo: { id: number }) => [repo.id, repo])).values()
+  );
+
+  console.log(`Found ${uniqueRepos.length} unique repos to sync`);
+
+  if (uniqueRepos.length === 0) {
+    return;
+  }
+
+  // Prepare repos for upsert
+  const reposToUpsert = uniqueRepos.map((repo: any) => ({
+    user_id: userId,
+    repo_id: repo.id,
+    repo_full_name: repo.full_name,
+    repo_name: repo.name,
+    is_private: repo.private || false,
+    description: repo.description,
+    language: repo.language,
+    default_branch: repo.default_branch || 'main',
+    html_url: repo.html_url,
+    clone_url: repo.clone_url,
+    updated_at: new Date().toISOString(),
+  }));
+
+  // Upsert all repos to database
+  const { error } = await serviceClient.from('user_repos').upsert(reposToUpsert as never[], {
+    onConflict: 'user_id,repo_id',
+  });
+
+  if (error) {
+    console.error('Repo upsert error:', error);
+  } else {
+    console.log(`Successfully synced ${reposToUpsert.length} repos for user ${userId}`);
+  }
 }
