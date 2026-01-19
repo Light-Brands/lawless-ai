@@ -100,17 +100,25 @@ export async function GET(request: NextRequest) {
   const githubIdentity = user.identities?.find(i => i.provider === 'github');
   const providerToken = session.provider_token;
 
+  // Use GitHub username as the user ID (matches our schema)
+  const githubUsername = user.user_metadata?.user_name || user.user_metadata?.preferred_username;
+
+  if (!githubUsername) {
+    console.error('No GitHub username found in user metadata');
+    return response;
+  }
+
   // Use service role client for database operations (bypasses RLS)
   const serviceClient = createServiceClient();
 
-  // Upsert user record in our users table
+  // Upsert user record in our users table (using GitHub username as id)
   const { error: upsertError } = await serviceClient.from('users').upsert(
     {
-      id: user.id,
-      github_username: user.user_metadata?.user_name || user.user_metadata?.preferred_username,
+      id: githubUsername,
+      github_username: githubUsername,
       github_id: githubIdentity?.id,
       avatar_url: user.user_metadata?.avatar_url,
-      display_name: user.user_metadata?.full_name || user.user_metadata?.name,
+      display_name: user.user_metadata?.full_name || user.user_metadata?.name || githubUsername,
       updated_at: new Date().toISOString(),
     } as never,
     {
@@ -122,7 +130,7 @@ export async function GET(request: NextRequest) {
     console.error('User upsert error:', upsertError);
     // Don't fail the auth - user can still use the app
   } else {
-    console.log('User record created/updated for:', user.id);
+    console.log('User record created/updated for:', githubUsername);
   }
 
   // If we have a provider token (GitHub access token), store it encrypted
@@ -132,11 +140,11 @@ export async function GET(request: NextRequest) {
 
       const { error: tokenError } = await serviceClient.from('integration_connections').upsert(
         {
-          user_id: user.id,
+          user_id: githubUsername,
           provider: 'github',
           access_token: encryptedToken,
           metadata: {
-            username: user.user_metadata?.user_name,
+            username: githubUsername,
             scopes: 'repo delete_repo user:email read:org',
           },
           updated_at: new Date().toISOString(),
@@ -149,7 +157,7 @@ export async function GET(request: NextRequest) {
       if (tokenError) {
         console.error('Token storage error:', tokenError);
       } else {
-        console.log('GitHub token stored for user:', user.id);
+        console.log('GitHub token stored for user:', githubUsername);
       }
     } catch (err) {
       console.error('Token encryption error:', err);
@@ -175,8 +183,8 @@ export async function GET(request: NextRequest) {
   // Sync GitHub repos to database on login
   if (providerToken) {
     try {
-      console.log('Syncing GitHub repos for user:', user.id);
-      await syncGitHubRepos(serviceClient, user.id, providerToken);
+      console.log('Syncing GitHub repos for user:', githubUsername);
+      await syncGitHubRepos(serviceClient, githubUsername, providerToken);
     } catch (err) {
       console.error('Repo sync error:', err);
       // Don't fail auth if repo sync fails
