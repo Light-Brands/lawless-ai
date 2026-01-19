@@ -163,30 +163,34 @@ export default function Header({ showNav = true }: HeaderProps) {
         .app-nav {
           display: flex;
           align-items: center;
-          gap: 4px;
+          gap: 8px;
         }
 
         .app-nav-link {
           display: flex;
           align-items: center;
-          gap: 6px;
-          padding: 8px 14px;
-          border-radius: var(--radius-md, 8px);
-          font-size: 0.875rem;
+          gap: 8px;
+          padding: 8px 16px;
+          background: rgba(255, 255, 255, 0.05);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          border-radius: 8px;
+          font-size: 14px;
           font-weight: 500;
-          color: var(--color-text-secondary, #9ca3af);
+          color: #d1d5db;
           text-decoration: none;
-          transition: all var(--transition-fast, 150ms);
+          transition: all 0.2s ease;
         }
 
         .app-nav-link:hover {
-          color: var(--color-text-primary, #f9fafb);
-          background: var(--color-bg-hover, rgba(255, 255, 255, 0.05));
+          background: rgba(255, 255, 255, 0.1);
+          border-color: rgba(255, 255, 255, 0.15);
+          color: #f9fafb;
         }
 
         .app-nav-link.active {
-          color: var(--color-text-primary, #f9fafb);
-          background: var(--color-bg-elevated, rgba(255, 255, 255, 0.08));
+          background: rgba(168, 85, 247, 0.15);
+          border-color: rgba(168, 85, 247, 0.3);
+          color: #f9fafb;
         }
 
         .app-header-right {
@@ -203,6 +207,10 @@ export default function Header({ showNav = true }: HeaderProps) {
 
           .app-nav-link {
             padding: 10px;
+          }
+
+          .app-nav {
+            gap: 6px;
           }
         }
 
