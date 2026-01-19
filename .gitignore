@@ -36,3 +36,7 @@ tsconfig.tsbuildinfo
 # Claude Code session data (user-specific, may contain sensitive context)
 .claude/sessions/
 .vercel
+
+# Local environment files
+.env.local
+.env.*.local
