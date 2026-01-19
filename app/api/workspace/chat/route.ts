@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@/lib/supabase/server';
 
 export const runtime = 'nodejs';
 
@@ -6,16 +7,33 @@ const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:3001';
 const BACKEND_API_KEY = process.env.BACKEND_API_KEY || '';
 
 export async function POST(request: NextRequest) {
-  const token = request.cookies.get('github_token')?.value;
+  const { message, repoFullName, sessionId, workspaceSessionId, conversationId } = await request.json();
+
+  // Get GitHub token and username from cookies or Supabase Auth
+  let token = request.cookies.get('github_token')?.value;
+  let githubUser = request.cookies.get('github_user')?.value;
+
+  // If no direct OAuth cookies, try Supabase Auth
+  if (!token || !githubUser) {
+    try {
+      const supabase = await createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        githubUser = user.user_metadata?.user_name ||
+                     user.user_metadata?.preferred_username ||
+                     user.email?.split('@')[0];
+        // Get GitHub token from Supabase if available
+        const { data: { session } } = await supabase.auth.getSession();
+        token = session?.provider_token || token;
+      }
+    } catch (e) {
+      console.error('Error getting Supabase user:', e);
+    }
+  }
 
   if (!token) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
   }
-
-  const { message, repoFullName, sessionId, workspaceSessionId, conversationId } = await request.json();
-
-  // Get GitHub username from cookie for database persistence
-  const githubUser = request.cookies.get('github_user')?.value;
 
   if (!message || !repoFullName) {
     return NextResponse.json({ error: 'Message and repository required' }, { status: 400 });

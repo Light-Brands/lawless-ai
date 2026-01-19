@@ -1,4 +1,5 @@
 import { NextRequest } from 'next/server';
+import { createClient } from '@/lib/supabase/server';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -9,11 +10,26 @@ const BACKEND_API_KEY = process.env.BACKEND_API_KEY || '';
 export async function POST(request: NextRequest) {
   const { message, sessionId, conversationId } = await request.json();
 
-  // Get GitHub username from cookie for database persistence
-  const githubUser = request.cookies.get('github_user')?.value;
-  const githubToken = request.cookies.get('github_token')?.value;
+  // Get GitHub username from cookie (direct OAuth) or Supabase Auth
+  let githubUser = request.cookies.get('github_user')?.value;
 
-  console.log(`[Frontend Chat] Cookies - github_user: ${githubUser || 'NOT SET'}, github_token: ${githubToken ? 'SET' : 'NOT SET'}`);
+  // If no direct OAuth cookie, try Supabase Auth
+  if (!githubUser) {
+    try {
+      const supabase = await createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        // Get GitHub username from user metadata or email
+        githubUser = user.user_metadata?.user_name ||
+                     user.user_metadata?.preferred_username ||
+                     user.email?.split('@')[0];
+      }
+    } catch (e) {
+      console.error('Error getting Supabase user:', e);
+    }
+  }
+
+  console.log(`[Frontend Chat] userId resolved to: ${githubUser || 'none'}`);
 
   if (!message) {
     return new Response(JSON.stringify({ error: 'Message is required' }), {
