@@ -134,8 +134,7 @@ export default function TerminalPage() {
   const [error, setError] = useState<string | null>(null);
 
   const repoPath = Array.isArray(params.repo) ? params.repo.join('/') : params.repo;
-  const storageKey = repoPath ? `terminal_sessions_${repoPath.replace('/', '_')}` : null;
-  const outputStorageKey = repoPath ? `terminal_outputs_${repoPath.replace('/', '_')}` : null;
+  const sessionsLoadedRef = useRef(false);
 
   // Check auth on mount
   useEffect(() => {
@@ -166,88 +165,101 @@ export default function TerminalPage() {
     checkAuth();
   }, [router]);
 
-  // Load saved sessions and outputs from localStorage
+  // Load saved sessions and outputs from database
   useEffect(() => {
-    if (!repoPath) return;
+    if (!repoPath || !user || sessionsLoadedRef.current) return;
 
-    const savedSessions = localStorage.getItem(`terminal_sessions_${repoPath.replace('/', '_')}`);
-    if (savedSessions) {
+    async function loadSessions() {
       try {
-        const parsed = JSON.parse(savedSessions);
-        const restoredSessions: TerminalSession[] = parsed.map((s: any) => ({
-          ...s,
-          createdAt: new Date(s.createdAt),
-          connected: false,
-          branchName: s.branchName,
-          baseBranch: s.baseBranch,
-          baseCommit: s.baseCommit,
-        }));
-        setSessions(restoredSessions);
-        if (restoredSessions.length > 0) {
-          setActiveSessionId(restoredSessions[0].id);
+        const response = await fetch(`/api/terminal/sessions?repo=${encodeURIComponent(repoPath!)}`);
+        if (!response.ok) return;
+
+        const data = await response.json();
+        if (data.sessions && data.sessions.length > 0) {
+          const restoredSessions: TerminalSession[] = data.sessions.map((s: any) => ({
+            id: s.session_id,
+            name: s.name,
+            createdAt: new Date(s.created_at),
+            connected: false,
+            branchName: s.branch_name,
+            baseBranch: s.base_branch,
+            baseCommit: s.base_commit,
+          }));
+          setSessions(restoredSessions);
+          if (restoredSessions.length > 0) {
+            setActiveSessionId(restoredSessions[0].id);
+          }
+
+          // Load outputs for each session
+          data.sessions.forEach((s: any) => {
+            if (s.outputs && s.outputs.length > 0) {
+              sessionOutputs.current.set(s.session_id, s.outputs);
+            }
+          });
         }
+        sessionsLoadedRef.current = true;
       } catch (e) {
-        console.error('Failed to parse saved sessions');
+        console.error('Failed to load sessions from database:', e);
       }
     }
 
-    // Load saved outputs
-    const savedOutputs = localStorage.getItem(`terminal_outputs_${repoPath.replace('/', '_')}`);
-    if (savedOutputs) {
-      try {
-        const parsed = JSON.parse(savedOutputs);
-        Object.entries(parsed).forEach(([sessionId, lines]) => {
-          sessionOutputs.current.set(sessionId, lines as string[]);
-        });
-      } catch (e) {
-        console.error('Failed to parse saved outputs');
-      }
-    }
-  }, [repoPath]);
+    loadSessions();
+  }, [repoPath, user]);
 
-  // Save sessions to localStorage
+  // Save sessions and outputs to database periodically
   useEffect(() => {
-    if (!repoPath || sessions.length === 0) return;
+    if (!repoPath || !user) return;
 
-    const toSave = sessions.map(s => ({
-      id: s.id,
-      name: s.name,
-      createdAt: s.createdAt.toISOString(),
-      branchName: s.branchName,
-      baseBranch: s.baseBranch,
-      baseCommit: s.baseCommit,
-    }));
-    localStorage.setItem(`terminal_sessions_${repoPath.replace('/', '_')}`, JSON.stringify(toSave));
-  }, [sessions, repoPath]);
-
-  // Save outputs to localStorage periodically and on unmount
-  useEffect(() => {
-    if (!repoPath) return;
-
-    const saveOutputs = () => {
-      const outputs: Record<string, string[]> = {};
-      sessionOutputs.current.forEach((lines, sessionId) => {
-        outputs[sessionId] = lines;
-      });
-      if (Object.keys(outputs).length > 0) {
-        localStorage.setItem(`terminal_outputs_${repoPath.replace('/', '_')}`, JSON.stringify(outputs));
+    const saveSessionsToDb = async () => {
+      // Save each session with its outputs
+      for (const session of sessions) {
+        const outputs = sessionOutputs.current.get(session.id) || [];
+        try {
+          await fetch('/api/terminal/sessions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              sessionId: session.id,
+              repoFullName: repoPath,
+              name: session.name,
+              branchName: session.branchName,
+              baseBranch: session.baseBranch,
+              baseCommit: session.baseCommit,
+              outputs,
+            }),
+          });
+        } catch (e) {
+          console.error('Failed to save session to database:', e);
+        }
       }
     };
 
-    // Save every 5 seconds
-    const interval = setInterval(saveOutputs, 5000);
+    // Save every 30 seconds (less frequent to reduce API calls)
+    const interval = setInterval(saveSessionsToDb, 30000);
 
     // Also save on visibility change (when user navigates away)
     const handleVisibilityChange = () => {
       if (document.hidden) {
-        saveOutputs();
+        saveSessionsToDb();
       }
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
     // Save on beforeunload
     const handleBeforeUnload = () => {
-      saveOutputs();
+      // Use sendBeacon for reliability on page unload
+      for (const session of sessions) {
+        const outputs = sessionOutputs.current.get(session.id) || [];
+        navigator.sendBeacon('/api/terminal/sessions', JSON.stringify({
+          sessionId: session.id,
+          repoFullName: repoPath,
+          name: session.name,
+          branchName: session.branchName,
+          baseBranch: session.baseBranch,
+          baseCommit: session.baseCommit,
+          outputs,
+        }));
+      }
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
 
@@ -256,9 +268,9 @@ export default function TerminalPage() {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('beforeunload', handleBeforeUnload);
       // Save on unmount
-      saveOutputs();
+      saveSessionsToDb();
     };
-  }, [repoPath]);
+  }, [repoPath, sessions, user]);
 
   // Connect to WebSocket for a session
   const connectWebSocket = useCallback((sessionId: string, term: any) => {
@@ -581,13 +593,18 @@ export default function TerminalPage() {
     initializedSessions.current.delete(sessionId);
     sessionOutputs.current.delete(sessionId);
 
-    // Call backend to delete worktree and branch
+    // Call backend to delete worktree and branch, and delete from database
     try {
-      await fetch(`/api/terminal/session/${sessionId}?repo=${encodeURIComponent(repoPath!)}`, {
-        method: 'DELETE',
-      });
+      await Promise.all([
+        fetch(`/api/terminal/session/${sessionId}?repo=${encodeURIComponent(repoPath!)}`, {
+          method: 'DELETE',
+        }),
+        fetch(`/api/terminal/sessions?sessionId=${encodeURIComponent(sessionId)}`, {
+          method: 'DELETE',
+        }),
+      ]);
     } catch (err) {
-      console.error('Failed to delete session on backend:', err);
+      console.error('Failed to delete session:', err);
       // Continue with local cleanup even if backend fails
     }
 

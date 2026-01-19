@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
+import { createClient, createServiceClient } from '@/lib/supabase/server';
 
 export const runtime = 'nodejs';
 
@@ -12,90 +12,169 @@ interface RepoIntegrations {
   [repoFullName: string]: RepoIntegration;
 }
 
-function getRepoIntegrations(cookieStore: ReturnType<typeof cookies>): RepoIntegrations {
-  const cookie = cookieStore.get('repo_integrations')?.value;
-  if (!cookie) return {};
-  try {
-    return JSON.parse(cookie);
-  } catch {
-    return {};
-  }
-}
-
-function setRepoIntegrations(response: NextResponse, integrations: RepoIntegrations) {
-  response.cookies.set('repo_integrations', JSON.stringify(integrations), {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    maxAge: 60 * 60 * 24 * 365, // 1 year
-    path: '/',
-  });
-}
-
 // GET - retrieve associations for a repo
 export async function GET(request: NextRequest) {
-  const searchParams = request.nextUrl.searchParams;
-  const repo = searchParams.get('repo');
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
 
-  const cookieStore = await cookies();
-  const integrations = getRepoIntegrations(cookieStore);
+    if (!user) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
 
-  if (repo) {
-    // Return specific repo's integrations
-    return NextResponse.json({
-      integrations: integrations[repo] || {},
-    });
+    const githubUsername = user.user_metadata?.user_name || user.user_metadata?.preferred_username;
+    if (!githubUsername) {
+      return NextResponse.json({ error: 'No GitHub username found' }, { status: 400 });
+    }
+
+    const serviceClient = createServiceClient();
+    const searchParams = request.nextUrl.searchParams;
+    const repo = searchParams.get('repo');
+
+    if (repo) {
+      // Return specific repo's integrations
+      const { data, error } = await serviceClient
+        .from('repo_integrations')
+        .select('vercel_project_id, supabase_project_ref')
+        .eq('user_id', githubUsername)
+        .eq('repo_full_name', repo)
+        .single();
+
+      if (error && error.code !== 'PGRST116') { // PGRST116 = not found
+        console.error('Error fetching repo integrations:', error);
+        return NextResponse.json({ error: 'Failed to fetch integrations' }, { status: 500 });
+      }
+
+      const integration: RepoIntegration = {};
+      if (data?.vercel_project_id) {
+        integration.vercel = { projectId: data.vercel_project_id, projectName: '' };
+      }
+      if (data?.supabase_project_ref) {
+        integration.supabase = { projectRef: data.supabase_project_ref, projectName: '' };
+      }
+
+      return NextResponse.json({ integrations: integration });
+    }
+
+    // Return all integrations
+    const { data, error } = await serviceClient
+      .from('repo_integrations')
+      .select('repo_full_name, vercel_project_id, supabase_project_ref')
+      .eq('user_id', githubUsername);
+
+    if (error) {
+      console.error('Error fetching repo integrations:', error);
+      return NextResponse.json({ error: 'Failed to fetch integrations' }, { status: 500 });
+    }
+
+    const integrations: RepoIntegrations = {};
+    for (const row of data || []) {
+      const integration: RepoIntegration = {};
+      if (row.vercel_project_id) {
+        integration.vercel = { projectId: row.vercel_project_id, projectName: '' };
+      }
+      if (row.supabase_project_ref) {
+        integration.supabase = { projectRef: row.supabase_project_ref, projectName: '' };
+      }
+      if (Object.keys(integration).length > 0) {
+        integrations[row.repo_full_name] = integration;
+      }
+    }
+
+    return NextResponse.json({ integrations });
+  } catch (error) {
+    console.error('Error in GET /api/repos/integrations:', error);
+    return NextResponse.json({ error: 'Internal error' }, { status: 500 });
   }
-
-  // Return all integrations
-  return NextResponse.json({ integrations });
 }
 
 // POST - save an association
 export async function POST(request: NextRequest) {
   try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+
+    const githubUsername = user.user_metadata?.user_name || user.user_metadata?.preferred_username;
+    if (!githubUsername) {
+      return NextResponse.json({ error: 'No GitHub username found' }, { status: 400 });
+    }
+
     const body = await request.json();
-    const { repo, vercel, supabase } = body;
+    const { repo, vercel, supabase: supabaseProject } = body;
 
     if (!repo) {
       return NextResponse.json({ error: 'repo is required' }, { status: 400 });
     }
 
-    const cookieStore = await cookies();
-    const integrations = getRepoIntegrations(cookieStore);
+    const serviceClient = createServiceClient();
 
-    // Initialize repo entry if not exists
-    if (!integrations[repo]) {
-      integrations[repo] = {};
-    }
+    // Get existing integration
+    const { data: existing } = await serviceClient
+      .from('repo_integrations')
+      .select('vercel_project_id, supabase_project_ref')
+      .eq('user_id', githubUsername)
+      .eq('repo_full_name', repo)
+      .single();
+
+    // Build update object
+    const updates: Record<string, unknown> = {
+      user_id: githubUsername,
+      repo_full_name: repo,
+      updated_at: new Date().toISOString(),
+    };
 
     // Update vercel if provided
     if (vercel !== undefined) {
-      if (vercel === null) {
-        delete integrations[repo].vercel;
-      } else {
-        integrations[repo].vercel = vercel;
-      }
+      updates.vercel_project_id = vercel === null ? null : vercel.projectId;
+    } else if (existing?.vercel_project_id) {
+      updates.vercel_project_id = existing.vercel_project_id;
     }
 
     // Update supabase if provided
-    if (supabase !== undefined) {
-      if (supabase === null) {
-        delete integrations[repo].supabase;
-      } else {
-        integrations[repo].supabase = supabase;
-      }
+    if (supabaseProject !== undefined) {
+      updates.supabase_project_ref = supabaseProject === null ? null : supabaseProject.projectRef;
+    } else if (existing?.supabase_project_ref) {
+      updates.supabase_project_ref = existing.supabase_project_ref;
     }
 
-    // Clean up empty entries
-    if (Object.keys(integrations[repo]).length === 0) {
-      delete integrations[repo];
+    // Check if there's anything to save
+    if (!updates.vercel_project_id && !updates.supabase_project_ref) {
+      // Delete the row if both are null/empty
+      await serviceClient
+        .from('repo_integrations')
+        .delete()
+        .eq('user_id', githubUsername)
+        .eq('repo_full_name', repo);
+
+      return NextResponse.json({ success: true, integrations: {} });
     }
 
-    const response = NextResponse.json({ success: true, integrations: integrations[repo] || {} });
-    setRepoIntegrations(response, integrations);
-    return response;
+    // Upsert the integration
+    const { error } = await serviceClient
+      .from('repo_integrations')
+      .upsert(updates as never, { onConflict: 'user_id,repo_full_name' });
+
+    if (error) {
+      console.error('Error saving repo integration:', error);
+      return NextResponse.json({ error: 'Failed to save integration' }, { status: 500 });
+    }
+
+    // Build response
+    const integration: RepoIntegration = {};
+    if (updates.vercel_project_id) {
+      integration.vercel = { projectId: updates.vercel_project_id as string, projectName: '' };
+    }
+    if (updates.supabase_project_ref) {
+      integration.supabase = { projectRef: updates.supabase_project_ref as string, projectName: '' };
+    }
+
+    return NextResponse.json({ success: true, integrations: integration });
   } catch (error) {
+    console.error('Error in POST /api/repos/integrations:', error);
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
   }
 }
@@ -103,6 +182,18 @@ export async function POST(request: NextRequest) {
 // DELETE - remove an association
 export async function DELETE(request: NextRequest) {
   try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+
+    const githubUsername = user.user_metadata?.user_name || user.user_metadata?.preferred_username;
+    if (!githubUsername) {
+      return NextResponse.json({ error: 'No GitHub username found' }, { status: 400 });
+    }
+
     const body = await request.json();
     const { repo, service } = body;
 
@@ -114,23 +205,51 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'service must be "vercel" or "supabase"' }, { status: 400 });
     }
 
-    const cookieStore = await cookies();
-    const integrations = getRepoIntegrations(cookieStore);
+    const serviceClient = createServiceClient();
 
-    if (integrations[repo]) {
-      const serviceKey = service as 'vercel' | 'supabase';
-      delete integrations[repo][serviceKey];
+    // Get existing integration
+    const { data: existing } = await serviceClient
+      .from('repo_integrations')
+      .select('vercel_project_id, supabase_project_ref')
+      .eq('user_id', githubUsername)
+      .eq('repo_full_name', repo)
+      .single();
 
-      // Clean up empty entries
-      if (Object.keys(integrations[repo]).length === 0) {
-        delete integrations[repo];
-      }
+    if (!existing) {
+      return NextResponse.json({ success: true });
     }
 
-    const response = NextResponse.json({ success: true });
-    setRepoIntegrations(response, integrations);
-    return response;
+    const updates: Record<string, unknown> = {
+      updated_at: new Date().toISOString(),
+    };
+
+    if (service === 'vercel') {
+      updates.vercel_project_id = null;
+      updates.supabase_project_ref = existing.supabase_project_ref;
+    } else {
+      updates.supabase_project_ref = null;
+      updates.vercel_project_id = existing.vercel_project_id;
+    }
+
+    // If both are null, delete the row
+    if (!updates.vercel_project_id && !updates.supabase_project_ref) {
+      await serviceClient
+        .from('repo_integrations')
+        .delete()
+        .eq('user_id', githubUsername)
+        .eq('repo_full_name', repo);
+    } else {
+      // Update to remove just the specified service
+      await serviceClient
+        .from('repo_integrations')
+        .update(updates as never)
+        .eq('user_id', githubUsername)
+        .eq('repo_full_name', repo);
+    }
+
+    return NextResponse.json({ success: true });
   } catch (error) {
+    console.error('Error in DELETE /api/repos/integrations:', error);
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
   }
 }

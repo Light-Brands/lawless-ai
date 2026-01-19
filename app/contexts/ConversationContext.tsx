@@ -8,14 +8,11 @@ import {
   useCallback,
   ReactNode,
   useMemo,
+  useRef,
 } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from './AuthContext';
 import type { Conversation, ConversationType } from '@/types/database';
-
-// Constants for local storage keys
-const LAST_CONVERSATION_KEY = 'lawless_last_conversation';
-const LAST_ROOT_CONVERSATION_KEY = 'lawless_last_root_conversation';
 
 export type Message = {
   role: 'user' | 'assistant';
@@ -128,18 +125,27 @@ export function ConversationProvider({ children, autoRestore = false }: Conversa
     }
   }, [supabase, user?.id]);
 
-  // Set active conversation and persist to local storage
+  // Set active conversation and persist to database
   const setActiveConversation = useCallback((conversation: Conversation | null) => {
     setActiveConversationState(conversation);
 
-    if (conversation) {
-      // Persist to local storage for session restoration
-      localStorage.setItem(LAST_CONVERSATION_KEY, conversation.id);
+    if (conversation && user?.id) {
+      // Persist to database for session restoration
+      const updates: Record<string, string | null> = {
+        lastConversationId: conversation.id,
+      };
       if (conversation.conversation_type === 'root') {
-        localStorage.setItem(LAST_ROOT_CONVERSATION_KEY, conversation.id);
+        updates.lastRootConversationId = conversation.id;
       }
+
+      // Fire and forget - don't block UI on preference update
+      fetch('/api/user/preferences', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates),
+      }).catch(err => console.error('Failed to persist conversation preference:', err));
     }
-  }, []);
+  }, [user?.id]);
 
   // Start a new conversation
   const startNewConversation = useCallback(
@@ -356,24 +362,36 @@ export function ConversationProvider({ children, autoRestore = false }: Conversa
     [supabase, activeConversation]
   );
 
-  // Restore last conversation from local storage
+  // Restore last conversation from database
   const restoreLastConversation = useCallback(async (): Promise<Conversation | null> => {
-    const lastId = localStorage.getItem(LAST_CONVERSATION_KEY);
-    if (!lastId) {
+    try {
+      const response = await fetch('/api/user/preferences');
+      if (!response.ok) return null;
+
+      const data = await response.json();
+      if (!data.lastConversationId) return null;
+
+      return continueConversation(data.lastConversationId);
+    } catch (err) {
+      console.error('Failed to restore last conversation:', err);
       return null;
     }
-
-    return continueConversation(lastId);
   }, [continueConversation]);
 
-  // Restore last root conversation
+  // Restore last root conversation from database
   const restoreLastRootConversation = useCallback(async (): Promise<Conversation | null> => {
-    const lastId = localStorage.getItem(LAST_ROOT_CONVERSATION_KEY);
-    if (!lastId) {
+    try {
+      const response = await fetch('/api/user/preferences');
+      if (!response.ok) return null;
+
+      const data = await response.json();
+      if (!data.lastRootConversationId) return null;
+
+      return continueConversation(data.lastRootConversationId);
+    } catch (err) {
+      console.error('Failed to restore last root conversation:', err);
       return null;
     }
-
-    return continueConversation(lastId);
   }, [continueConversation]);
 
   // Initial fetch and auto-restore

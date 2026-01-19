@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getIntegrationToken } from '@/lib/integrations/tokens';
 
 export const runtime = 'nodejs';
 
 export async function GET(request: NextRequest) {
-  const token = request.cookies.get('supabase_token')?.value;
+  // Try database first, fall back to cookie for backward compatibility
+  let token = await getIntegrationToken('supabase_pat');
+  if (!token) {
+    token = request.cookies.get('supabase_token')?.value || null;
+  }
   const projectsCookie = request.cookies.get('supabase_projects')?.value;
 
   // If using PAT, fetch from Management API
@@ -62,7 +67,11 @@ export async function GET(request: NextRequest) {
 
 // Create a new Supabase project
 export async function POST(request: NextRequest) {
-  const token = request.cookies.get('supabase_token')?.value;
+  // Try database first, fall back to cookie for backward compatibility
+  let token = await getIntegrationToken('supabase_pat');
+  if (!token) {
+    token = request.cookies.get('supabase_token')?.value || null;
+  }
 
   if (!token) {
     return NextResponse.json(

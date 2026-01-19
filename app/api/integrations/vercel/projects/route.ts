@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getIntegrationToken } from '@/lib/integrations/tokens';
 
 export const runtime = 'nodejs';
 
 export async function GET(request: NextRequest) {
-  const token = request.cookies.get('vercel_token')?.value;
+  // Try database first, fall back to cookie for backward compatibility
+  let token = await getIntegrationToken('vercel');
+  if (!token) {
+    token = request.cookies.get('vercel_token')?.value || null;
+  }
 
   if (!token) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
@@ -56,7 +61,11 @@ export async function GET(request: NextRequest) {
 
 // Create a new Vercel project and optionally link to GitHub
 export async function POST(request: NextRequest) {
-  const token = request.cookies.get('vercel_token')?.value;
+  // Try database first, fall back to cookie for backward compatibility
+  let token = await getIntegrationToken('vercel');
+  if (!token) {
+    token = request.cookies.get('vercel_token')?.value || null;
+  }
 
   if (!token) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });

@@ -128,25 +128,46 @@ export default function SQLEditorPanel({ projectRef, tables }: SQLEditorPanelPro
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const highlightRef = useRef<HTMLPreElement>(null);
 
-  // Load history from localStorage
+  // Load history from database
   useEffect(() => {
-    const saved = localStorage.getItem(`sql_history_${projectRef}`);
-    if (saved) {
+    async function loadHistory() {
       try {
-        const parsed = JSON.parse(saved);
-        setHistory(parsed.map((item: QueryHistoryItem) => ({
-          ...item,
-          timestamp: new Date(item.timestamp)
-        })));
+        const res = await fetch(`/api/sql/history?projectRef=${encodeURIComponent(projectRef)}`);
+        if (res.ok) {
+          const data = await res.json();
+          setHistory((data.history || []).map((item: any) => ({
+            id: item.id,
+            query: item.query,
+            timestamp: new Date(item.created_at),
+            success: item.success,
+            rowCount: item.row_count,
+            executionTime: item.execution_time_ms,
+          })));
+        }
       } catch {
-        // Ignore parse errors
+        // Ignore errors
       }
     }
+    loadHistory();
   }, [projectRef]);
 
-  // Save history to localStorage
-  const saveHistory = useCallback((items: QueryHistoryItem[]) => {
-    localStorage.setItem(`sql_history_${projectRef}`, JSON.stringify(items.slice(0, 50)));
+  // Save history item to database
+  const saveHistoryItem = useCallback(async (item: QueryHistoryItem) => {
+    try {
+      await fetch('/api/sql/history', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectRef,
+          query: item.query,
+          success: item.success,
+          rowCount: item.rowCount,
+          executionTimeMs: item.executionTime,
+        }),
+      });
+    } catch {
+      // Ignore save errors
+    }
   }, [projectRef]);
 
   // Sync scroll between textarea and highlight overlay
@@ -191,9 +212,8 @@ export default function SQLEditorPanel({ projectRef, tables }: SQLEditorPanelPro
           success: false,
           executionTime,
         };
-        const newHistory = [historyItem, ...history];
-        setHistory(newHistory);
-        saveHistory(newHistory);
+        setHistory(prev => [historyItem, ...prev]);
+        saveHistoryItem(historyItem);
         return;
       }
 
@@ -213,9 +233,8 @@ export default function SQLEditorPanel({ projectRef, tables }: SQLEditorPanelPro
         rowCount: rows.length,
         executionTime,
       };
-      const newHistory = [historyItem, ...history];
-      setHistory(newHistory);
-      saveHistory(newHistory);
+      setHistory(prev => [historyItem, ...prev]);
+      saveHistoryItem(historyItem);
     } catch (err) {
       setError('Failed to execute query');
     } finally {
@@ -251,15 +270,21 @@ export default function SQLEditorPanel({ projectRef, tables }: SQLEditorPanelPro
     textareaRef.current?.focus();
   }
 
-  function handleClearHistory() {
+  async function handleClearHistory() {
     setHistory([]);
-    localStorage.removeItem(`sql_history_${projectRef}`);
+    try {
+      await fetch(`/api/sql/history?projectRef=${encodeURIComponent(projectRef)}`, {
+        method: 'DELETE',
+      });
+    } catch {
+      // Ignore errors
+    }
   }
 
   function handleDeleteHistoryItem(id: string) {
-    const newHistory = history.filter(item => item.id !== id);
-    setHistory(newHistory);
-    saveHistory(newHistory);
+    // For now, just remove from local state
+    // Individual item deletion would require an additional API endpoint
+    setHistory(prev => prev.filter(item => item.id !== id));
   }
 
   async function handleCopyResults() {
