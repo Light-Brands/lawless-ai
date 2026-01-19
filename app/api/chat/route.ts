@@ -7,7 +7,10 @@ const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:3001';
 const BACKEND_API_KEY = process.env.BACKEND_API_KEY || '';
 
 export async function POST(request: NextRequest) {
-  const { message, sessionId } = await request.json();
+  const { message, sessionId, conversationId } = await request.json();
+
+  // Get GitHub username from cookie for database persistence
+  const githubUser = request.cookies.get('github_user')?.value;
 
   if (!message) {
     return new Response(JSON.stringify({ error: 'Message is required' }), {
@@ -24,7 +27,12 @@ export async function POST(request: NextRequest) {
         'Content-Type': 'application/json',
         'X-API-Key': BACKEND_API_KEY,
       },
-      body: JSON.stringify({ message, sessionId }),
+      body: JSON.stringify({
+        message,
+        sessionId,
+        conversationId,
+        userId: githubUser, // Pass GitHub username for Supabase persistence
+      }),
     });
 
     if (!backendResponse.ok) {

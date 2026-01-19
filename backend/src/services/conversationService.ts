@@ -1,6 +1,7 @@
 import {
   getSupabaseClient,
   isSupabaseAvailable,
+  ensureUserExists,
   Conversation,
   ConversationInsert,
   ConversationType,
@@ -37,6 +38,13 @@ export class ConversationService {
     const supabase = getSupabaseClient();
     if (!supabase) {
       console.warn('Supabase not available, conversation not persisted');
+      return null;
+    }
+
+    // Ensure user exists before creating conversation
+    const userExists = await ensureUserExists(options.userId);
+    if (!userExists) {
+      console.error('Failed to ensure user exists:', options.userId);
       return null;
     }
 

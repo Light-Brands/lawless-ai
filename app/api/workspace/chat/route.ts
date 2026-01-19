@@ -12,7 +12,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
   }
 
-  const { message, repoFullName, sessionId, workspaceSessionId } = await request.json();
+  const { message, repoFullName, sessionId, workspaceSessionId, conversationId } = await request.json();
+
+  // Get GitHub username from cookie for database persistence
+  const githubUser = request.cookies.get('github_user')?.value;
 
   if (!message || !repoFullName) {
     return NextResponse.json({ error: 'Message and repository required' }, { status: 400 });
@@ -31,7 +34,9 @@ export async function POST(request: NextRequest) {
         repoFullName,
         sessionId,
         workspaceSessionId,
+        conversationId,
         githubToken: token,
+        userId: githubUser, // Pass GitHub username for Supabase persistence
       }),
     });
 
