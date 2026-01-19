@@ -10,6 +10,9 @@
 /* Base/reset styles and app layout */
 @import './styles/base.css';
 
+/* Shared header component */
+@import './styles/header.css';
+
 /* Sidebar navigation */
 @import './styles/sidebar.css';
 
