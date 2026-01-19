@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { decryptToken, isEncrypted } from '@/lib/encryption';
 
 export const runtime = 'nodejs';
@@ -78,20 +78,27 @@ export async function GET(request: NextRequest) {
       });
 
       if (user) {
+        // Use GitHub username as id (matches our database schema)
+        const githubUsername = user.user_metadata?.user_name || user.user_metadata?.preferred_username || user.email?.split('@')[0] || 'user';
+
         result.authenticated = true;
         result.authMethod = 'supabase';
         result.user = {
-          id: user.id,
-          login: user.user_metadata?.user_name || user.user_metadata?.preferred_username || user.email?.split('@')[0] || 'user',
+          id: githubUsername, // Use GitHub username, not Supabase UUID
+          login: githubUsername,
           name: user.user_metadata?.full_name || user.user_metadata?.name || 'User',
           avatar: user.user_metadata?.avatar_url || '',
         };
 
+        // Use service client for queries (RLS uses UUID but we use GitHub username)
+        const serviceClient = createServiceClient();
+
         // Fetch repo integrations from database
         type RepoIntegrationRow = { repo_full_name: string; vercel_project_id: string | null; supabase_project_ref: string | null };
-        const { data: repoIntegrations } = await supabase
+        const { data: repoIntegrations } = await serviceClient
           .from('repo_integrations')
-          .select('repo_full_name, vercel_project_id, supabase_project_ref');
+          .select('repo_full_name, vercel_project_id, supabase_project_ref')
+          .eq('user_id', githubUsername);
 
         if (repoIntegrations && repoIntegrations.length > 0) {
           result.repoIntegrations = {};
@@ -114,9 +121,10 @@ export async function GET(request: NextRequest) {
 
         // Check for integration connections
         type IntegrationRow = { provider: string; metadata: unknown };
-        const { data: integrations } = await supabase
+        const { data: integrations } = await serviceClient
           .from('integration_connections')
-          .select('provider, metadata');
+          .select('provider, metadata')
+          .eq('user_id', githubUsername);
 
         if (integrations) {
           const integrationsTyped = integrations as IntegrationRow[];

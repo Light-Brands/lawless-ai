@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createClient, createServiceClient } from '@/lib/supabase/server';
+import { encryptToken } from '@/lib/encryption';
 
 export const runtime = 'nodejs';
 
@@ -43,6 +45,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Token is required' }, { status: 400 });
     }
 
+    // Get the current user
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+
+    // Get GitHub username as user_id (matches our schema)
+    const githubUsername = user.user_metadata?.user_name || user.user_metadata?.preferred_username;
+    if (!githubUsername) {
+      return NextResponse.json({ error: 'No GitHub username found' }, { status: 400 });
+    }
+
     // Verify token by fetching user info
     const userRes = await fetch('https://api.vercel.com/v2/user', {
       headers: {
@@ -56,6 +72,32 @@ export async function POST(request: NextRequest) {
 
     const userData = await userRes.json();
 
+    // Store encrypted token in database
+    if (process.env.ENCRYPTION_KEY) {
+      const serviceClient = createServiceClient();
+      const encryptedToken = encryptToken(token);
+
+      const { error: dbError } = await serviceClient.from('integration_connections').upsert(
+        {
+          user_id: githubUsername,
+          provider: 'vercel',
+          access_token: encryptedToken,
+          metadata: {
+            name: userData.user.name || userData.user.username,
+            email: userData.user.email,
+            avatar: userData.user.avatar,
+          },
+          updated_at: new Date().toISOString(),
+        } as never,
+        { onConflict: 'user_id,provider' }
+      );
+
+      if (dbError) {
+        console.error('Failed to store Vercel token in database:', dbError);
+        // Continue anyway - cookies will work as fallback
+      }
+    }
+
     const response = NextResponse.json({
       success: true,
       user: {
@@ -65,7 +107,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Store token in cookie
+    // Store token in cookie as fallback
     response.cookies.set('vercel_token', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
