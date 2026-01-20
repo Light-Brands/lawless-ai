@@ -84,12 +84,13 @@ export default function BuilderPage() {
   async function loadBrandData(brandName: string) {
     const brandData = await getBrand(brandName);
     if (brandData) {
-      // Parse existing documents into sections if available
+      // Load existing content as raw - don't try to parse into template sections
       const content = activeTab === 'plan' ? brandData.plan : brandData.identity;
       if (content) {
-        const sections = parseExistingDocument(content, activeTab);
-        setDocumentSections(sections);
+        // Store as raw content - existing docs evolve naturally, not forced into templates
+        setDocumentSections({ _raw_content: content });
       } else {
+        // No existing content - start fresh with template
         setDocumentSections({});
       }
     }
@@ -313,51 +314,3 @@ export default function BuilderPage() {
   );
 }
 
-// Helper to parse existing document into sections
-function parseExistingDocument(content: string, builderType: BuilderType): Record<string, string> {
-  const sections: Record<string, string> = {};
-
-  // Multiple heading variants for flexible parsing
-  const sectionMappings =
-    builderType === 'plan'
-      ? [
-          { patterns: ['Overview', 'Project Overview', 'Executive Summary', 'Summary'], id: 'overview' },
-          { patterns: ['Goals', 'Objectives', 'Project Goals'], id: 'goals' },
-          { patterns: ['Target Users', 'Target Audience', 'Users', 'Audience'], id: 'target_users' },
-          { patterns: ['Key Features', 'Features', 'Core Features', 'Functionality'], id: 'key_features' },
-          { patterns: ['Technical Stack', 'Tech Stack', 'Technology', 'Architecture', 'Technical'], id: 'technical_stack' },
-          { patterns: ['Success Metrics', 'Metrics', 'KPIs', 'Success Criteria'], id: 'success_metrics' },
-          { patterns: ['Timeline', 'Roadmap', 'Schedule', 'Milestones', 'Phases'], id: 'timeline' },
-        ]
-      : [
-          { patterns: ['Brand Overview', 'Overview', 'About'], id: 'brand_overview' },
-          { patterns: ['Mission Statement', 'Mission', 'Purpose'], id: 'mission_statement' },
-          { patterns: ['Voice & Tone', 'Voice and Tone', 'Brand Voice', 'Tone'], id: 'voice_and_tone' },
-          { patterns: ['Visual Identity', 'Visual', 'Design', 'Colors', 'Typography'], id: 'visual_identity' },
-          { patterns: ['Target Audience', 'Audience', 'Target Market'], id: 'target_audience' },
-          { patterns: ['Brand Personality', 'Personality', 'Character'], id: 'brand_personality' },
-        ];
-
-  // Try each section mapping
-  for (const { patterns, id } of sectionMappings) {
-    for (const heading of patterns) {
-      // Match ## Heading or # Heading (case insensitive)
-      const regex = new RegExp(`##?\\s*${heading}[:\\s]*\\n([\\s\\S]*?)(?=\\n##?\\s|$)`, 'i');
-      const match = content.match(regex);
-      if (match && match[1]) {
-        const sectionContent = match[1].trim();
-        if (sectionContent && !sectionContent.startsWith('*[Not yet defined]*')) {
-          sections[id] = sectionContent;
-          break; // Found this section, move to next
-        }
-      }
-    }
-  }
-
-  // If no sections were parsed, store the full content as raw
-  if (Object.keys(sections).length === 0 && content.trim()) {
-    sections['_raw_content'] = content;
-  }
-
-  return sections;
-}

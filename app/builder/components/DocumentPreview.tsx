@@ -85,15 +85,13 @@ export function DocumentPreview({
           <h1>{title}</h1>
           <blockquote>Generated with Lawless AI Builder</blockquote>
 
-          {/* If we have raw content that couldn't be parsed, show it as-is */}
+          {/* Existing document - show as-is */}
           {sections['_raw_content'] ? (
             <div className="builder-raw-content">
-              <div className="builder-raw-notice">
-                This is an existing document. Continue the conversation to refine it into structured sections.
-              </div>
               <MarkdownContent content={sections['_raw_content']} />
             </div>
           ) : (
+            /* New document - show template sections */
             sectionConfig.map((section) => (
               <div key={section.id} id={`section-${section.id}`}>
                 <h2>{section.title}</h2>
