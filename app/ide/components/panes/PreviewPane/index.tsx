@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useIDEStore } from '../../../stores/ideStore';
 import { useVercelConnection, useTerminalConnection } from '../../../contexts/ServiceContext';
+import { useIDEContext } from '../../../contexts/IDEContext';
 import { usePortScanner } from '../../../hooks/usePortScanner';
 
 interface Deployment {
@@ -53,6 +54,10 @@ export function PreviewPane() {
   } = useIDEStore();
   const vercel = useVercelConnection();
   const terminal = useTerminalConnection();
+  const { sessionId: contextSessionId } = useIDEContext();
+
+  // Use terminal.sessionId if available, fall back to context sessionId
+  const effectiveSessionId = terminal.sessionId || contextSessionId;
 
   // Port scanner toggle - disabled by default to prevent session errors
   const [scannerEnabled, setScannerEnabled] = useState(false);
@@ -127,16 +132,13 @@ export function PreviewPane() {
     }
   }, [vercel.status, vercel.projectId, fetchDeployments]);
 
-  // Build proxy URL for remote localhost
+  // Build proxy URL for remote localhost - requires sessionId
   const getLocalPreviewUrl = useCallback(() => {
     const port = selectedPort || 3000;
-    if (terminal.sessionId && hasActivePorts) {
-      // Proxy through backend for remote server
-      return `/api/preview/proxy?sessionId=${terminal.sessionId}&port=${port}`;
-    }
-    // Fallback to direct localhost (for local development)
-    return `http://localhost:${port}`;
-  }, [terminal.sessionId, selectedPort, hasActivePorts]);
+    // Always use proxy - never fall back to localhost
+    // The iframe render condition should prevent this from being called without sessionId
+    return `/api/preview/proxy?sessionId=${effectiveSessionId}&port=${port}`;
+  }, [effectiveSessionId, selectedPort]);
 
   // Refresh iframe
   const handleRefresh = useCallback(() => {
@@ -308,7 +310,7 @@ export function PreviewPane() {
       {/* Preview iframe */}
       <div className="preview-content">
         {previewMode === 'local' ? (
-          hasActivePorts && selectedPort && terminal.sessionId ? (
+          hasActivePorts && selectedPort && effectiveSessionId ? (
             <iframe
               ref={iframeRef}
               src={getLocalPreviewUrl()}
@@ -319,7 +321,7 @@ export function PreviewPane() {
             <div className="preview-placeholder">
               <div className="server-status scanning">
                 <div className="scanning-animation" />
-                <span>{terminal.sessionId ? 'Scanning for dev servers' : 'Connecting to session...'}</span>
+                <span>{effectiveSessionId ? 'Scanning for dev servers' : 'Connecting to session...'}</span>
               </div>
               <p className="preview-hint">Start a dev server in the terminal</p>
               <p className="preview-ports-hint">Monitoring ports 3000-3999</p>
