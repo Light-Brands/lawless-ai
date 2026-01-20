@@ -15,6 +15,7 @@ import {
   ActivityIcon,
   TerminalIcon,
 } from './Icons';
+import { useToast } from '../../components/Toast';
 
 // Pane components (lazy loaded)
 import dynamic from 'next/dynamic';
@@ -109,7 +110,8 @@ interface IDELayoutProps {
 }
 
 export function IDELayout({ owner = '', repo = '', sessionId = null }: IDELayoutProps) {
-  const { paneOrder, paneVisibility, togglePane } = useIDEStore();
+  const { paneOrder, paneVisibility, togglePane, maxPanesReached, setMaxPanesReached } = useIDEStore();
+  const toast = useToast();
 
   // Track portal targets for each pane
   const [portalTargets, setPortalTargets] = useState<Record<number, HTMLDivElement | null>>({});
@@ -120,6 +122,14 @@ export function IDELayout({ owner = '', repo = '', sessionId = null }: IDELayout
       return { ...prev, [paneId]: element };
     });
   }, []);
+
+  // Show toast when max panes limit is reached
+  useEffect(() => {
+    if (maxPanesReached) {
+      toast.warning('Pane limit reached', 'Close one pane before opening another');
+      setMaxPanesReached(false);
+    }
+  }, [maxPanesReached, setMaxPanesReached, toast]);
 
   // Get visible and collapsed panes
   const visiblePanes = paneOrder.filter((p) => paneVisibility[p]);

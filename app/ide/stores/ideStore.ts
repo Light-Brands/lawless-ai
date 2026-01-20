@@ -42,10 +42,12 @@ interface IDEStore {
   paneOrder: number[];
   paneVisibility: Record<number, boolean>;
   paneWidths: Record<number, number>;
+  maxPanesReached: boolean;
   togglePane: (pane: number) => void;
   setPaneVisibility: (pane: number, visible: boolean) => void;
   setPaneWidth: (pane: number, width: number) => void;
   reorderPanes: (order: number[]) => void;
+  setMaxPanesReached: (reached: boolean) => void;
 
   // Chat
   chatMode: 'terminal' | 'workspace';
@@ -114,10 +116,24 @@ export const useIDEStore = create<IDEStore>()(
       paneOrder: [1, 2, 7, 3, 4, 5, 6],
       paneVisibility: { 1: true, 2: true, 3: false, 4: false, 5: false, 6: false, 7: true },
       paneWidths: { 1: 350, 2: 500, 3: 400, 4: 350, 5: 350, 6: 300, 7: 400 },
+      maxPanesReached: false,
       togglePane: (pane) =>
-        set((state) => ({
-          paneVisibility: { ...state.paneVisibility, [pane]: !state.paneVisibility[pane] },
-        })),
+        set((state) => {
+          const isCurrentlyHidden = !state.paneVisibility[pane];
+
+          // If trying to open a hidden pane, check limit (max 5 visible panes)
+          if (isCurrentlyHidden) {
+            const visibleCount = Object.values(state.paneVisibility).filter(Boolean).length;
+            if (visibleCount >= 5) {
+              return { maxPanesReached: true };
+            }
+          }
+
+          return {
+            paneVisibility: { ...state.paneVisibility, [pane]: isCurrentlyHidden },
+            maxPanesReached: false,
+          };
+        }),
       setPaneVisibility: (pane, visible) =>
         set((state) => ({
           paneVisibility: { ...state.paneVisibility, [pane]: visible },
@@ -127,6 +143,7 @@ export const useIDEStore = create<IDEStore>()(
           paneWidths: { ...state.paneWidths, [pane]: width },
         })),
       reorderPanes: (order) => set({ paneOrder: order }),
+      setMaxPanesReached: (reached) => set({ maxPanesReached: reached }),
 
       // Chat
       chatMode: 'workspace',
