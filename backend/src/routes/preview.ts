@@ -140,7 +140,7 @@ router.get('/preview/vercel', async (req: Request, res: Response) => {
   }
 });
 
-// Scan ports 3000-3999 for active dev servers
+// Scan ports 3000-3999 for active dev servers belonging to this session
 router.get('/api/preview/ports', authenticateApiKey, async (req: Request, res: Response) => {
   const sessionId = req.query.sessionId as string;
 
@@ -149,14 +149,16 @@ router.get('/api/preview/ports', authenticateApiKey, async (req: Request, res: R
     return;
   }
 
-  // Verify session exists
-  const session = db.prepare('SELECT * FROM workspace_sessions WHERE session_id = ?').get(sessionId);
-  const terminalSession = db.prepare('SELECT * FROM terminal_sessions WHERE session_id = ?').get(sessionId);
+  // Get session and its worktree path
+  const session = db.prepare('SELECT * FROM workspace_sessions WHERE session_id = ?').get(sessionId) as any;
+  const terminalSession = db.prepare('SELECT * FROM terminal_sessions WHERE session_id = ?').get(sessionId) as any;
 
   if (!session && !terminalSession) {
     res.status(404).json({ error: 'Session not found' });
     return;
   }
+
+  const worktreePath = session?.worktree_path || terminalSession?.worktree_path;
 
   try {
     // Scan ports 3000-3999 using ss command
@@ -165,11 +167,50 @@ router.get('/api/preview/ports', authenticateApiKey, async (req: Request, res: R
       { encoding: 'utf-8', timeout: 5000 }
     );
 
-    const ports = result.split('\n')
+    const allPorts = result.split('\n')
       .map((p: string) => parseInt(p.trim(), 10))
       .filter((p: number) => !isNaN(p) && p >= 3000 && p <= 3999);
 
-    res.json({ ports, scannedAt: new Date().toISOString() });
+    // Filter ports to only include those running from this session's worktree
+    const sessionPorts: number[] = [];
+
+    if (worktreePath) {
+      for (const port of allPorts) {
+        try {
+          // Use lsof to find the process listening on this port and get its CWD
+          const lsofResult = execSync(
+            `lsof -i :${port} -sTCP:LISTEN -t 2>/dev/null | head -1`,
+            { encoding: 'utf-8', timeout: 2000 }
+          ).trim();
+
+          if (lsofResult) {
+            const pid = parseInt(lsofResult, 10);
+            if (!isNaN(pid)) {
+              // Get the working directory of the process
+              const cwdResult = execSync(
+                `readlink /proc/${pid}/cwd 2>/dev/null || lsof -p ${pid} 2>/dev/null | grep cwd | awk '{print $NF}'`,
+                { encoding: 'utf-8', timeout: 2000 }
+              ).trim();
+
+              // Check if the process is running from within this session's worktree
+              if (cwdResult && cwdResult.startsWith(worktreePath)) {
+                sessionPorts.push(port);
+              }
+            }
+          }
+        } catch (e) {
+          // If we can't determine the port's owner, skip it
+          continue;
+        }
+      }
+    }
+
+    res.json({
+      ports: sessionPorts,
+      allPorts, // Include all ports for debugging
+      worktreePath,
+      scannedAt: new Date().toISOString()
+    });
   } catch (error) {
     // No ports found or error scanning
     res.json({ ports: [], scannedAt: new Date().toISOString() });
