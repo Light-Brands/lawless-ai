@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import type { Brand } from '@/app/types/builder';
+import { MarkdownRenderer } from '@/app/components/MarkdownRenderer';
 
 interface AuthStatus {
   authenticated: boolean;
@@ -848,7 +849,7 @@ export default function NewProjectPage() {
       {/* Plan Preview Modal */}
       {showPlanPreview && (
         <div className="new-project-modal-overlay" onClick={() => setShowPlanPreview(false)}>
-          <div className="new-project-modal" onClick={e => e.stopPropagation()}>
+          <div className="new-project-modal new-project-modal-wide" onClick={e => e.stopPropagation()}>
             <div className="new-project-modal-header">
               <h3>Project Plan</h3>
               <button className="new-project-modal-close" onClick={() => setShowPlanPreview(false)}>
@@ -856,7 +857,7 @@ export default function NewProjectPage() {
               </button>
             </div>
             <div className="new-project-modal-content">
-              <pre className="new-project-modal-markdown">{planContent}</pre>
+              <MarkdownRenderer content={planContent} />
             </div>
           </div>
         </div>
@@ -865,7 +866,7 @@ export default function NewProjectPage() {
       {/* Identity Preview Modal */}
       {showIdentityPreview && (
         <div className="new-project-modal-overlay" onClick={() => setShowIdentityPreview(false)}>
-          <div className="new-project-modal" onClick={e => e.stopPropagation()}>
+          <div className="new-project-modal new-project-modal-wide" onClick={e => e.stopPropagation()}>
             <div className="new-project-modal-header">
               <h3>Brand Identity</h3>
               <button className="new-project-modal-close" onClick={() => setShowIdentityPreview(false)}>
@@ -873,7 +874,7 @@ export default function NewProjectPage() {
               </button>
             </div>
             <div className="new-project-modal-content">
-              <pre className="new-project-modal-markdown">{identityContent}</pre>
+              <MarkdownRenderer content={identityContent} />
             </div>
           </div>
         </div>

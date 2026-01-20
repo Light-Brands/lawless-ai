@@ -971,6 +971,252 @@
   margin: 0;
 }
 
+/* Wider modal for document previews */
+.new-project-modal-wide {
+  max-width: 900px;
+}
+
+/* Markdown rendering in modal */
+.new-project-modal-content .markdown-body {
+  color: var(--color-text-primary);
+  font-size: 0.9rem;
+  line-height: 1.7;
+}
+
+.new-project-modal-content .markdown-body h1 {
+  font-size: 1.75rem;
+  font-weight: var(--font-weight-bold);
+  margin: 0 0 var(--space-4);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--color-surface-glass-border);
+}
+
+.new-project-modal-content .markdown-body h2 {
+  font-size: 1.35rem;
+  font-weight: var(--font-weight-semibold);
+  margin: var(--space-6) 0 var(--space-3);
+  color: var(--color-text-primary);
+}
+
+.new-project-modal-content .markdown-body h3 {
+  font-size: 1.1rem;
+  font-weight: var(--font-weight-semibold);
+  margin: var(--space-4) 0 var(--space-2);
+  color: var(--color-text-primary);
+}
+
+.new-project-modal-content .markdown-body p {
+  margin: 0 0 var(--space-3);
+  color: var(--color-text-secondary);
+}
+
+.new-project-modal-content .markdown-body ul,
+.new-project-modal-content .markdown-body ol {
+  margin: 0 0 var(--space-3);
+  padding-left: var(--space-5);
+}
+
+.new-project-modal-content .markdown-body li {
+  margin: var(--space-1) 0;
+  color: var(--color-text-secondary);
+}
+
+.new-project-modal-content .markdown-body blockquote {
+  margin: var(--space-3) 0;
+  padding: var(--space-3) var(--space-4);
+  border-left: 3px solid var(--color-primary);
+  background: rgba(139, 92, 246, 0.05);
+  color: var(--color-text-secondary);
+  font-style: italic;
+}
+
+.new-project-modal-content .markdown-body code {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  background: rgba(139, 92, 246, 0.1);
+  padding: 0.15em 0.4em;
+  border-radius: var(--radius-sm);
+  color: var(--color-primary);
+}
+
+.new-project-modal-content .markdown-body pre {
+  margin: var(--space-3) 0;
+  padding: var(--space-4);
+  background: rgba(10, 10, 15, 0.8);
+  border: 1px solid var(--color-surface-glass-border);
+  border-radius: var(--radius-md);
+  overflow-x: auto;
+}
+
+.new-project-modal-content .markdown-body pre code {
+  background: transparent;
+  padding: 0;
+  color: var(--color-text-primary);
+  font-size: 0.85rem;
+}
+
+.new-project-modal-content .markdown-body table {
+  width: 100%;
+  margin: var(--space-3) 0;
+  border-collapse: collapse;
+}
+
+.new-project-modal-content .markdown-body th,
+.new-project-modal-content .markdown-body td {
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-surface-glass-border);
+  text-align: left;
+}
+
+.new-project-modal-content .markdown-body th {
+  background: rgba(139, 92, 246, 0.1);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.new-project-modal-content .markdown-body td {
+  color: var(--color-text-secondary);
+}
+
+.new-project-modal-content .markdown-body strong {
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.new-project-modal-content .markdown-body a {
+  color: var(--color-primary);
+  text-decoration: none;
+}
+
+.new-project-modal-content .markdown-body a:hover {
+  text-decoration: underline;
+}
+
+.new-project-modal-content .markdown-body hr {
+  margin: var(--space-4) 0;
+  border: none;
+  border-top: 1px solid var(--color-surface-glass-border);
+}
+
+/* Mermaid diagrams in modal */
+.new-project-modal-content .mermaid-diagram {
+  background: rgba(10, 10, 15, 0.6);
+  border: 1px solid var(--color-surface-glass-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  margin: var(--space-4) 0;
+  cursor: pointer;
+  transition: border-color var(--transition-fast);
+}
+
+.new-project-modal-content .mermaid-diagram:hover {
+  border-color: var(--color-primary);
+}
+
+.new-project-modal-content .mermaid-diagram svg {
+  display: block;
+  margin: 0 auto;
+  max-width: 100%;
+  height: auto;
+}
+
+.new-project-modal-content .mermaid-error {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  margin: var(--space-4) 0;
+  color: #ef4444;
+  font-size: 0.875rem;
+}
+
+.new-project-modal-content .mermaid-placeholder {
+  background: var(--color-surface-glass);
+  border: 1px dashed var(--color-surface-glass-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-6);
+  margin: var(--space-4) 0;
+  text-align: center;
+  color: var(--color-text-tertiary);
+  font-size: 0.875rem;
+}
+
+.new-project-modal-content .mermaid-placeholder::before {
+  content: 'Loading diagram...';
+}
+
+/* Diagram Zoom Modal - reuse existing styles */
+.diagram-zoom-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.9);
+  z-index: 300;
+  display: flex;
+  flex-direction: column;
+}
+
+.diagram-zoom-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.diagram-zoom-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background: rgba(10, 10, 15, 0.9);
+  border-bottom: 1px solid var(--color-surface-glass-border);
+}
+
+.diagram-zoom-toolbar button {
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-surface-glass);
+  border: 1px solid var(--color-surface-glass-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text-primary);
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.diagram-zoom-toolbar button:hover {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+.diagram-zoom-level {
+  color: var(--color-text-secondary);
+  font-size: 0.875rem;
+  min-width: 60px;
+  text-align: center;
+}
+
+.diagram-zoom-close {
+  margin-left: auto !important;
+}
+
+.diagram-zoom-viewport {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.diagram-zoom-content {
+  transform-origin: center center;
+  transition: transform 0.1s ease-out;
+}
+
+.diagram-zoom-content svg {
+  max-width: none;
+  max-height: none;
+}
+
 /* Responsive */
 @media (max-width: 640px) {
   .new-project-title {
