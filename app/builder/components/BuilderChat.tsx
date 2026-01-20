@@ -1,7 +1,9 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import type { BuilderType, BuilderMessage } from '@/app/types/builder';
+import type { BuilderType } from '@/app/types/builder';
+import type { Message, TextBlock } from '@/app/types/chat';
+import { ChatMarkdown } from '@/app/components/chat/ChatMarkdown';
 import { getSections } from '../lib/documentTemplates';
 
 const SendIcon = () => (
@@ -34,12 +36,55 @@ const CheckIcon = () => (
 );
 
 interface BuilderChatProps {
-  messages: BuilderMessage[];
+  messages: Message[];
   isLoading: boolean;
   builderType: BuilderType;
   completedSections: string[];
   onSendMessage: (message: string) => void;
   onJumpToSection: (section: string) => void;
+}
+
+// Helper to extract text content from message
+function getMessageText(message: Message): string {
+  return message.content
+    .filter((block): block is TextBlock => block.type === 'text')
+    .map((block) => block.content)
+    .join('\n');
+}
+
+// Render message content
+function MessageContent({ message }: { message: Message }) {
+  const isUser = message.role === 'user';
+
+  // Handle empty content (loading state)
+  if (message.content.length === 0 && !isUser) {
+    return (
+      <div className="builder-message-typing">
+        <span className="typing-dot" />
+        <span className="typing-dot" />
+        <span className="typing-dot" />
+      </div>
+    );
+  }
+
+  return (
+    <>
+      {message.content.map((block, index) => {
+        switch (block.type) {
+          case 'text':
+            return <ChatMarkdown key={index} content={block.content} />;
+          case 'error':
+            return (
+              <div key={index} className="builder-message-error">
+                {block.content}
+              </div>
+            );
+          default:
+            return null;
+        }
+      })}
+    </>
+  );
 }
 
 export function BuilderChat({
@@ -105,26 +150,15 @@ export function BuilderChat({
         )}
 
         {messages.map((message, index) => (
-          <div key={index} className={`builder-message ${message.role}`}>
+          <div key={message.id || index} className={`builder-message ${message.role}`}>
             <div className="builder-message-avatar">
               {message.role === 'assistant' ? <BotIcon /> : <UserIcon />}
             </div>
             <div className="builder-message-content">
-              <div className="builder-message-text">{message.content}</div>
+              <MessageContent message={message} />
             </div>
           </div>
         ))}
-
-        {isLoading && (
-          <div className="builder-message assistant">
-            <div className="builder-message-avatar">
-              <BotIcon />
-            </div>
-            <div className="builder-message-content">
-              <div className="builder-spinner" />
-            </div>
-          </div>
-        )}
 
         <div ref={messagesEndRef} />
       </div>

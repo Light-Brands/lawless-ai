@@ -1,18 +1,21 @@
+'use client';
+
 import { useState, useCallback, useRef, useEffect } from 'react';
-import type { BuilderType, BuilderMessage } from '@/app/types/builder';
+import type { BuilderType } from '@/app/types/builder';
+import type { Message, ContentBlock, TextBlock, ChatEvent } from '@/app/types/chat';
 
 interface DocumentSections {
   [key: string]: string;
 }
 
 interface UseBuilderChatReturn {
-  messages: BuilderMessage[];
+  messages: Message[];
   isLoading: boolean;
   error: string | null;
   documentSections: DocumentSections;
   sendMessage: (message: string) => Promise<void>;
   clearMessages: () => void;
-  setMessages: React.Dispatch<React.SetStateAction<BuilderMessage[]>>;
+  setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
   setDocumentSections: React.Dispatch<React.SetStateAction<DocumentSections>>;
   startConversation: () => void;
 }
@@ -51,135 +54,170 @@ Let's start with the **Brand Overview**. What does your brand stand for? What ma
 
 export function useBuilderChat(options: UseBuilderChatOptions): UseBuilderChatReturn {
   const { brandName, builderType, onDocumentUpdate } = options;
-  const [messages, setMessages] = useState<BuilderMessage[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const hasInitialized = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const [documentSections, setDocumentSections] = useState<DocumentSections>({});
   const abortControllerRef = useRef<AbortController | null>(null);
 
+  // Build conversation history from messages (matching workspace pattern)
+  const buildConversationHistory = useCallback(() => {
+    return messages.map((msg) => {
+      const textContent = msg.content
+        .filter((c): c is TextBlock => c.type === 'text')
+        .map((c) => c.content)
+        .join('\n');
+      return { role: msg.role, content: textContent };
+    }).filter((msg) => msg.content.trim());
+  }, [messages]);
+
   const sendMessage = useCallback(
-    async (message: string) => {
-      if (!message.trim() || !brandName) return;
+    async (content: string) => {
+      if (!content.trim() || !brandName || isLoading) return;
 
       setIsLoading(true);
       setError(null);
 
-      // Add user message immediately
-      const userMessage: BuilderMessage = { role: 'user', content: message };
+      // Add user message (matching workspace pattern with content blocks)
+      const userMessage: Message = {
+        id: crypto.randomUUID(),
+        role: 'user',
+        content: [{ type: 'text', content }],
+        timestamp: new Date(),
+      };
       setMessages((prev) => [...prev, userMessage]);
+
+      // Add empty assistant message
+      const assistantMessage: Message = {
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        content: [],
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, assistantMessage]);
 
       // Create abort controller for this request
       abortControllerRef.current = new AbortController();
 
-      try {
-        // Build current document state for context
-        const currentDocument = buildCurrentDocument(documentSections, builderType);
+      // Build conversation history
+      const conversationHistory = buildConversationHistory();
 
+      try {
         const response = await fetch('/api/builder/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             brandName,
             builderType,
-            message,
-            history: messages,
-            currentDocument: currentDocument || undefined,
+            message: content,
+            history: conversationHistory,
           }),
           signal: abortControllerRef.current.signal,
         });
 
         if (!response.ok) {
-          throw new Error('Failed to send message');
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Failed to send message');
         }
 
-        // Handle streaming response
-        const reader = response.body?.getReader();
-        if (!reader) {
+        if (!response.body) {
           throw new Error('No response body');
         }
 
+        // Handle streaming response (matching workspace pattern exactly)
+        const reader = response.body.getReader();
         const decoder = new TextDecoder();
-        let assistantContent = '';
-        let buffer = '';
-        let currentEventType = '';
 
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
 
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split('\n');
-          buffer = lines.pop() || '';
+          const chunk = decoder.decode(value);
+          const lines = chunk.split('\n');
 
           for (const line of lines) {
-            if (line.startsWith('event: ')) {
-              currentEventType = line.slice(7).trim();
-              continue;
-            }
-
             if (line.startsWith('data: ')) {
               try {
-                const data = JSON.parse(line.slice(6));
+                const data: ChatEvent = JSON.parse(line.slice(6));
 
-                if (currentEventType === 'text' && data.content !== undefined) {
-                  // Text chunk - accumulate for display
-                  assistantContent += data.content;
-                  setMessages((prev) => {
-                    const newMessages = [...prev];
-                    const lastMessage = newMessages[newMessages.length - 1];
-                    if (lastMessage?.role === 'assistant') {
-                      lastMessage.content = assistantContent;
-                    } else {
-                      newMessages.push({ role: 'assistant', content: assistantContent });
+                setMessages((prev) => {
+                  const newMessages = [...prev];
+                  const lastMessage = newMessages[newMessages.length - 1];
+                  if (lastMessage.role !== 'assistant') return prev;
+
+                  const contentBlocks = [...lastMessage.content];
+
+                  switch (data.type) {
+                    case 'text':
+                    case 'chunk': {
+                      // Append to last text block or create new one
+                      const lastBlock = contentBlocks[contentBlocks.length - 1];
+                      if (lastBlock && lastBlock.type === 'text') {
+                        (lastBlock as TextBlock).content += data.content;
+                      } else {
+                        contentBlocks.push({ type: 'text', content: data.content });
+                      }
+                      break;
                     }
-                    return newMessages;
-                  });
-                } else if (currentEventType === 'document_update' && data.section !== undefined) {
-                  // Document update - update sections
-                  setDocumentSections((prev) => ({
-                    ...prev,
-                    [data.section]: data.content,
-                  }));
-                  onDocumentUpdate?.(data.section, data.content);
-                } else if (currentEventType === 'clean_text' && data.content !== undefined) {
-                  // Clean text replaces the accumulated content (without tags)
-                  assistantContent = data.content;
-                  setMessages((prev) => {
-                    const newMessages = [...prev];
-                    const lastMessage = newMessages[newMessages.length - 1];
-                    if (lastMessage?.role === 'assistant') {
-                      lastMessage.content = assistantContent;
+
+                    case 'tool_use': {
+                      // Handle document updates
+                      if (data.tool === 'document_update' && data.input) {
+                        const { section, content: sectionContent } = data.input as { section: string; content: string };
+                        if (section && sectionContent) {
+                          setDocumentSections((prev) => ({
+                            ...prev,
+                            [section]: sectionContent,
+                          }));
+                          onDocumentUpdate?.(section, sectionContent);
+                        }
+                      }
+                      break;
                     }
-                    return newMessages;
-                  });
-                } else if (currentEventType === 'error' && data.message) {
-                  setError(data.message);
-                }
+
+                    case 'error': {
+                      contentBlocks.push({
+                        type: 'error',
+                        content: data.message,
+                      });
+                      setError(data.message);
+                      break;
+                    }
+                  }
+
+                  newMessages[newMessages.length - 1] = { ...lastMessage, content: contentBlocks };
+                  return newMessages;
+                });
               } catch {
-                // Ignore parse errors for partial chunks
+                // Ignore parse errors for incomplete JSON
               }
             }
           }
         }
       } catch (err) {
         if (err instanceof Error && err.name === 'AbortError') {
-          // Request was cancelled
           return;
         }
+        console.error('Chat error:', err);
         const errorMessage = err instanceof Error ? err.message : 'Failed to send message';
         setError(errorMessage);
-        // Add error as assistant message
-        setMessages((prev) => [
-          ...prev,
-          { role: 'assistant', content: `Error: ${errorMessage}` },
-        ]);
+
+        // Add error to assistant message
+        setMessages((prev) => {
+          const newMessages = [...prev];
+          const lastMessage = newMessages[newMessages.length - 1];
+          if (lastMessage.role === 'assistant') {
+            lastMessage.content.push({ type: 'error', content: errorMessage });
+          }
+          return newMessages;
+        });
       } finally {
         setIsLoading(false);
         abortControllerRef.current = null;
       }
     },
-    [brandName, builderType, messages, documentSections, onDocumentUpdate]
+    [brandName, builderType, isLoading, buildConversationHistory, onDocumentUpdate]
   );
 
   const clearMessages = useCallback(() => {
@@ -198,7 +236,13 @@ export function useBuilderChat(options: UseBuilderChatOptions): UseBuilderChatRe
     hasInitialized.current = true;
 
     const greeting = builderType === 'plan' ? PLAN_GREETING : IDENTITY_GREETING;
-    setMessages([{ role: 'assistant', content: greeting }]);
+    const greetingMessage: Message = {
+      id: crypto.randomUUID(),
+      role: 'assistant',
+      content: [{ type: 'text', content: greeting }],
+      timestamp: new Date(),
+    };
+    setMessages([greetingMessage]);
   }, [builderType, messages.length]);
 
   // Auto-start conversation when brand is selected and messages are empty
@@ -219,41 +263,4 @@ export function useBuilderChat(options: UseBuilderChatOptions): UseBuilderChatRe
     setDocumentSections,
     startConversation,
   };
-}
-
-// Helper to build current document from sections
-function buildCurrentDocument(sections: DocumentSections, builderType: BuilderType): string {
-  const sectionOrder =
-    builderType === 'plan'
-      ? ['overview', 'goals', 'target_users', 'key_features', 'technical_stack', 'success_metrics', 'timeline']
-      : ['brand_overview', 'mission_statement', 'voice_and_tone', 'visual_identity', 'target_audience', 'brand_personality'];
-
-  const sectionTitles: Record<string, string> =
-    builderType === 'plan'
-      ? {
-          overview: 'Overview',
-          goals: 'Goals',
-          target_users: 'Target Users',
-          key_features: 'Key Features',
-          technical_stack: 'Technical Stack',
-          success_metrics: 'Success Metrics',
-          timeline: 'Timeline',
-        }
-      : {
-          brand_overview: 'Brand Overview',
-          mission_statement: 'Mission Statement',
-          voice_and_tone: 'Voice & Tone',
-          visual_identity: 'Visual Identity',
-          target_audience: 'Target Audience',
-          brand_personality: 'Brand Personality',
-        };
-
-  let document = '';
-  for (const section of sectionOrder) {
-    if (sections[section]) {
-      document += `## ${sectionTitles[section]}\n${sections[section]}\n\n`;
-    }
-  }
-
-  return document.trim();
 }

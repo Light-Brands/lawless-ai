@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 import { createClient } from '@/lib/supabase/server';
 import type { BuilderType, BuilderMessage } from '@/app/types/builder';
+import type { ChatEvent } from '@/app/types/chat';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -79,9 +80,9 @@ Section names must be one of: brand_overview, mission_statement, voice_and_tone,
 
 Start by greeting the user and asking what their brand stands for.`;
 
-// Helper to send SSE events
-function sendEvent(controller: ReadableStreamDefaultController, event: string, data: unknown) {
-  const message = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+// Helper to send SSE data event (matching workspace pattern)
+function sendData(controller: ReadableStreamDefaultController, event: ChatEvent) {
+  const message = `data: ${JSON.stringify(event)}\n\n`;
   controller.enqueue(new TextEncoder().encode(message));
 }
 
@@ -112,17 +113,25 @@ function cleanTextForDisplay(text: string, builderType: BuilderType): string {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { brandName, builderType, message, history, currentDocument } = body as {
+    const { brandName, builderType, message, history } = body as {
       brandName: string;
       builderType: BuilderType;
       message: string;
       history?: BuilderMessage[];
-      currentDocument?: string;
     };
 
     if (!brandName || !builderType || !message) {
       return new Response(JSON.stringify({ error: 'Missing required fields' }), {
         status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Check for API key
+    if (!process.env.ANTHROPIC_API_KEY) {
+      console.error('ANTHROPIC_API_KEY not configured');
+      return new Response(JSON.stringify({ error: 'AI service not configured' }), {
+        status: 500,
         headers: { 'Content-Type': 'application/json' },
       });
     }
@@ -141,14 +150,8 @@ export async function POST(request: NextRequest) {
       console.error('Error getting user:', e);
     }
 
-    // Build conversation messages
+    // Build system prompt
     const systemPrompt = builderType === 'plan' ? PLAN_BUILDER_PROMPT : IDENTITY_BUILDER_PROMPT;
-
-    // Add context about current document state if available
-    let contextualSystem = systemPrompt;
-    if (currentDocument) {
-      contextualSystem += `\n\n## Current Document State\nHere's what we've built so far:\n\n${currentDocument}\n\nContinue from where we left off, filling in remaining sections.`;
-    }
 
     // Convert history to Anthropic format
     const messages: Array<{ role: 'user' | 'assistant'; content: string }> = [];
@@ -172,7 +175,7 @@ export async function POST(request: NextRequest) {
           const response = await anthropic.messages.create({
             model: process.env.CLAUDE_MODEL || 'claude-sonnet-4-20250514',
             max_tokens: 4096,
-            system: contextualSystem,
+            system: systemPrompt,
             messages,
             stream: true,
           });
@@ -186,32 +189,39 @@ export async function POST(request: NextRequest) {
                 const text = delta.text;
                 fullText += text;
 
-                // Send text chunk (we'll parse updates at the end)
-                sendEvent(controller, 'text', { content: text });
+                // Send text chunk using workspace pattern
+                sendData(controller, { type: 'chunk', content: text });
               }
             }
           }
 
-          // Parse any document updates from the full response
+          // Parse document updates from the full response
           const updates = parseDocumentUpdates(fullText, builderType);
+
+          // Send document updates as tool_use events (for consistency)
           for (const update of updates) {
-            sendEvent(controller, 'document_update', {
-              section: update.section,
-              content: update.content,
+            sendData(controller, {
+              type: 'tool_use',
+              id: `doc_${update.section}_${Date.now()}`,
+              tool: 'document_update',
+              input: { section: update.section, content: update.content },
+            });
+
+            // Immediately mark as success
+            sendData(controller, {
+              type: 'tool_result',
+              id: `doc_${update.section}_${Date.now()}`,
+              success: true,
+              output: `Updated ${update.section}`,
             });
           }
 
-          // Send the clean text (without update tags) for chat display
-          const cleanText = cleanTextForDisplay(fullText, builderType);
-          if (cleanText !== fullText) {
-            sendEvent(controller, 'clean_text', { content: cleanText });
-          }
-
-          // Done
-          sendEvent(controller, 'done', { userId });
+          // Send done event
+          sendData(controller, { type: 'done' });
         } catch (error) {
           console.error('Builder chat error:', error);
-          sendEvent(controller, 'error', {
+          sendData(controller, {
+            type: 'error',
             message: error instanceof Error ? error.message : 'Failed to generate response',
           });
         } finally {

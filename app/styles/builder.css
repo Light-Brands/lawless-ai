@@ -256,6 +256,48 @@
   white-space: pre-wrap;
 }
 
+/* Typing Animation */
+.builder-message-typing {
+  display: flex;
+  gap: 4px;
+  padding: var(--space-2) 0;
+}
+
+.builder-message-typing .typing-dot {
+  width: 8px;
+  height: 8px;
+  background: var(--color-text-secondary);
+  border-radius: 50%;
+  animation: typingBounce 1.4s ease-in-out infinite;
+}
+
+.builder-message-typing .typing-dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.builder-message-typing .typing-dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes typingBounce {
+  0%, 60%, 100% {
+    transform: translateY(0);
+  }
+  30% {
+    transform: translateY(-4px);
+  }
+}
+
+/* Error Message */
+.builder-message-error {
+  color: var(--color-error, #f85149);
+  background: rgba(248, 81, 73, 0.1);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  border-left: 3px solid var(--color-error, #f85149);
+  font-size: 0.85rem;
+}
+
 /* Section Shortcuts */
 .builder-section-shortcuts {
   display: flex;
