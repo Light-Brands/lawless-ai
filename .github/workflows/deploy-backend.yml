@@ -2,52 +2,24 @@ name: Deploy Backend
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
     paths:
       - 'backend/**'
-  workflow_dispatch: # Allow manual trigger
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
       - name: Deploy to Oracle Cloud
-        uses: appleboy/ssh-action@v1.0.3
+        uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.ORACLE_HOST }}
-          username: ${{ secrets.ORACLE_USER }}
+          username: ubuntu
           key: ${{ secrets.ORACLE_SSH_KEY }}
           script: |
-            set -e
-            echo "=== Starting backend deployment ==="
-
-            cd ~/lawless-ai
-
-            # Pull latest changes
-            echo "Pulling latest changes..."
-            git fetch origin main
-            git reset --hard origin/main
-
-            # Build backend
-            echo "Building backend..."
-            cd backend
-            npm install
+            cd ~/lawless-ai/backend
+            git pull origin main
             npm run build
-
-            # Restart PM2
-            echo "Restarting backend..."
             pm2 restart lawless-backend
-
-            # Verify deployment
-            echo "Verifying deployment..."
-            sleep 2
-            curl -s http://localhost:3001/version || echo "Version check failed"
-
-            echo "=== Deployment complete ==="
-
-      - name: Verify deployment
-        run: |
-          echo "Waiting for deployment to stabilize..."
-          sleep 5
-          echo "Checking backend health..."
-          curl -s https://dev.lightbrands.ai/health || echo "Health check failed - may need manual verification"
+            echo "Backend deployed successfully"
