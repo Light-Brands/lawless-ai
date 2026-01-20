@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { useIDEStore, MigrationFile } from '../../../stores/ideStore';
+import { useIDEStore, MigrationFile, MigrationRunResult } from '../../../stores/ideStore';
 import { useSupabaseConnection } from '../../../contexts/ServiceContext';
 import { useIDEContext } from '../../../contexts/IDEContext';
 import { TableIcon, BellIcon } from '../../Icons';
@@ -112,8 +112,11 @@ export function DatabasePane() {
     migrations,
     migrationsLoading,
     migrationsSummary,
+    migrationRunResults,
     setMigrations,
     setMigrationsLoading,
+    setMigrationRunResult,
+    clearMigrationRunResult,
   } = useIDEStore();
   const [activeTab, setActiveTab] = useState<'tables' | 'schema' | 'query' | 'migrations'>('tables');
   const [query, setQuery] = useState('SELECT * FROM users LIMIT 10;');
@@ -194,15 +197,20 @@ export function DatabasePane() {
   // Run a specific migration
   const runMigration = useCallback(async (migration: MigrationFile) => {
     if (!owner || !repo || !projectRef) {
-      alert('Supabase project must be connected to run migrations');
+      setMigrationRunResult({
+        version: migration.version,
+        success: false,
+        message: 'Supabase project must be connected to run migrations',
+        error: 'Not connected',
+        timestamp: Date.now(),
+      });
       return;
     }
 
-    if (!confirm(`Are you sure you want to run migration "${migration.name}"?`)) {
-      return;
-    }
-
+    // Clear any previous result for this migration
+    clearMigrationRunResult(migration.version);
     setRunningMigration(migration.version);
+
     try {
       const response = await fetch('/api/ide/migrations/run', {
         method: 'POST',
@@ -218,20 +226,68 @@ export function DatabasePane() {
 
       const data = await response.json();
 
-      if (!response.ok) {
-        alert(`Failed to run migration: ${data.error || 'Unknown error'}`);
-        return;
-      }
+      // Store the result
+      setMigrationRunResult({
+        version: migration.version,
+        success: data.success === true,
+        message: data.message || (data.success ? 'Migration applied successfully' : 'Migration failed'),
+        error: data.error,
+        alreadyApplied: data.alreadyApplied,
+        timestamp: Date.now(),
+      });
 
-      // Refresh migrations list to show updated status
-      await fetchMigrations();
+      // If successful or already applied, refresh the list
+      if (data.success || data.alreadyApplied) {
+        await fetchMigrations();
+      }
     } catch (err) {
       console.error('Failed to run migration:', err);
-      alert('Failed to run migration. Check console for details.');
+      setMigrationRunResult({
+        version: migration.version,
+        success: false,
+        message: 'Failed to run migration',
+        error: err instanceof Error ? err.message : 'Unknown error',
+        timestamp: Date.now(),
+      });
     } finally {
       setRunningMigration(null);
     }
-  }, [owner, repo, projectRef, fetchMigrations]);
+  }, [owner, repo, projectRef, fetchMigrations, setMigrationRunResult, clearMigrationRunResult]);
+
+  // Mark migration as applied without running (for already-applied migrations)
+  const markMigrationApplied = useCallback(async (migration: MigrationFile) => {
+    if (!projectRef) return;
+
+    setRunningMigration(migration.version);
+    try {
+      // Just record it in the schema_migrations table
+      const response = await fetch(`/api/integrations/supabase/projects/${projectRef}/sql`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query: `
+            INSERT INTO supabase_migrations.schema_migrations (version, statements, name)
+            VALUES ('${migration.version}', ARRAY[]::text[], '${migration.name.replace(/'/g, "''")}')
+            ON CONFLICT (version) DO NOTHING
+          `,
+        }),
+      });
+
+      if (response.ok) {
+        setMigrationRunResult({
+          version: migration.version,
+          success: true,
+          message: 'Migration marked as applied',
+          timestamp: Date.now(),
+        });
+        await fetchMigrations();
+      }
+    } catch (err) {
+      console.error('Failed to mark migration:', err);
+    } finally {
+      setRunningMigration(null);
+    }
+  }, [projectRef, fetchMigrations, setMigrationRunResult]);
 
   // Fetch table data when a table is selected
   const fetchTableData = useCallback(async (tableName: string, offset = 0) => {
@@ -775,8 +831,11 @@ export function DatabasePane() {
                       key={migration.version}
                       migration={migration}
                       onRun={runMigration}
+                      onMarkApplied={markMigrationApplied}
+                      onDismissResult={() => clearMigrationRunResult(migration.version)}
                       isRunning={runningMigration === migration.version}
                       canRun={connected}
+                      runResult={migrationRunResults[migration.version]}
                     />
                   ))}
                 </div>
@@ -979,13 +1038,19 @@ function AddColumnModal({
 function MigrationItem({
   migration,
   onRun,
+  onMarkApplied,
+  onDismissResult,
   isRunning,
   canRun,
+  runResult,
 }: {
   migration: MigrationFile;
   onRun: (migration: MigrationFile) => void;
+  onMarkApplied: (migration: MigrationFile) => void;
+  onDismissResult: () => void;
   isRunning: boolean;
   canRun: boolean;
+  runResult?: MigrationRunResult;
 }) {
   const isApplied = migration.status === 'applied';
 
@@ -1012,10 +1077,17 @@ function MigrationItem({
     .replace(/\.sql$/, '')   // Remove .sql extension
     .replace(/_/g, ' ');     // Replace underscores with spaces
 
+  // Determine if we should show result feedback
+  const showResult = runResult && (Date.now() - runResult.timestamp < 30000); // Show for 30 seconds
+
   return (
-    <div className={`migration-item ${isApplied ? 'applied' : 'pending'}`}>
+    <div className={`migration-item ${isApplied ? 'applied' : 'pending'} ${showResult ? (runResult.success ? 'result-success' : 'result-error') : ''}`}>
       <div className="migration-status">
-        {isApplied ? (
+        {isRunning ? (
+          <span className="status-icon running">
+            <span className="loading-spinner-sm" />
+          </span>
+        ) : isApplied ? (
           <span className="status-icon applied" title="Applied">✓</span>
         ) : (
           <span className="status-icon pending" title="Pending">○</span>
@@ -1034,23 +1106,37 @@ function MigrationItem({
             <span className="migration-created">Created {formatDate(migration.timestamp)}</span>
           )}
         </div>
+
+        {/* Inline result feedback */}
+        {showResult && (
+          <div className={`migration-result ${runResult.success ? 'success' : 'error'}`}>
+            <span className="result-icon">{runResult.success ? '✓' : '✕'}</span>
+            <span className="result-message">{runResult.message}</span>
+            {runResult.error && !runResult.success && (
+              <span className="result-error">{runResult.error}</span>
+            )}
+            <button className="result-dismiss" onClick={onDismissResult} title="Dismiss">×</button>
+            {runResult.alreadyApplied && !isApplied && (
+              <button
+                className="mark-applied-btn"
+                onClick={() => onMarkApplied(migration)}
+                title="Mark this migration as applied in the database"
+              >
+                Mark as Applied
+              </button>
+            )}
+          </div>
+        )}
       </div>
       <div className="migration-actions">
-        {!isApplied && (
+        {!isApplied && !isRunning && !showResult && (
           <button
             className="run-migration-btn"
             onClick={() => onRun(migration)}
-            disabled={isRunning || !canRun}
+            disabled={!canRun}
             title={!canRun ? 'Connect Supabase to run migrations' : 'Run this migration'}
           >
-            {isRunning ? (
-              <>
-                <span className="loading-spinner-sm" />
-                Running...
-              </>
-            ) : (
-              <>▶ Run</>
-            )}
+            ▶ Run
           </button>
         )}
       </div>

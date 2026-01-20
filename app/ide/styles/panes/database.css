@@ -306,6 +306,124 @@
   }
 }
 
+/* Migration result states */
+.migration-item.result-success {
+  border-color: rgba(34, 197, 94, 0.3);
+  background: rgba(34, 197, 94, 0.05);
+}
+
+.migration-item.result-error {
+  border-color: rgba(239, 68, 68, 0.3);
+  background: rgba(239, 68, 68, 0.05);
+}
+
+.status-icon.running {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.status-icon.running .loading-spinner-sm {
+  border-color: rgba(124, 58, 237, 0.3);
+  border-top-color: #7c3aed;
+}
+
+/* Inline migration result feedback */
+.migration-result {
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.migration-result.success {
+  background: rgba(34, 197, 94, 0.1);
+  border: 1px solid rgba(34, 197, 94, 0.2);
+  color: #22c55e;
+}
+
+.migration-result.error {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+}
+
+.result-icon {
+  font-weight: bold;
+  flex-shrink: 0;
+}
+
+.result-message {
+  flex: 1;
+  min-width: 0;
+  color: #e0e0e0;
+}
+
+.result-error {
+  width: 100%;
+  font-family: monospace;
+  font-size: 11px;
+  color: #f87171;
+  background: rgba(0, 0, 0, 0.2);
+  padding: 6px 8px;
+  border-radius: 3px;
+  margin-top: 4px;
+  word-break: break-word;
+}
+
+.result-dismiss {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: #888;
+  cursor: pointer;
+  border-radius: 3px;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.result-dismiss:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #e0e0e0;
+}
+
+.mark-applied-btn {
+  padding: 4px 8px;
+  background: rgba(124, 58, 237, 0.2);
+  border: 1px solid rgba(124, 58, 237, 0.3);
+  border-radius: 3px;
+  color: #a78bfa;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.mark-applied-btn:hover {
+  background: rgba(124, 58, 237, 0.3);
+  border-color: rgba(124, 58, 237, 0.5);
+}
+
 .query-content {
   display: flex;
   flex-direction: column;

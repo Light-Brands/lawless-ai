@@ -16,6 +16,15 @@ export interface MigrationsSummary {
   pending: number;
 }
 
+export interface MigrationRunResult {
+  version: string;
+  success: boolean;
+  message: string;
+  error?: string;
+  alreadyApplied?: boolean;
+  timestamp: number;
+}
+
 export interface Session {
   id: string;
   user_id: string;
@@ -107,8 +116,11 @@ interface IDEStore {
   migrations: MigrationFile[];
   migrationsLoading: boolean;
   migrationsSummary: MigrationsSummary | null;
+  migrationRunResults: Record<string, MigrationRunResult>;
   setMigrations: (migrations: MigrationFile[], summary: MigrationsSummary) => void;
   setMigrationsLoading: (loading: boolean) => void;
+  setMigrationRunResult: (result: MigrationRunResult) => void;
+  clearMigrationRunResult: (version: string) => void;
 
   // Deployments
   deploymentStatus: 'idle' | 'building' | 'ready' | 'failed';
@@ -245,6 +257,7 @@ export const useIDEStore = create<IDEStore>()(
       migrations: [],
       migrationsLoading: false,
       migrationsSummary: null,
+      migrationRunResults: {},
       setMigrations: (migrations, summary) =>
         set({
           migrations,
@@ -252,6 +265,18 @@ export const useIDEStore = create<IDEStore>()(
           pendingMigrations: migrations.filter((m) => m.status === 'pending').map((m) => m.name),
         }),
       setMigrationsLoading: (loading) => set({ migrationsLoading: loading }),
+      setMigrationRunResult: (result) =>
+        set((state) => ({
+          migrationRunResults: {
+            ...state.migrationRunResults,
+            [result.version]: result,
+          },
+        })),
+      clearMigrationRunResult: (version) =>
+        set((state) => {
+          const { [version]: _, ...rest } = state.migrationRunResults;
+          return { migrationRunResults: rest };
+        }),
 
       // Deployments
       deploymentStatus: 'idle',
