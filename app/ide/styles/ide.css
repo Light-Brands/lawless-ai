@@ -1008,24 +1008,46 @@
   position: relative;
 }
 
-.resize-handle::before {
+.resize-handle:hover {
+  background: #3d3d5c;
+}
+
+/* File tree resize handle (internal to EditorPane) */
+.file-tree-resize-handle {
+  width: 8px;
+  cursor: col-resize;
+  background: transparent;
+  flex-shrink: 0;
+  transition: background 0.15s;
+  position: relative;
+  z-index: 10;
+}
+
+.file-tree-resize-handle::before {
   content: '';
   position: absolute;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 2px;
-  height: 40px;
-  background: #444;
-  border-radius: 1px;
-}
-
-.resize-handle:hover {
+  width: 3px;
+  height: 50px;
   background: #3d3d5c;
+  border-radius: 2px;
+  transition: background 0.15s, height 0.15s;
 }
 
-.resize-handle:hover::before {
+.file-tree-resize-handle:hover {
+  background: rgba(124, 58, 237, 0.1);
+}
+
+.file-tree-resize-handle:hover::before {
   background: #7c3aed;
+  height: 80px;
+}
+
+.file-tree-resize-handle:active::before {
+  background: #9333ea;
+  height: 100px;
 }
 
 .editor-layout.resizing {
@@ -1033,8 +1055,13 @@
   user-select: none;
 }
 
-.editor-layout.resizing .resize-handle {
-  background: #4f46e5;
+.editor-layout.resizing .file-tree-resize-handle {
+  background: rgba(124, 58, 237, 0.2);
+}
+
+.editor-layout.resizing .file-tree-resize-handle::before {
+  background: #9333ea;
+  height: 100px;
 }
 
 .file-tree-header {

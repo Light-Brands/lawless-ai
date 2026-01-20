@@ -467,9 +467,9 @@ export function EditorPane() {
           </div>
         </div>
 
-        {/* Resize handle */}
+        {/* Resize handle for file tree */}
         <div
-          className="resize-handle"
+          className="file-tree-resize-handle"
           onMouseDown={handleResizeStart}
           title="Drag to resize"
         />
