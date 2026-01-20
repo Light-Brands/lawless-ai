@@ -1,6 +1,6 @@
 {
   "name": "lawless-ai-backend",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Oracle Cloud backend for Lawless AI - runs Claude CLI",
   "main": "dist/server.js",
   "scripts": {
