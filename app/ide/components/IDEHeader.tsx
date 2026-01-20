@@ -31,6 +31,7 @@ interface IDEHeaderProps {
   onSessionChange?: (sessionId: string) => void;
   onNewSession?: () => void;
   onDeleteSession?: (sessionId: string) => void;
+  onReposRefresh?: (repos: Repo[]) => void;
 }
 
 export function IDEHeader({
@@ -41,12 +42,16 @@ export function IDEHeader({
   onSessionChange,
   onNewSession,
   onDeleteSession,
+  onReposRefresh,
 }: IDEHeaderProps) {
   const router = useRouter();
   const { activeSession, setCommandPaletteOpen } = useIDEStore();
   const { services, getStatusColor } = useServiceConnection();
   const [repoMenuOpen, setRepoMenuOpen] = useState(false);
   const [sessionMenuOpen, setSessionMenuOpen] = useState(false);
+  const [repoSearch, setRepoSearch] = useState('');
+  const [isSyncing, setIsSyncing] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const currentSession = sessions.find((s) => s.sessionId === activeSessionId);
   const [owner, repoName] = (repoFullName || '').split('/');
@@ -60,8 +65,48 @@ export function IDEHeader({
     return bTime - aTime;
   });
 
+  // Filter repos by search query
+  const filteredRepos = sortedRepos.filter((repo) => {
+    if (!repoSearch.trim()) return true;
+    const query = repoSearch.toLowerCase();
+    return (
+      repo.repo_name.toLowerCase().includes(query) ||
+      repo.repo_full_name.toLowerCase().includes(query)
+    );
+  });
+
   const repoMenuRef = useRef<HTMLDivElement>(null);
   const sessionMenuRef = useRef<HTMLDivElement>(null);
+
+  // Focus search input when dropdown opens
+  useEffect(() => {
+    if (repoMenuOpen && searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
+    if (!repoMenuOpen) {
+      setRepoSearch('');
+    }
+  }, [repoMenuOpen]);
+
+  // Sync repos from GitHub
+  const handleSyncRepos = async () => {
+    setIsSyncing(true);
+    try {
+      const response = await fetch('/api/user/repos/sync', {
+        method: 'POST',
+      });
+      const data = await response.json();
+      if (data.repos && onReposRefresh) {
+        onReposRefresh(data.repos);
+      } else if (data.error) {
+        console.error('Failed to sync repos:', data.error);
+      }
+    } catch (err) {
+      console.error('Failed to sync repos:', err);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   // Close menus when clicking outside
   useEffect(() => {
@@ -122,9 +167,35 @@ export function IDEHeader({
             <div className="repo-menu">
               <div className="repo-menu-header">
                 <span>Repositories</span>
+                <button
+                  className={`repo-sync-btn ${isSyncing ? 'syncing' : ''}`}
+                  onClick={handleSyncRepos}
+                  disabled={isSyncing}
+                  title="Sync repos from GitHub"
+                >
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" className={isSyncing ? 'spin' : ''}>
+                    <path d="M8 3a5 5 0 104.546 2.914.5.5 0 01.908-.417A6 6 0 118 2v1z"/>
+                    <path d="M8 4.466V.534a.25.25 0 01.41-.192l2.36 1.966a.25.25 0 010 .384L8.41 4.658A.25.25 0 018 4.466z"/>
+                  </svg>
+                </button>
+              </div>
+              <div className="repo-search-wrapper">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" className="repo-search-icon">
+                  <circle cx="6" cy="6" r="4" />
+                  <path d="M10 10l3 3" />
+                </svg>
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  className="repo-search-input"
+                  placeholder="Search repositories..."
+                  value={repoSearch}
+                  onChange={(e) => setRepoSearch(e.target.value)}
+                  onClick={(e) => e.stopPropagation()}
+                />
               </div>
               <div className="repo-menu-list">
-                {sortedRepos.map((repo) => (
+                {filteredRepos.map((repo) => (
                   <button
                     key={repo.repo_full_name}
                     className={`repo-menu-item ${repo.repo_full_name === repoFullName ? 'active' : ''}`}
@@ -140,7 +211,15 @@ export function IDEHeader({
                   </button>
                 ))}
                 {repos.length === 0 && (
-                  <div className="repo-menu-empty">No repos found</div>
+                  <div className="repo-menu-empty">
+                    <p>No repos found</p>
+                    <button className="repo-menu-sync-btn" onClick={handleSyncRepos} disabled={isSyncing}>
+                      {isSyncing ? 'Syncing...' : 'Sync from GitHub'}
+                    </button>
+                  </div>
+                )}
+                {repos.length > 0 && filteredRepos.length === 0 && (
+                  <div className="repo-menu-empty">No matching repos</div>
                 )}
               </div>
             </div>

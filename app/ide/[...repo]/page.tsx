@@ -319,6 +319,7 @@ export default function IDERepoPage() {
             onSessionChange={setActiveSessionId}
             onNewSession={() => createSession()}
             onDeleteSession={deleteSession}
+            onReposRefresh={setRepos}
           />
           <IDELayout
             owner={owner}
