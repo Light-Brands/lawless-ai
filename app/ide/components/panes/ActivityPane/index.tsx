@@ -137,6 +137,7 @@ export function ActivityPane() {
   const [filter, setFilter] = useState<string>('all');
   const [search, setSearch] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedEvent, setSelectedEvent] = useState<ActivityEvent | null>(null);
   const saveQueueRef = useRef<ActivityEvent[]>([]);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -502,20 +503,64 @@ export function ActivityPane() {
             <div key={date} className="timeline-group">
               <div className="timeline-date">{getDateLabel(date)}</div>
               {dayEvents.map((event) => (
-                <div key={event.id} className={`timeline-event ${event.type}`}>
+                <div
+                  key={event.id}
+                  className={`timeline-event ${event.type} ${selectedEvent?.id === event.id ? 'selected' : ''}`}
+                  onClick={() => setSelectedEvent(selectedEvent?.id === event.id ? null : event)}
+                >
                   <div className="event-time">{formatTime(event.timestamp)}</div>
                   <div className="event-icon">{getActivityIcon(event.icon)}</div>
                   <div className="event-content">
                     <div className="event-summary">{event.summary}</div>
-                    {event.details && (
-                      <div className="event-details">└─ {event.details}</div>
-                    )}
                   </div>
+                  <div className="event-chevron">{selectedEvent?.id === event.id ? '▼' : '▶'}</div>
                 </div>
               ))}
             </div>
           ))
         )}
+      </div>
+
+      {/* Detail Panel */}
+      {selectedEvent && (
+        <div className="activity-detail-panel">
+          <div className="detail-header">
+            <div className="detail-icon">{getActivityIcon(selectedEvent.icon)}</div>
+            <div className="detail-title">{selectedEvent.summary}</div>
+            <button className="detail-close" onClick={() => setSelectedEvent(null)}>×</button>
+          </div>
+          <div className="detail-content">
+            <div className="detail-row">
+              <span className="detail-label">Type</span>
+              <span className={`detail-value type-badge ${selectedEvent.type}`}>{selectedEvent.type}</span>
+            </div>
+            <div className="detail-row">
+              <span className="detail-label">Time</span>
+              <span className="detail-value">{selectedEvent.timestamp.toLocaleString()}</span>
+            </div>
+            {selectedEvent.details && (
+              <div className="detail-row">
+                <span className="detail-label">Details</span>
+                <span className="detail-value detail-text">{selectedEvent.details}</span>
+              </div>
+            )}
+            {selectedEvent.relatedFile && (
+              <div className="detail-row">
+                <span className="detail-label">File</span>
+                <span className="detail-value detail-file">{selectedEvent.relatedFile}</span>
+              </div>
+            )}
+            <div className="detail-row">
+              <span className="detail-label">ID</span>
+              <span className="detail-value detail-id">{selectedEvent.id}</span>
+            </div>
+            <div className="detail-row">
+              <span className="detail-label">Persisted</span>
+              <span className="detail-value">{selectedEvent.persisted ? '✓ Yes' : '○ No'}</span>
+            </div>
+          </div>
+        </div>
+      )}
       </div>
 
       <style jsx>{`
@@ -653,23 +698,37 @@ export function ActivityPane() {
 
         .timeline-event {
           display: flex;
-          align-items: flex-start;
+          align-items: center;
           gap: 0.5rem;
-          padding: 0.375rem 0;
+          padding: 0.375rem 0.5rem;
           font-size: 0.8rem;
+          cursor: pointer;
+          border-radius: 4px;
+          margin: 0 -0.5rem;
+          transition: background 0.15s;
+        }
+
+        .timeline-event:hover {
+          background: var(--bg-secondary, #141417);
+        }
+
+        .timeline-event.selected {
+          background: var(--bg-tertiary, #1a1a1f);
+          border-left: 2px solid var(--accent-color, #7c3aed);
+          padding-left: calc(0.5rem - 2px);
         }
 
         .event-time {
           flex-shrink: 0;
-          width: 50px;
+          width: 45px;
           color: var(--text-secondary, #666);
           font-family: monospace;
-          font-size: 0.7rem;
+          font-size: 0.65rem;
         }
 
         .event-icon {
           flex-shrink: 0;
-          font-size: 0.9rem;
+          font-size: 0.85rem;
         }
 
         .event-content {
@@ -679,14 +738,20 @@ export function ActivityPane() {
 
         .event-summary {
           color: var(--text-primary, #fff);
-          word-break: break-word;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
         }
 
-        .event-details {
+        .event-chevron {
+          flex-shrink: 0;
+          font-size: 0.5rem;
           color: var(--text-secondary, #666);
-          font-size: 0.75rem;
-          margin-top: 0.125rem;
-          word-break: break-all;
+          transition: transform 0.15s;
+        }
+
+        .timeline-event.selected .event-chevron {
+          color: var(--accent-color, #7c3aed);
         }
 
         .timeline-event.claude .event-summary {
@@ -707,6 +772,119 @@ export function ActivityPane() {
 
         .timeline-event.terminal .event-summary {
           color: #38bdf8;
+        }
+
+        /* Detail Panel */
+        .activity-detail-panel {
+          flex-shrink: 0;
+          border-top: 1px solid var(--border-color, #2a2a2f);
+          background: var(--bg-secondary, #141417);
+          max-height: 200px;
+          overflow-y: auto;
+        }
+
+        .detail-header {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          padding: 0.5rem 0.75rem;
+          border-bottom: 1px solid var(--border-color, #2a2a2f);
+          background: var(--bg-tertiary, #1a1a1f);
+        }
+
+        .detail-icon {
+          flex-shrink: 0;
+        }
+
+        .detail-title {
+          flex: 1;
+          font-size: 0.8rem;
+          font-weight: 500;
+          color: var(--text-primary, #fff);
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        .detail-close {
+          width: 20px;
+          height: 20px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: transparent;
+          border: none;
+          color: var(--text-secondary, #888);
+          font-size: 1rem;
+          cursor: pointer;
+          border-radius: 4px;
+        }
+
+        .detail-close:hover {
+          background: var(--bg-secondary, #141417);
+          color: var(--text-primary, #fff);
+        }
+
+        .detail-content {
+          padding: 0.5rem 0.75rem;
+          display: flex;
+          flex-direction: column;
+          gap: 0.375rem;
+        }
+
+        .detail-row {
+          display: flex;
+          align-items: flex-start;
+          gap: 0.75rem;
+          font-size: 0.75rem;
+        }
+
+        .detail-label {
+          flex-shrink: 0;
+          width: 60px;
+          color: var(--text-secondary, #666);
+        }
+
+        .detail-value {
+          flex: 1;
+          color: var(--text-primary, #fff);
+          word-break: break-all;
+        }
+
+        .type-badge {
+          display: inline-block;
+          padding: 0.125rem 0.375rem;
+          border-radius: 4px;
+          font-size: 0.65rem;
+          font-weight: 500;
+          text-transform: uppercase;
+          background: var(--bg-tertiary, #1a1a1f);
+        }
+
+        .type-badge.claude { color: #a78bfa; background: rgba(167, 139, 250, 0.1); }
+        .type-badge.user { color: #3fb950; background: rgba(63, 185, 80, 0.1); }
+        .type-badge.service { color: #60a5fa; background: rgba(96, 165, 250, 0.1); }
+        .type-badge.deployment { color: #34d399; background: rgba(52, 211, 153, 0.1); }
+        .type-badge.database { color: #fbbf24; background: rgba(251, 191, 36, 0.1); }
+        .type-badge.terminal { color: #38bdf8; background: rgba(56, 189, 248, 0.1); }
+        .type-badge.system { color: #f472b6; background: rgba(244, 114, 182, 0.1); }
+
+        .detail-text {
+          font-family: monospace;
+          font-size: 0.7rem;
+          white-space: pre-wrap;
+        }
+
+        .detail-file {
+          font-family: monospace;
+          font-size: 0.7rem;
+          color: #58a6ff;
+        }
+
+        .detail-id {
+          font-family: monospace;
+          font-size: 0.65rem;
+          color: var(--text-secondary, #666);
         }
       `}</style>
     </div>
