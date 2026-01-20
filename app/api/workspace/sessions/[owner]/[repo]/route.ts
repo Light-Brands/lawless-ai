@@ -10,9 +10,19 @@ export async function GET(
   try {
     const { owner, repo } = await params;
 
-    console.log(`[Sessions List] Calling backend: ${backendUrl}/api/workspace/sessions/${owner}/${repo}`);
+    // Get userId from query params
+    const { searchParams } = new URL(request.url);
+    const userId = searchParams.get('userId');
 
-    const response = await fetch(`${backendUrl}/api/workspace/sessions/${owner}/${repo}`, {
+    console.log(`[Sessions List] Calling backend: ${backendUrl}/api/workspace/sessions/${owner}/${repo} (userId: ${userId})`);
+
+    // Pass userId to backend
+    const url = new URL(`${backendUrl}/api/workspace/sessions/${owner}/${repo}`);
+    if (userId) {
+      url.searchParams.set('userId', userId);
+    }
+
+    const response = await fetch(url.toString(), {
       headers: {
         ...(apiKey ? { 'X-API-Key': apiKey } : {}),
       },

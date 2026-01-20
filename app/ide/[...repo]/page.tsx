@@ -11,6 +11,7 @@ import { ideEvents } from '../lib/eventBus';
 import { IDEProvider } from '../contexts/IDEContext';
 import { ServiceProvider } from '../contexts/ServiceContext';
 import { InitializationOverlay } from '../components/InitializationOverlay';
+import { useAuth } from '@/app/contexts/AuthContext';
 
 interface WorkspaceSession {
   sessionId: string;
@@ -27,6 +28,7 @@ interface WorkspaceSession {
 export default function IDERepoPage() {
   const params = useParams();
   const router = useRouter();
+  const { user, loading: authLoading } = useAuth();
   const repoFullName = Array.isArray(params.repo) ? params.repo.join('/') : params.repo;
   const [owner, repoName] = (repoFullName || '').split('/');
 
@@ -45,11 +47,18 @@ export default function IDERepoPage() {
 
   // Fetch existing sessions for this repo - returns the sessions array
   const fetchSessions = useCallback(async (): Promise<WorkspaceSession[]> => {
-    if (!owner || !repoName) return [];
+    if (!owner || !repoName || !user?.login) return [];
 
     try {
-      const response = await fetch(`/api/workspace/sessions/${owner}/${repoName}`);
+      // Pass userId as query param for Supabase filtering
+      const response = await fetch(`/api/workspace/sessions/${owner}/${repoName}?userId=${encodeURIComponent(user.login)}`);
       const data = await response.json();
+
+      if (data.error) {
+        console.error('Failed to fetch sessions:', data.error);
+        setError(data.error);
+        return [];
+      }
 
       if (data.sessions && data.sessions.length > 0) {
         setSessions(data.sessions);
@@ -63,11 +72,11 @@ export default function IDERepoPage() {
       console.error('Failed to fetch sessions:', err);
       return [];
     }
-  }, [owner, repoName]);
+  }, [owner, repoName, user?.login]);
 
   // Create a new session
   const createSession = useCallback(async (name?: string) => {
-    if (!owner || !repoName) return;
+    if (!owner || !repoName || !user?.login) return;
 
     // Generate session ID in the format expected by terminal backend
     const sessionId = `session_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
@@ -83,6 +92,7 @@ export default function IDERepoPage() {
           sessionId,
           sessionName,
           baseBranch: 'main',
+          userId: user.login, // Pass userId for Supabase persistence
         }),
       });
 
@@ -138,7 +148,7 @@ export default function IDERepoPage() {
       console.error('Failed to create session:', err);
       setError('Failed to create session');
     }
-  }, [owner, repoName, addSession]);
+  }, [owner, repoName, addSession, user?.login]);
 
   // Initialize on mount
   useEffect(() => {
@@ -148,8 +158,21 @@ export default function IDERepoPage() {
       return;
     }
 
+    // Wait for auth to be ready
+    if (authLoading) {
+      return;
+    }
+
+    // Require authenticated user
+    if (!user?.login) {
+      setError('Authentication required');
+      setLoading(false);
+      return;
+    }
+
     const init = async () => {
       setLoading(true);
+      setError(null);
 
       // Fetch existing sessions and check returned value (not state which updates async)
       const existingSessions = await fetchSessions();
@@ -163,7 +186,7 @@ export default function IDERepoPage() {
     };
 
     init();
-  }, [owner, repoName, fetchSessions, createSession]);
+  }, [owner, repoName, fetchSessions, createSession, authLoading, user?.login]);
 
   // Update active session in store when it changes
   useEffect(() => {

@@ -11,6 +11,15 @@ import * as pty from 'node-pty';
 import fs from 'fs';
 import { conversationService } from './services/conversationService';
 import { isSupabaseAvailable, Message } from './lib/supabase';
+import {
+  createSupabaseWorkspaceSession,
+  getSupabaseWorkspaceSession,
+  listSupabaseWorkspaceSessions,
+  updateSupabaseWorkspaceSession,
+  deleteSupabaseWorkspaceSession,
+  touchSupabaseWorkspaceSession,
+  WorkspaceSessionRow,
+} from './services/workspaceSessionService';
 
 // Load environment variables from multiple locations
 // Priority: backend/.env > root/.env.local > root/.env
@@ -23,7 +32,16 @@ const PORT = process.env.PORT || 3001;
 
 // Initialize SQLite database
 const dbPath = process.env.DB_PATH || path.join(__dirname, '..', 'data', 'conversations.db');
+
+// Ensure data directory exists before initializing SQLite
+const dbDir = path.dirname(dbPath);
+if (!fs.existsSync(dbDir)) {
+  console.log(`[Server] Creating database directory: ${dbDir}`);
+  fs.mkdirSync(dbDir, { recursive: true });
+}
+
 const db = new Database(dbPath);
+console.log(`[Server] SQLite database initialized at: ${dbPath}`);
 
 // Create tables
 db.exec(`
@@ -1795,7 +1813,13 @@ function updateWorkspaceSessionAccess(sessionId: string): void {
 }
 
 // Create a new workspace session worktree
-function createWorkspaceSessionWorktree(repoFullName: string, sessionId: string, sessionName: string, baseBranch: string = 'main'): WorkspaceSessionInfo {
+async function createWorkspaceSessionWorktree(
+  repoFullName: string,
+  sessionId: string,
+  sessionName: string,
+  baseBranch: string = 'main',
+  userId: string
+): Promise<WorkspaceSessionInfo> {
   const mainRepoPath = getMainRepoPath(repoFullName);
   const worktreesDir = getWorktreesDir(repoFullName);
   const worktreePath = path.join(worktreesDir, `ws_${sessionId}`);
@@ -1821,11 +1845,30 @@ function createWorkspaceSessionWorktree(repoFullName: string, sessionId: string,
   execSync(`git config user.email "lawless-ai@localhost"`, { cwd: worktreePath });
   execSync(`git config user.name "Lawless AI"`, { cwd: worktreePath });
 
-  // Save to database
-  db.prepare(`
-    INSERT INTO workspace_sessions (session_id, repo_full_name, name, branch_name, worktree_path, base_branch, base_commit)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-  `).run(sessionId, repoFullName, sessionName, branchName, worktreePath, baseBranch, baseCommit);
+  // Save to Supabase (sole source of truth for session metadata)
+  const supabaseSession = await createSupabaseWorkspaceSession({
+    sessionId,
+    userId,
+    repoFullName,
+    name: sessionName,
+    branchName,
+    baseBranch,
+    baseCommit,
+    worktreePath,
+  });
+
+  if (!supabaseSession) {
+    // Cleanup worktree if Supabase save failed
+    try {
+      execSync(`git worktree remove --force "${worktreePath}"`, { cwd: mainRepoPath });
+      execSync(`git branch -D "${branchName}"`, { cwd: mainRepoPath });
+    } catch (e) {
+      console.error('Failed to cleanup worktree after Supabase error:', e);
+    }
+    throw new Error('Failed to save session to database');
+  }
+
+  console.log(`[Session Create] Created session ${sessionId} for user ${userId}`);
 
   return {
     session_id: sessionId,
@@ -1841,18 +1884,21 @@ function createWorkspaceSessionWorktree(repoFullName: string, sessionId: string,
 }
 
 // Delete a workspace session worktree
-function deleteWorkspaceSessionWorktree(repoFullName: string, sessionId: string): boolean {
-  const sessionInfo = getWorkspaceSessionInfo(sessionId);
+async function deleteWorkspaceSessionWorktree(repoFullName: string, sessionId: string): Promise<boolean> {
+  // Get session info from Supabase
+  const sessionInfo = await getSupabaseWorkspaceSession(sessionId);
   if (!sessionInfo) {
+    console.log(`[Session Delete] Session ${sessionId} not found in Supabase`);
     return false;
   }
 
   const mainRepoPath = getMainRepoPath(repoFullName);
-  const worktreePath = sessionInfo.worktree_path;
+  const worktreesDir = getWorktreesDir(repoFullName);
+  const worktreePath = path.join(worktreesDir, `ws_${sessionId}`);
   const branchName = sessionInfo.branch_name;
 
   try {
-    // Remove worktree
+    // Remove worktree if it exists locally
     if (fs.existsSync(worktreePath)) {
       execSync(`git worktree remove --force "${worktreePath}"`, { cwd: mainRepoPath });
     }
@@ -1867,12 +1913,10 @@ function deleteWorkspaceSessionWorktree(repoFullName: string, sessionId: string)
     // Prune worktrees
     execSync('git worktree prune', { cwd: mainRepoPath });
 
-    // Delete associated conversations
-    db.prepare('DELETE FROM conversations WHERE workspace_session_id = ?').run(sessionId);
+    // Delete from Supabase (sole source of truth)
+    await deleteSupabaseWorkspaceSession(sessionId);
 
-    // Delete from database
-    db.prepare('DELETE FROM workspace_sessions WHERE session_id = ?').run(sessionId);
-
+    console.log(`[Session Delete] Deleted session ${sessionId}`);
     return true;
   } catch (error) {
     console.error('Error deleting workspace session worktree:', error);
@@ -1902,11 +1946,23 @@ function isWorkspaceSessionWorktreeValid(sessionId: string): boolean {
 }
 
 // Create a new workspace session with worktree
-app.post('/api/workspace/session/create', authenticateApiKey, (req: Request, res: Response) => {
-  const { repoFullName, sessionId, sessionName, baseBranch = 'main' } = req.body;
+app.post('/api/workspace/session/create', authenticateApiKey, async (req: Request, res: Response) => {
+  const { repoFullName, sessionId, sessionName, baseBranch = 'main', userId } = req.body;
 
   if (!repoFullName || !sessionId || !sessionName) {
     res.status(400).json({ error: 'Repository name, session ID, and session name required' });
+    return;
+  }
+
+  // Require userId for session creation
+  if (!userId) {
+    res.status(400).json({ error: 'User ID required for session creation' });
+    return;
+  }
+
+  // Check if Supabase is available
+  if (!isSupabaseAvailable()) {
+    res.status(503).json({ error: 'Database service unavailable. Please try again later.' });
     return;
   }
 
@@ -1920,17 +1976,22 @@ app.post('/api/workspace/session/create', authenticateApiKey, (req: Request, res
   }
 
   try {
-    // Check if session already exists
-    const existingSession = getWorkspaceSessionInfo(sessionId);
+    // Check if session already exists in Supabase (sole source of truth)
+    const existingSession = await getSupabaseWorkspaceSession(sessionId);
+
     if (existingSession) {
+      // Update last accessed time
+      await touchSupabaseWorkspaceSession(sessionId);
+      console.log(`[Session Create] Found existing session ${sessionId} in Supabase`);
+
       // Session already exists, return its info
       res.json({
         sessionId: existingSession.session_id,
         name: existingSession.name,
         branchName: existingSession.branch_name,
         baseBranch: existingSession.base_branch,
-        baseCommit: existingSession.base_commit,
-        worktreePath: existingSession.worktree_path,
+        baseCommit: existingSession.base_commit || '',
+        worktreePath: '', // Worktree is local, will be resolved separately
         createdAt: existingSession.created_at,
         lastAccessedAt: existingSession.last_accessed_at,
         isExisting: true
@@ -1938,8 +1999,8 @@ app.post('/api/workspace/session/create', authenticateApiKey, (req: Request, res
       return;
     }
 
-    // Create new session worktree
-    const sessionInfo = createWorkspaceSessionWorktree(repoFullName, sessionId, sessionName, baseBranch);
+    // Create new session worktree and save to Supabase
+    const sessionInfo = await createWorkspaceSessionWorktree(repoFullName, sessionId, sessionName, baseBranch, userId);
 
     res.json({
       sessionId: sessionInfo.session_id,
@@ -1959,7 +2020,7 @@ app.post('/api/workspace/session/create', authenticateApiKey, (req: Request, res
 });
 
 // Delete a workspace session and its worktree
-app.delete('/api/workspace/session/:sessionId', authenticateApiKey, (req: Request, res: Response) => {
+app.delete('/api/workspace/session/:sessionId', authenticateApiKey, async (req: Request, res: Response) => {
   const { sessionId } = req.params;
   const { repoFullName } = req.query;
 
@@ -1969,8 +2030,8 @@ app.delete('/api/workspace/session/:sessionId', authenticateApiKey, (req: Reques
   }
 
   try {
-    // Delete worktree and branch
-    const success = deleteWorkspaceSessionWorktree(repoFullName as string, sessionId);
+    // Delete worktree and branch (now also deletes from Supabase)
+    const success = await deleteWorkspaceSessionWorktree(repoFullName as string, sessionId);
 
     if (success) {
       res.json({ success: true, message: 'Session deleted' });
@@ -1984,32 +2045,41 @@ app.delete('/api/workspace/session/:sessionId', authenticateApiKey, (req: Reques
 });
 
 // List all workspace sessions for a repo
-app.get('/api/workspace/sessions/:owner/:repo', authenticateApiKey, (req: Request, res: Response) => {
+app.get('/api/workspace/sessions/:owner/:repo', authenticateApiKey, async (req: Request, res: Response) => {
   const repoFullName = `${req.params.owner}/${req.params.repo}`;
+  const userId = req.query.userId as string | undefined;
 
   try {
-    const rows = db.prepare(`
-      SELECT ws.*,
-             (SELECT COUNT(*) FROM conversations c WHERE c.workspace_session_id = ws.session_id) as message_count
-      FROM workspace_sessions ws
-      WHERE ws.repo_full_name = ?
-      ORDER BY ws.last_accessed_at DESC
-    `).all(repoFullName) as (WorkspaceSessionInfo & { message_count: number })[];
+    // Require userId for session listing
+    if (!userId) {
+      res.status(400).json({ error: 'User ID required for session listing' });
+      return;
+    }
 
-    res.json({
-      sessions: rows.map(row => ({
-        sessionId: row.session_id,
-        name: row.name,
-        branchName: row.branch_name,
-        baseBranch: row.base_branch,
-        baseCommit: row.base_commit,
-        worktreePath: row.worktree_path,
-        createdAt: row.created_at,
-        lastAccessedAt: row.last_accessed_at,
-        messageCount: row.message_count,
-        isValid: isWorkspaceSessionWorktreeValid(row.session_id)
-      }))
-    });
+    // Check if Supabase is available
+    if (!isSupabaseAvailable()) {
+      res.status(503).json({ error: 'Database service unavailable. Please try again later.' });
+      return;
+    }
+
+    // Get sessions from Supabase (sole source of truth)
+    const supabaseSessions = await listSupabaseWorkspaceSessions(repoFullName, userId);
+    console.log(`[Sessions List] Found ${supabaseSessions.length} sessions in Supabase for ${repoFullName} (user: ${userId})`);
+
+    const sessions = supabaseSessions.map(session => ({
+      sessionId: session.session_id,
+      name: session.name,
+      branchName: session.branch_name,
+      baseBranch: session.base_branch,
+      baseCommit: session.base_commit || '',
+      worktreePath: '', // Worktree path is local, resolved when session is loaded
+      createdAt: session.created_at,
+      lastAccessedAt: session.last_accessed_at,
+      messageCount: 0, // Will be populated separately if needed
+      isValid: isWorkspaceSessionWorktreeValid(session.session_id)
+    }));
+
+    res.json({ sessions });
   } catch (error: any) {
     console.error('Error listing workspace sessions:', error);
     res.status(500).json({ error: `Failed to list sessions: ${error.message}` });
@@ -2053,7 +2123,7 @@ app.get('/api/workspace/session/:sessionId', authenticateApiKey, (req: Request, 
 });
 
 // Rename a workspace session
-app.put('/api/workspace/session/:sessionId', authenticateApiKey, (req: Request, res: Response) => {
+app.put('/api/workspace/session/:sessionId', authenticateApiKey, async (req: Request, res: Response) => {
   const { sessionId } = req.params;
   const { name } = req.body;
 
@@ -2063,11 +2133,19 @@ app.put('/api/workspace/session/:sessionId', authenticateApiKey, (req: Request, 
   }
 
   try {
+    // Update in SQLite
     const result = db.prepare('UPDATE workspace_sessions SET name = ?, last_accessed_at = CURRENT_TIMESTAMP WHERE session_id = ?').run(name, sessionId);
 
+    // Also update in Supabase
+    await updateSupabaseWorkspaceSession(sessionId, { name });
+
     if (result.changes === 0) {
-      res.status(404).json({ error: 'Session not found' });
-      return;
+      // Check if it exists in Supabase even if not in SQLite
+      const supabaseSession = await getSupabaseWorkspaceSession(sessionId);
+      if (!supabaseSession) {
+        res.status(404).json({ error: 'Session not found' });
+        return;
+      }
     }
 
     res.json({ success: true, name });

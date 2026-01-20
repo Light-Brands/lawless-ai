@@ -4,6 +4,8 @@ import React from 'react';
 import type { Message, ContentBlock } from '../../types/chat';
 import { ThinkingBlockRenderer } from './ThinkingBlockRenderer';
 import { ToolCardRenderer } from './ToolCardRenderer';
+import { ChatMarkdown } from './ChatMarkdown';
+import '../../styles/chat-markdown.css';
 
 interface MessageRendererProps {
   message: Message;
@@ -25,18 +27,7 @@ function ContentBlockRenderer({
 }) {
   switch (block.type) {
     case 'text':
-      return (
-        <div className="chat-text-block">
-          {block.content}
-          <style jsx>{`
-            .chat-text-block {
-              white-space: pre-wrap;
-              word-break: break-word;
-              line-height: 1.6;
-            }
-          `}</style>
-        </div>
-      );
+      return <ChatMarkdown content={block.content} />;
 
     case 'thinking':
       return (
@@ -56,11 +47,12 @@ function ContentBlockRenderer({
           <style jsx>{`
             .chat-error-block {
               color: #f85149;
-              background: rgba(248, 81, 73, 0.1);
-              padding: 0.5rem 0.75rem;
-              border-radius: 6px;
-              border-left: 3px solid #f85149;
-              font-size: 0.9rem;
+              background: transparent;
+              padding: 0;
+              border-radius: 0;
+              border-left: 1px solid rgba(248, 81, 73, 0.5);
+              padding-left: 6px;
+              font-size: 0.65rem;
             }
           `}</style>
         </div>
@@ -105,13 +97,15 @@ export function MessageRenderer({
       <style jsx>{`
         .chat-message {
           display: flex;
-          gap: 0.75rem;
-          padding: 0.75rem;
-          border-radius: 8px;
+          gap: 0.375rem;
+          padding: 0.125rem 0;
         }
 
         .chat-message.user {
-          background: var(--bg-tertiary, #21262d);
+          background: transparent;
+          border-left: 2px solid #58a6ff;
+          padding-left: 0.5rem;
+          margin-left: -0.5rem;
         }
 
         .chat-message.assistant {
@@ -119,33 +113,33 @@ export function MessageRenderer({
         }
 
         .message-avatar {
-          width: 32px;
-          height: 32px;
+          width: 16px;
+          height: 16px;
           display: flex;
           align-items: center;
           justify-content: center;
-          background: var(--bg-secondary, #161b22);
-          border-radius: 50%;
           flex-shrink: 0;
-          font-size: 0.9rem;
+          font-size: 0.6rem;
+          opacity: 0.6;
         }
 
         .message-content {
           flex: 1;
           min-width: 0;
-          font-size: 0.9rem;
+          font-size: 0.7rem;
           color: var(--text-primary, #c9d1d9);
+          overflow-x: hidden;
         }
 
         .message-typing {
           display: flex;
-          gap: 4px;
-          padding: 0.5rem 0;
+          gap: 2px;
+          padding: 0.125rem 0;
         }
 
         .typing-dot {
-          width: 6px;
-          height: 6px;
+          width: 3px;
+          height: 3px;
           background: var(--text-secondary, #8b949e);
           border-radius: 50%;
           animation: typingBounce 1.4s ease-in-out infinite;
@@ -166,7 +160,7 @@ export function MessageRenderer({
             transform: translateY(0);
           }
           30% {
-            transform: translateY(-4px);
+            transform: translateY(-2px);
           }
         }
       `}</style>
@@ -195,7 +189,7 @@ export function MessageList({ messages, onToggleThinking }: MessageListProps) {
         .chat-messages {
           display: flex;
           flex-direction: column;
-          gap: 0.5rem;
+          gap: 0.25rem;
         }
       `}</style>
     </div>

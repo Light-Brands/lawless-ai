@@ -6,7 +6,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { repoFullName, sessionId, sessionName, baseBranch } = body;
+    const { repoFullName, sessionId, sessionName, baseBranch, userId } = body;
 
     if (!repoFullName || !sessionId || !sessionName) {
       return NextResponse.json(
@@ -15,7 +15,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log(`[Session Create] Calling backend: ${backendUrl}/api/workspace/session/create`);
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'User ID required for session creation' },
+        { status: 400 }
+      );
+    }
+
+    console.log(`[Session Create] Calling backend: ${backendUrl}/api/workspace/session/create (userId: ${userId})`);
 
     const response = await fetch(`${backendUrl}/api/workspace/session/create`, {
       method: 'POST',
@@ -23,7 +30,7 @@ export async function POST(request: NextRequest) {
         'Content-Type': 'application/json',
         ...(apiKey ? { 'X-API-Key': apiKey } : {}),
       },
-      body: JSON.stringify({ repoFullName, sessionId, sessionName, baseBranch }),
+      body: JSON.stringify({ repoFullName, sessionId, sessionName, baseBranch, userId }),
     });
 
     const text = await response.text();

@@ -1,0 +1,253 @@
+/* Chat Markdown - Ultra-compact styling for AI chat messages */
+
+.chat-markdown {
+  font-size: 0.7rem;
+  line-height: 1.35;
+  color: #d4d4d8;
+  word-break: break-word;
+}
+
+/* Remove margins from first/last elements */
+.chat-markdown > *:first-child {
+  margin-top: 0;
+}
+
+.chat-markdown > *:last-child {
+  margin-bottom: 0;
+}
+
+/* Headings */
+.chat-markdown h1,
+.chat-markdown h2,
+.chat-markdown h3,
+.chat-markdown h4,
+.chat-markdown h5,
+.chat-markdown h6 {
+  color: #a78bfa;
+  font-weight: 600;
+  line-height: 1.15;
+  margin-top: 0.35em;
+  margin-bottom: 0.15em;
+}
+
+.chat-markdown h1 {
+  font-size: 1em;
+}
+
+.chat-markdown h2 {
+  font-size: 0.95em;
+}
+
+.chat-markdown h3 {
+  font-size: 0.9em;
+}
+
+.chat-markdown h4,
+.chat-markdown h5,
+.chat-markdown h6 {
+  font-size: 0.85em;
+  color: #8b8b9e;
+}
+
+/* Paragraphs */
+.chat-markdown p {
+  margin: 0 0 0.25em;
+}
+
+/* Links */
+.chat-markdown a {
+  color: #58a6ff;
+  text-decoration: none;
+}
+
+.chat-markdown a:hover {
+  text-decoration: underline;
+}
+
+/* Inline code */
+.chat-markdown code {
+  background: rgba(255, 255, 255, 0.04);
+  padding: 0.05em 0.2em;
+  border-radius: 2px;
+  font-family: 'SF Mono', 'Monaco', 'Fira Code', monospace;
+  font-size: 0.85em;
+  color: #f472b6;
+}
+
+/* Code blocks */
+.chat-markdown pre {
+  background: rgba(0, 0, 0, 0.2);
+  padding: 0.25em 0.4em;
+  border-radius: 2px;
+  overflow-x: auto;
+  margin: 0.25em 0;
+  border: none;
+}
+
+.chat-markdown pre code {
+  background: transparent;
+  padding: 0;
+  color: #e0e0e0;
+  font-size: 0.65rem;
+  line-height: 1.3;
+}
+
+/* Lists */
+.chat-markdown ul,
+.chat-markdown ol {
+  padding-left: 0.9em;
+  margin: 0.15em 0;
+}
+
+.chat-markdown li {
+  margin-bottom: 0.075em;
+  line-height: 1.3;
+}
+
+.chat-markdown li::marker {
+  color: #7c3aed;
+}
+
+/* Nested lists */
+.chat-markdown li > ul,
+.chat-markdown li > ol {
+  margin-top: 0.1em;
+  margin-bottom: 0;
+}
+
+/* Task lists */
+.chat-markdown input[type="checkbox"] {
+  margin-right: 0.25em;
+  accent-color: #7c3aed;
+  transform: scale(0.85);
+}
+
+/* Blockquotes */
+.chat-markdown blockquote {
+  border-left: 1px solid rgba(124, 58, 237, 0.5);
+  margin: 0.2em 0;
+  padding: 0.15em 0.4em;
+  color: #8b8b9e;
+  font-style: italic;
+}
+
+.chat-markdown blockquote p {
+  margin: 0;
+}
+
+/* Tables */
+.chat-markdown table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.2em 0;
+  font-size: 0.85em;
+}
+
+.chat-markdown th {
+  font-weight: 600;
+  font-size: 0.8em;
+  color: #a1a1aa;
+  padding: 0.15em 0.25em;
+  text-align: left;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.chat-markdown td {
+  padding: 0.1em 0.25em;
+  border-bottom: none;
+}
+
+.chat-markdown tr:last-child td {
+  border-bottom: none;
+}
+
+/* Images */
+.chat-markdown img {
+  max-width: 100%;
+  border-radius: 3px;
+  margin: 0.25em 0;
+}
+
+/* Horizontal rule */
+.chat-markdown hr {
+  border: none;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.08);
+  margin: 0.35em 0;
+}
+
+/* Strong and emphasis */
+.chat-markdown strong {
+  color: #f4f4f5;
+  font-weight: 600;
+}
+
+.chat-markdown em {
+  color: #a1a1aa;
+  font-style: italic;
+}
+
+/* Strikethrough */
+.chat-markdown del {
+  color: #71717a;
+  text-decoration: line-through;
+}
+
+/* Keyboard keys */
+.chat-markdown kbd {
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 2px;
+  padding: 0.05em 0.25em;
+  font-family: 'SF Mono', monospace;
+  font-size: 0.85em;
+}
+
+/* Syntax highlighting colors (GitHub Dark theme) */
+.chat-markdown .hljs {
+  color: #e0e0e0;
+}
+
+.chat-markdown .hljs-keyword,
+.chat-markdown .hljs-selector-tag,
+.chat-markdown .hljs-literal,
+.chat-markdown .hljs-section,
+.chat-markdown .hljs-link {
+  color: #ff7b72;
+}
+
+.chat-markdown .hljs-string,
+.chat-markdown .hljs-title,
+.chat-markdown .hljs-name,
+.chat-markdown .hljs-type,
+.chat-markdown .hljs-attribute,
+.chat-markdown .hljs-symbol,
+.chat-markdown .hljs-bullet,
+.chat-markdown .hljs-addition,
+.chat-markdown .hljs-variable,
+.chat-markdown .hljs-template-tag,
+.chat-markdown .hljs-template-variable {
+  color: #a5d6ff;
+}
+
+.chat-markdown .hljs-comment,
+.chat-markdown .hljs-quote,
+.chat-markdown .hljs-deletion,
+.chat-markdown .hljs-meta {
+  color: #8b949e;
+}
+
+.chat-markdown .hljs-function,
+.chat-markdown .hljs-built_in,
+.chat-markdown .hljs-class .hljs-title {
+  color: #d2a8ff;
+}
+
+.chat-markdown .hljs-number,
+.chat-markdown .hljs-doctag,
+.chat-markdown .hljs-regexp {
+  color: #79c0ff;
+}
+
+.chat-markdown .hljs-attr {
+  color: #7ee787;
+}
