@@ -21,6 +21,7 @@ import {
   FileImageIcon,
   LoadingIcon,
 } from '../../Icons';
+import { MarkdownRenderer } from '../../MarkdownRenderer';
 
 // File type detection helpers
 function isImageFile(filename: string): boolean {
@@ -561,7 +562,7 @@ export function EditorPane() {
                 const lines = (content || '').split('\n');
                 const language = getHighlightLanguage(fileName);
 
-                // Markdown preview
+                // Markdown preview with mermaid support
                 if (isMarkdown) {
                   return (
                     <div className="file-preview-container">
@@ -570,7 +571,7 @@ export function EditorPane() {
                         <span className="file-preview-meta">{lines.length} lines · {formatFileSize(fileSize)}</span>
                       </div>
                       <div className="file-preview-markdown">
-                        <div className="markdown-body" dangerouslySetInnerHTML={{ __html: renderedMarkdown }} />
+                        <MarkdownRenderer content={content || ''} />
                       </div>
                     </div>
                   );
