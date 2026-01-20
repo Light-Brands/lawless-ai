@@ -20,6 +20,7 @@ import {
   WrenchIcon,
   ChatIcon,
 } from '../../Icons';
+import { QuickCommands } from '../../QuickCommands';
 
 export function ChatPane() {
   const { repoFullName, sessionId } = useIDEContext();
@@ -36,6 +37,33 @@ export function ChatPane() {
   const [atMentionIndex, setAtMentionIndex] = useState(0);
   const [showDictionary, setShowDictionary] = useState(false);
   const [showContext, setShowContext] = useState(true);
+  const [showQuickCommands, setShowQuickCommands] = useState(false);
+  const [expandedContext, setExpandedContext] = useState<Set<string>>(new Set());
+
+  // Toggle context section expansion
+  const toggleContextExpand = (section: string) => {
+    setExpandedContext(prev => {
+      const next = new Set(prev);
+      if (next.has(section)) {
+        next.delete(section);
+      } else {
+        next.add(section);
+      }
+      return next;
+    });
+  };
+
+  // Available tools definition
+  const availableTools = [
+    { name: 'read_file', description: 'Read contents of a file from the repository' },
+    { name: 'write_file', description: 'Create or update a file in the repository' },
+    { name: 'list_files', description: 'List files and directories in a path' },
+    { name: 'search_code', description: 'Search for code patterns across the codebase' },
+    { name: 'run_terminal', description: 'Execute shell commands in the workspace' },
+    { name: 'git_status', description: 'Check git status, staged changes, and diff' },
+    { name: 'git_commit', description: 'Stage and commit changes with a message' },
+    { name: 'web_search', description: 'Search the web for documentation and solutions' },
+  ];
 
   // Use workspace chat hook with persistence enabled
   const {
@@ -114,6 +142,19 @@ export function ChatPane() {
     inputRef.current?.focus();
   }, [input]);
 
+  // Handle quick command selection
+  const handleQuickCommandSelect = useCallback((item: DictionaryItem) => {
+    if (item.type === 'agent') {
+      // Agents use @ prefix
+      setInput(`@${item.name} `);
+    } else {
+      // Commands and skills use / prefix
+      const usage = item.usage || `/${item.name}`;
+      setInput(usage.endsWith(']') ? usage.replace(/\[.*\]/, '') : usage + ' ');
+    }
+    inputRef.current?.focus();
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || isLoading) return;
@@ -173,22 +214,73 @@ export function ChatPane() {
               Hide
             </button>
           </div>
-          <div className="context-items">
-            <div className="context-item">
-              <span className="context-icon"><FolderIcon size={14} /></span>
-              <span>Repo: {activeSession.repo}</span>
+          <div className="context-sections">
+            {/* Repo - simple display */}
+            <div className="context-section">
+              <div className="context-section-header">
+                <span className="context-icon"><FolderIcon size={14} /></span>
+                <span className="context-label">Repository</span>
+                <span className="context-value">{activeSession.repo}</span>
+              </div>
             </div>
-            <div className="context-item">
-              <span className="context-icon"><GitBranchIcon size={14} /></span>
-              <span>Branch: {activeSession.branch}</span>
+
+            {/* Branch - simple display */}
+            <div className="context-section">
+              <div className="context-section-header">
+                <span className="context-icon"><GitBranchIcon size={14} /></span>
+                <span className="context-label">Branch</span>
+                <span className="context-value">{activeSession.branch}</span>
+              </div>
             </div>
-            <div className="context-item">
-              <span className="context-icon"><FileIcon size={14} /></span>
-              <span>Files: {activeSession.state.open_files.length} open</span>
+
+            {/* Files - expandable */}
+            <div className={`context-section expandable ${expandedContext.has('files') ? 'expanded' : ''}`}>
+              <div
+                className="context-section-header clickable"
+                onClick={() => toggleContextExpand('files')}
+              >
+                <span className="context-icon"><FileIcon size={14} /></span>
+                <span className="context-label">Open Files</span>
+                <span className="context-badge">{activeSession.state.open_files.length}</span>
+                <span className="expand-arrow">{expandedContext.has('files') ? '▼' : '▶'}</span>
+              </div>
+              {expandedContext.has('files') && (
+                <div className="context-details">
+                  {activeSession.state.open_files.length === 0 ? (
+                    <div className="context-detail-empty">No files open</div>
+                  ) : (
+                    activeSession.state.open_files.map((file: string, i: number) => (
+                      <div key={i} className="context-detail-item">
+                        <span className="detail-icon">📄</span>
+                        <span className="detail-text">{file}</span>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
             </div>
-            <div className="context-item">
-              <span className="context-icon"><WrenchIcon size={14} /></span>
-              <span>Tools: 8 available</span>
+
+            {/* Tools - expandable */}
+            <div className={`context-section expandable ${expandedContext.has('tools') ? 'expanded' : ''}`}>
+              <div
+                className="context-section-header clickable"
+                onClick={() => toggleContextExpand('tools')}
+              >
+                <span className="context-icon"><WrenchIcon size={14} /></span>
+                <span className="context-label">Available Tools</span>
+                <span className="context-badge">{availableTools.length}</span>
+                <span className="expand-arrow">{expandedContext.has('tools') ? '▼' : '▶'}</span>
+              </div>
+              {expandedContext.has('tools') && (
+                <div className="context-details">
+                  {availableTools.map((tool, i) => (
+                    <div key={i} className="context-detail-item tool-item">
+                      <span className="tool-name">{tool.name}</span>
+                      <span className="tool-desc">{tool.description}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -297,6 +389,13 @@ export function ChatPane() {
           </button>
         </form>
       </div>
+
+      {/* Quick Commands Panel */}
+      <QuickCommands
+        onSelect={handleQuickCommandSelect}
+        isExpanded={showQuickCommands}
+        onToggleExpand={() => setShowQuickCommands(!showQuickCommands)}
+      />
 
       {/* Command Dictionary modal */}
       <CommandDictionary
