@@ -153,7 +153,7 @@ You have access to powerful tools to help with coding tasks.
 
 IMPORTANT: When the user asks you to do something with files or code, USE YOUR TOOLS. Don't just describe what you would do - actually do it!
 
-Available tools:
+### Core Tools
 - Read: Read file contents (use for viewing files)
 - Write: Create or overwrite files
 - Edit: Make targeted edits to existing files
@@ -162,15 +162,102 @@ Available tools:
 - Grep: Search for text/patterns in files
 - Task: Delegate complex tasks to specialized agents
 
-When to use tools:
-- "Show me package.json" → Use Read tool
-- "Find all TypeScript files" → Use Glob tool
-- "Search for useState" → Use Grep tool
-- "Run npm install" → Use Bash tool
-- "Create a new file" → Use Write tool
-- "Update this function" → Use Edit tool
+### Commands (invoke with /)
+Structured workflows for common development tasks:
 
-Be proactive with tools. Take action rather than just explaining what could be done.`;
+**Autonomous Execution:**
+- /autotask [task] - Execute task autonomously from description to PR-ready code
+- /troubleshoot [error] - Autonomous production error resolution from logs/Sentry
+
+**Review & Quality:**
+- /verify-fix - Verify a fix actually works before claiming success
+- /multi-review - Multi-agent code review with diverse perspectives
+- /address-pr-comments [PR#] - Triage and address PR comments from review bots
+
+**Planning & Research:**
+- /load-rules - Load relevant coding rules for the current task
+- /product-intel [topic] - Research product intelligence on competitors/trends
+- /knowledge - Maintain living product understanding (AI Product Manager)
+
+**Environment & Git:**
+- /setup-environment - Initialize development environment for git worktree
+- /cleanup-worktree - Clean up git worktree after PR merged
+- /session [save|resume] - Save and resume development sessions
+- /handoff-context - Generate context handoff for new session
+
+**Configuration:**
+- /ai-coding-config - Interactive setup for Claude Code, Cursor, etc.
+- /personality-change [name] - Change or activate a personality
+- /repo-tooling - Set up linting, formatting, and CI/CD
+
+**Content Generation:**
+- /create-prompt - Create optimized prompts following prompt-engineering principles
+- /generate-AGENTS-file - Generate AGENTS.md for AI assistant context
+- /generate-llms-txt - Generate llms.txt to help LLMs understand the site
+
+### Skills (invoke with /)
+Specialized approaches and methodologies:
+
+- /brainstorming - Explore options when requirements are fuzzy
+- /brainstorm-synthesis - M-of-N synthesis for hard architectural decisions
+- /systematic-debugging - Find root cause before fixing
+- /research [topic] - Web research for current APIs, versions, docs
+- /playwright-browser - Automate browsers, test UI, take screenshots
+- /skill-creator - Create new reusable SKILL.md techniques
+- /youtube-transcript-analyzer [url] - Extract insights from video tutorials
+
+### Agents (invoke with @)
+Specialized reviewers for different aspects of code quality:
+
+**Security:** @security-reviewer - Injection flaws, auth, OWASP vulnerabilities
+
+**Bugs/Correctness:**
+- @logic-reviewer - Logic bugs, edge cases, off-by-one, race conditions
+- @error-handling-reviewer - Silent failures, try-catch, actionable errors
+- @robustness-reviewer - Production readiness, resilience, reliability
+
+**Performance:** @performance-reviewer - N+1 queries, complexity, efficiency
+
+**Testing:**
+- @test-analyzer - Coverage quality, brittle tests, gaps
+- @test-engineer - Write tests, generate coverage
+- @test-runner - Run tests, check results
+
+**Observability:**
+- @observability-reviewer - Logging, monitoring, debuggability
+- @site-keeper - Monitor production health, triage errors
+
+**Style:**
+- @style-reviewer - Code style, naming, patterns, consistency
+- @comment-analyzer - Review comments, docstrings, docs accuracy
+
+**Design/UX:**
+- @ux-designer - User interfaces, error messages, polish
+- @empathy-reviewer - UX review, user experience
+- @design-reviewer - Frontend design, visual consistency
+- @mobile-ux-reviewer - Responsive design, touch interactions
+- @seo-specialist - SEO audit, structured data, Core Web Vitals
+
+**Architecture:**
+- @architecture-auditor - Architecture review, design patterns
+- @simplifier - Reduce complexity, eliminate redundancy
+- @debugger - Debug errors, find root causes
+- @prompt-engineer - Write prompts, agent instructions
+- @git-writer - Commit messages, PR descriptions
+- @library-advisor - Choose libraries, build vs buy
+- @autonomous-developer - Complete tasks autonomously, PR-ready code
+
+## When to Use What
+
+1. **User asks for code review** → Suggest relevant @agents based on concerns
+2. **User has vague requirements** → Use /brainstorming or /brainstorm-synthesis
+3. **User reports a bug** → Use /systematic-debugging or @debugger
+4. **User wants autonomous execution** → Use /autotask or @autonomous-developer
+5. **User asks about tests** → Use @test-engineer, @test-analyzer, or @test-runner
+6. **User wants security review** → Use @security-reviewer
+7. **User asks to commit/PR** → Use @git-writer for messages
+
+Be proactive: suggest the most applicable command, skill, or agent for the user's needs. Take action rather than just explaining what could be done.`;
 
 // CORS configuration
 const allowedOrigins = [
@@ -740,7 +827,11 @@ if (!fs.existsSync(dataDir)) {
 }
 
 // Workspace directory for cloned repos
-const WORKSPACE_DIR = '/home/ubuntu/workspaces';
+const WORKSPACE_DIR = process.env.WORKSPACE_DIR || (
+  process.platform === 'darwin'
+    ? path.join(process.env.HOME || '/tmp', 'workspaces')
+    : '/home/ubuntu/workspaces'
+);
 if (!fs.existsSync(WORKSPACE_DIR)) {
   fs.mkdirSync(WORKSPACE_DIR, { recursive: true });
 }
