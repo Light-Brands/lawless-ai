@@ -53,13 +53,30 @@ export default function IDERepoPage() {
   // Initialize keyboard shortcuts
   useKeyboardShortcuts();
 
-  // Fetch user's repos for the dropdown
+  // Fetch user's repos for the dropdown (same endpoint as repos page)
   const fetchRepos = useCallback(async () => {
     try {
-      const response = await fetch('/api/user/repos');
+      const response = await fetch('/api/github/repos');
       const data = await response.json();
       if (data.repos) {
-        setRepos(data.repos);
+        // Transform to match the Repo interface used by IDEHeader
+        const transformedRepos = data.repos.map((repo: {
+          id: number;
+          fullName: string;
+          name: string;
+        }) => ({
+          repo_full_name: repo.fullName,
+          repo_name: repo.name,
+          repo_id: repo.id,
+        }));
+        setRepos(transformedRepos);
+
+        // Sync to database in background for persistence
+        fetch('/api/user/repos', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ repos: data.repos }),
+        }).catch(console.error);
       }
     } catch (err) {
       console.error('Failed to fetch repos:', err);

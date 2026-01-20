@@ -88,21 +88,29 @@ export function IDEHeader({
     }
   }, [repoMenuOpen]);
 
-  // Sync repos from GitHub
-  const handleSyncRepos = async () => {
+  // Refresh repos from GitHub
+  const handleRefreshRepos = async () => {
     setIsSyncing(true);
     try {
-      const response = await fetch('/api/user/repos/sync', {
-        method: 'POST',
-      });
+      const response = await fetch('/api/github/repos');
       const data = await response.json();
       if (data.repos && onReposRefresh) {
-        onReposRefresh(data.repos);
+        // Transform to match the Repo interface
+        const transformedRepos = data.repos.map((repo: {
+          id: number;
+          fullName: string;
+          name: string;
+        }) => ({
+          repo_full_name: repo.fullName,
+          repo_name: repo.name,
+          repo_id: repo.id,
+        }));
+        onReposRefresh(transformedRepos);
       } else if (data.error) {
-        console.error('Failed to sync repos:', data.error);
+        console.error('Failed to refresh repos:', data.error);
       }
     } catch (err) {
-      console.error('Failed to sync repos:', err);
+      console.error('Failed to refresh repos:', err);
     } finally {
       setIsSyncing(false);
     }
@@ -169,9 +177,9 @@ export function IDEHeader({
                 <span>Repositories</span>
                 <button
                   className={`repo-sync-btn ${isSyncing ? 'syncing' : ''}`}
-                  onClick={handleSyncRepos}
+                  onClick={handleRefreshRepos}
                   disabled={isSyncing}
-                  title="Sync repos from GitHub"
+                  title="Refresh repos"
                 >
                   <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" className={isSyncing ? 'spin' : ''}>
                     <path d="M8 3a5 5 0 104.546 2.914.5.5 0 01.908-.417A6 6 0 118 2v1z"/>
@@ -212,9 +220,9 @@ export function IDEHeader({
                 ))}
                 {repos.length === 0 && (
                   <div className="repo-menu-empty">
-                    <p>No repos found</p>
-                    <button className="repo-menu-sync-btn" onClick={handleSyncRepos} disabled={isSyncing}>
-                      {isSyncing ? 'Syncing...' : 'Sync from GitHub'}
+                    <p>No repositories found</p>
+                    <button className="repo-menu-sync-btn" onClick={handleRefreshRepos} disabled={isSyncing}>
+                      {isSyncing ? 'Loading...' : 'Refresh'}
                     </button>
                   </div>
                 )}
