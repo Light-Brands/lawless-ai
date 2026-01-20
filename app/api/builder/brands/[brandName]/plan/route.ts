@@ -5,7 +5,7 @@ import type { BrandMetadata } from '@/app/types/builder';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const BRAND_FACTORY_REPO = 'TechNickAI/brand-factory';
+const BRAND_FACTORY_REPO = 'Light-Brands/brand-factory';
 const BRANDS_PATH = 'brands';
 
 interface RouteParams {

@@ -6,7 +6,7 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 // Central repository for all brands
-const BRAND_FACTORY_REPO = 'TechNickAI/brand-factory';
+const BRAND_FACTORY_REPO = 'Light-Brands/brand-factory';
 const BRANDS_PATH = 'brands';
 
 /**
