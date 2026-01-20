@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import type { Brand } from '@/app/types/builder';
 
 interface AuthStatus {
   authenticated: boolean;
@@ -47,15 +48,6 @@ interface SupabaseOrg {
   id: string;
   name: string;
 }
-
-interface DocumentInput {
-  type: 'link' | 'upload';
-  url?: string;
-  content?: string;
-  filename?: string;
-}
-
-type TabType = 'link' | 'upload';
 
 const LightningIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -103,29 +95,25 @@ const LoadingSpinner = () => (
   <div className="new-project-spinner"></div>
 );
 
-const UploadIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-    <polyline points="17 8 12 3 7 8"/>
-    <line x1="12" y1="3" x2="12" y2="15"/>
-  </svg>
-);
-
-const DownloadIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-    <polyline points="7 10 12 15 17 10"/>
-    <line x1="12" y1="15" x2="12" y2="3"/>
+const ExternalLinkIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+    <polyline points="15 3 21 3 21 9"/>
+    <line x1="10" y1="14" x2="21" y2="3"/>
   </svg>
 );
 
 const FileIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
     <polyline points="14 2 14 8 20 8"/>
-    <line x1="16" y1="13" x2="8" y2="13"/>
-    <line x1="16" y1="17" x2="8" y2="17"/>
-    <polyline points="10 9 9 9 8 9"/>
+  </svg>
+);
+
+const PlusIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="12" y1="5" x2="12" y2="19"/>
+    <line x1="5" y1="12" x2="19" y2="12"/>
   </svg>
 );
 
@@ -154,18 +142,14 @@ export default function NewProjectPage() {
   const [selectedVercelAccount, setSelectedVercelAccount] = useState<string>('');
   const [selectedSupabaseOrg, setSelectedSupabaseOrg] = useState<string>('');
 
-  // Document state
-  const [projectPlanTab, setProjectPlanTab] = useState<TabType>('link');
-  const [projectPlanUrl, setProjectPlanUrl] = useState('');
-  const [projectPlanFile, setProjectPlanFile] = useState<File | null>(null);
-  const [projectPlanContent, setProjectPlanContent] = useState<string>('');
-  const [brandIdentityTab, setBrandIdentityTab] = useState<TabType>('link');
-  const [brandIdentityUrl, setBrandIdentityUrl] = useState('');
-  const [brandIdentityFile, setBrandIdentityFile] = useState<File | null>(null);
-  const [brandIdentityContent, setBrandIdentityContent] = useState<string>('');
-  const [convertingFile, setConvertingFile] = useState<string | null>(null);
-  const [draggingPlan, setDraggingPlan] = useState(false);
-  const [draggingBrand, setDraggingBrand] = useState(false);
+  // Brand selection state
+  const [brands, setBrands] = useState<Brand[]>([]);
+  const [loadingBrands, setLoadingBrands] = useState(true);
+  const [selectedBrand, setSelectedBrand] = useState<string>('');
+  const [showPlanPreview, setShowPlanPreview] = useState(false);
+  const [showIdentityPreview, setShowIdentityPreview] = useState(false);
+  const [planContent, setPlanContent] = useState<string>('');
+  const [identityContent, setIdentityContent] = useState<string>('');
 
   useEffect(() => {
     checkAuth();
@@ -174,8 +158,20 @@ export default function NewProjectPage() {
   useEffect(() => {
     if (authStatus?.authenticated) {
       loadOrganizations();
+      loadBrands();
     }
   }, [authStatus]);
+
+  // Auto-fill project name from selected brand
+  useEffect(() => {
+    if (selectedBrand) {
+      const brand = brands.find(b => b.name === selectedBrand);
+      if (brand && !projectName) {
+        // Convert brand name to project name format
+        setProjectName(brand.name);
+      }
+    }
+  }, [selectedBrand, brands]);
 
   async function checkAuth() {
     try {
@@ -241,115 +237,52 @@ export default function NewProjectPage() {
     }
   }
 
-  const ALLOWED_EXTENSIONS = ['.md'];
-  const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
-
-  function formatFileSize(bytes: number): string {
-    if (bytes < 1024) return bytes + ' B';
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
-  }
-
-  function getFileExtension(filename: string): string {
-    const ext = filename.toLowerCase().slice(filename.lastIndexOf('.'));
-    return ext;
-  }
-
-  function isAllowedFile(file: File): boolean {
-    const ext = getFileExtension(file.name);
-    return ALLOWED_EXTENSIONS.includes(ext) && file.size <= MAX_FILE_SIZE;
-  }
-
-  async function convertFile(file: File): Promise<string> {
-    const formData = new FormData();
-    formData.append('file', file);
-
-    const response = await fetch('/api/convert', {
-      method: 'POST',
-      body: formData,
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Failed to convert file');
-    }
-
-    const data = await response.json();
-    return data.markdown;
-  }
-
-  async function handleFileSelect(
-    file: File,
-    type: 'plan' | 'brand'
-  ) {
-    if (!isAllowedFile(file)) {
-      alert(`Invalid file. Allowed formats: ${ALLOWED_EXTENSIONS.join(', ')}. Max size: 5MB.`);
-      return;
-    }
-
-    setConvertingFile(type);
-
+  async function loadBrands() {
+    setLoadingBrands(true);
     try {
-      const content = await convertFile(file);
-      if (type === 'plan') {
-        setProjectPlanFile(file);
-        setProjectPlanContent(content);
-      } else {
-        setBrandIdentityFile(file);
-        setBrandIdentityContent(content);
+      const res = await fetch('/api/builder/brands');
+      if (res.ok) {
+        const data = await res.json();
+        setBrands(data.brands || []);
       }
     } catch (error) {
-      alert(error instanceof Error ? error.message : 'Failed to convert file');
+      console.error('Failed to load brands:', error);
     } finally {
-      setConvertingFile(null);
+      setLoadingBrands(false);
     }
   }
 
-  function handleDragOver(e: React.DragEvent, type: 'plan' | 'brand') {
-    e.preventDefault();
-    if (type === 'plan') {
-      setDraggingPlan(true);
+  async function loadBrandContent(brandName: string) {
+    try {
+      const res = await fetch(`/api/builder/brands/${encodeURIComponent(brandName)}`);
+      if (res.ok) {
+        const data = await res.json();
+        setPlanContent(data.plan || '');
+        setIdentityContent(data.identity || '');
+      }
+    } catch (error) {
+      console.error('Failed to load brand content:', error);
+    }
+  }
+
+  // Load brand content when selected
+  useEffect(() => {
+    if (selectedBrand) {
+      loadBrandContent(selectedBrand);
     } else {
-      setDraggingBrand(true);
+      setPlanContent('');
+      setIdentityContent('');
     }
-  }
-
-  function handleDragLeave(e: React.DragEvent, type: 'plan' | 'brand') {
-    e.preventDefault();
-    if (type === 'plan') {
-      setDraggingPlan(false);
-    } else {
-      setDraggingBrand(false);
-    }
-  }
-
-  function handleDrop(e: React.DragEvent, type: 'plan' | 'brand') {
-    e.preventDefault();
-    if (type === 'plan') {
-      setDraggingPlan(false);
-    } else {
-      setDraggingBrand(false);
-    }
-
-    const file = e.dataTransfer.files[0];
-    if (file) {
-      handleFileSelect(file, type);
-    }
-  }
-
-  function clearFile(type: 'plan' | 'brand') {
-    if (type === 'plan') {
-      setProjectPlanFile(null);
-      setProjectPlanContent('');
-    } else {
-      setBrandIdentityFile(null);
-      setBrandIdentityContent('');
-    }
-  }
+  }, [selectedBrand]);
 
   async function handleCreate() {
     if (!projectName.trim()) {
       alert('Please enter a project name');
+      return;
+    }
+
+    if (!selectedBrand) {
+      alert('Please select a brand. Brand selection is required to create a project.');
       return;
     }
 
@@ -371,29 +304,6 @@ export default function NewProjectPage() {
     const vercelAccount = vercelAccounts.find(a => a.id === selectedVercelAccount);
     const vercelTeamId = vercelAccount?.type === 'team' ? selectedVercelAccount : undefined;
 
-    // Build document inputs
-    let projectPlan: DocumentInput | undefined;
-    if (projectPlanTab === 'link' && projectPlanUrl.trim()) {
-      projectPlan = { type: 'link', url: projectPlanUrl.trim() };
-    } else if (projectPlanTab === 'upload' && projectPlanContent) {
-      projectPlan = {
-        type: 'upload',
-        content: projectPlanContent,
-        filename: projectPlanFile?.name,
-      };
-    }
-
-    let brandIdentity: DocumentInput | undefined;
-    if (brandIdentityTab === 'link' && brandIdentityUrl.trim()) {
-      brandIdentity = { type: 'link', url: brandIdentityUrl.trim() };
-    } else if (brandIdentityTab === 'upload' && brandIdentityContent) {
-      brandIdentity = {
-        type: 'upload',
-        content: brandIdentityContent,
-        filename: brandIdentityFile?.name,
-      };
-    }
-
     const stepResults: StepResult[] = [];
 
     try {
@@ -411,8 +321,11 @@ export default function NewProjectPage() {
           githubOrg,
           vercelTeamId,
           supabaseOrgId: selectedSupabaseOrg || undefined,
-          projectPlan,
-          brandIdentity,
+          // Pass brand name instead of document content
+          brandName: selectedBrand,
+          // Also pass the content directly since it's already loaded
+          projectPlan: planContent ? { type: 'upload', content: planContent } : undefined,
+          brandIdentity: identityContent ? { type: 'upload', content: identityContent } : undefined,
         }),
       });
 
@@ -491,6 +404,11 @@ export default function NewProjectPage() {
   const vercelConnected = authStatus?.vercel?.connected;
   const supabaseConnected = authStatus?.supabase?.connected;
 
+  // Filter to only show complete brands
+  const completeBrands = brands.filter(b => b.isComplete);
+  const incompleteBrands = brands.filter(b => !b.isComplete);
+  const selectedBrandData = brands.find(b => b.name === selectedBrand);
+
   return (
     <div className="new-project-page">
       <div className="new-project-ambient"></div>
@@ -506,6 +424,7 @@ export default function NewProjectPage() {
           </Link>
 
           <nav className="new-project-nav">
+            <Link href="/builder" className="new-project-nav-link">Builder</Link>
             <Link href="/repos" className="new-project-nav-link">Repos</Link>
             <Link href="/integrations" className="new-project-nav-link">Integrations</Link>
           </nav>
@@ -554,6 +473,96 @@ export default function NewProjectPage() {
 
               {/* Form */}
               <div className="new-project-form">
+                {/* Brand Selection - REQUIRED */}
+                <div className="new-project-brand-section">
+                  <div className="new-project-brand-header">
+                    <span className="new-project-doc-title">
+                      Select Brand <span className="new-project-required">*</span>
+                    </span>
+                    <Link href="/builder" target="_blank" className="new-project-brand-create-link">
+                      <PlusIcon />
+                      Create New Brand
+                    </Link>
+                  </div>
+
+                  <select
+                    className="new-project-brand-select"
+                    value={selectedBrand}
+                    onChange={(e) => setSelectedBrand(e.target.value)}
+                    disabled={creating || loadingBrands}
+                  >
+                    <option value="">
+                      {loadingBrands ? 'Loading brands...' : 'Select a brand...'}
+                    </option>
+                    {completeBrands.length > 0 && (
+                      <optgroup label="Complete Brands">
+                        {completeBrands.map(brand => (
+                          <option key={brand.name} value={brand.name}>
+                            {brand.displayName}
+                          </option>
+                        ))}
+                      </optgroup>
+                    )}
+                    {incompleteBrands.length > 0 && (
+                      <optgroup label="Incomplete (needs both plan & identity)">
+                        {incompleteBrands.map(brand => (
+                          <option key={brand.name} value={brand.name} disabled>
+                            {brand.displayName} ({brand.hasPlan ? 'has plan' : 'no plan'}, {brand.hasIdentity ? 'has identity' : 'no identity'})
+                          </option>
+                        ))}
+                      </optgroup>
+                    )}
+                  </select>
+
+                  {selectedBrand && selectedBrandData && (
+                    <div className="new-project-brand-preview">
+                      <div className="new-project-brand-preview-header">
+                        <span className="new-project-brand-preview-name">{selectedBrandData.displayName}</span>
+                        <div className="new-project-brand-preview-badges">
+                          <span className={`new-project-brand-badge ${selectedBrandData.hasPlan ? 'complete' : ''}`}>
+                            {selectedBrandData.hasPlan ? <CheckIcon /> : null}
+                            Plan
+                          </span>
+                          <span className={`new-project-brand-badge ${selectedBrandData.hasIdentity ? 'complete' : ''}`}>
+                            {selectedBrandData.hasIdentity ? <CheckIcon /> : null}
+                            Identity
+                          </span>
+                        </div>
+                      </div>
+                      <div className="new-project-brand-preview-actions">
+                        <button
+                          type="button"
+                          className="new-project-preview-btn"
+                          onClick={() => setShowPlanPreview(true)}
+                          disabled={!planContent}
+                        >
+                          <FileIcon />
+                          View Plan
+                        </button>
+                        <button
+                          type="button"
+                          className="new-project-preview-btn"
+                          onClick={() => setShowIdentityPreview(true)}
+                          disabled={!identityContent}
+                        >
+                          <FileIcon />
+                          View Identity
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {!selectedBrand && brands.length === 0 && !loadingBrands && (
+                    <div className="new-project-brand-empty">
+                      <p>No brands found. Create a brand with both a project plan and brand identity to continue.</p>
+                      <Link href="/builder" className="new-project-brand-create-btn">
+                        <PlusIcon />
+                        Create Brand in Builder
+                      </Link>
+                    </div>
+                  )}
+                </div>
+
                 <div className="new-project-field">
                   <label htmlFor="projectName">Project Name *</label>
                   <input
@@ -643,210 +652,6 @@ export default function NewProjectPage() {
                   </div>
                 )}
 
-                {/* Project Plan Section */}
-                <div className="new-project-doc-section">
-                  <div className="new-project-doc-header">
-                    <span className="new-project-doc-title">
-                      Project Plan <span className="new-project-doc-optional">(optional)</span>
-                    </span>
-                  </div>
-                  <div className="new-project-tabs">
-                    <button
-                      type="button"
-                      className={`new-project-tab ${projectPlanTab === 'link' ? 'active' : ''}`}
-                      onClick={() => setProjectPlanTab('link')}
-                      disabled={creating}
-                    >
-                      Link
-                    </button>
-                    <button
-                      type="button"
-                      className={`new-project-tab ${projectPlanTab === 'upload' ? 'active' : ''}`}
-                      onClick={() => setProjectPlanTab('upload')}
-                      disabled={creating}
-                    >
-                      Upload
-                    </button>
-                  </div>
-                  <div className="new-project-tab-content">
-                    {projectPlanTab === 'link' ? (
-                      <input
-                        type="url"
-                        className="new-project-link-input"
-                        placeholder="https://docs.google.com/document/d/..."
-                        value={projectPlanUrl}
-                        onChange={(e) => setProjectPlanUrl(e.target.value)}
-                        disabled={creating}
-                      />
-                    ) : convertingFile === 'plan' ? (
-                      <div className="new-project-converting">
-                        <LoadingSpinner />
-                        <span>Converting file...</span>
-                      </div>
-                    ) : projectPlanFile ? (
-                      <div
-                        className="new-project-upload-zone has-file"
-                        onClick={() => clearFile('plan')}
-                      >
-                        <div className="new-project-file-preview">
-                          <div className="new-project-upload-icon">
-                            <FileIcon />
-                          </div>
-                          <div className="new-project-file-info">
-                            <div className="new-project-file-name">{projectPlanFile.name}</div>
-                            <div className="new-project-file-size">{formatFileSize(projectPlanFile.size)}</div>
-                          </div>
-                          <button
-                            type="button"
-                            className="new-project-file-remove"
-                            onClick={(e) => { e.stopPropagation(); clearFile('plan'); }}
-                          >
-                            <XIcon />
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div
-                        className={`new-project-upload-zone ${draggingPlan ? 'dragging' : ''}`}
-                        onDragOver={(e) => handleDragOver(e, 'plan')}
-                        onDragLeave={(e) => handleDragLeave(e, 'plan')}
-                        onDrop={(e) => handleDrop(e, 'plan')}
-                        onClick={() => document.getElementById('plan-upload')?.click()}
-                      >
-                        <div className="new-project-upload-icon">
-                          <UploadIcon />
-                        </div>
-                        <p className="new-project-upload-text">
-                          Drag & drop or <span>click to upload</span>
-                        </p>
-                        <p className="new-project-upload-hint">
-                          .md files only (max 5MB)
-                        </p>
-                        <input
-                          id="plan-upload"
-                          type="file"
-                          className="new-project-upload-input"
-                          accept=".md"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) handleFileSelect(file, 'plan');
-                          }}
-                        />
-                      </div>
-                    )}
-                  </div>
-                  <a
-                    href="/templates/project-plan-template.md"
-                    download
-                    className="new-project-template-link"
-                  >
-                    <DownloadIcon />
-                    Download template
-                  </a>
-                </div>
-
-                {/* Brand Identity Section */}
-                <div className="new-project-doc-section">
-                  <div className="new-project-doc-header">
-                    <span className="new-project-doc-title">
-                      Brand Identity <span className="new-project-doc-optional">(optional)</span>
-                    </span>
-                  </div>
-                  <div className="new-project-tabs">
-                    <button
-                      type="button"
-                      className={`new-project-tab ${brandIdentityTab === 'link' ? 'active' : ''}`}
-                      onClick={() => setBrandIdentityTab('link')}
-                      disabled={creating}
-                    >
-                      Link
-                    </button>
-                    <button
-                      type="button"
-                      className={`new-project-tab ${brandIdentityTab === 'upload' ? 'active' : ''}`}
-                      onClick={() => setBrandIdentityTab('upload')}
-                      disabled={creating}
-                    >
-                      Upload
-                    </button>
-                  </div>
-                  <div className="new-project-tab-content">
-                    {brandIdentityTab === 'link' ? (
-                      <input
-                        type="url"
-                        className="new-project-link-input"
-                        placeholder="https://docs.google.com/document/d/..."
-                        value={brandIdentityUrl}
-                        onChange={(e) => setBrandIdentityUrl(e.target.value)}
-                        disabled={creating}
-                      />
-                    ) : convertingFile === 'brand' ? (
-                      <div className="new-project-converting">
-                        <LoadingSpinner />
-                        <span>Converting file...</span>
-                      </div>
-                    ) : brandIdentityFile ? (
-                      <div
-                        className="new-project-upload-zone has-file"
-                        onClick={() => clearFile('brand')}
-                      >
-                        <div className="new-project-file-preview">
-                          <div className="new-project-upload-icon">
-                            <FileIcon />
-                          </div>
-                          <div className="new-project-file-info">
-                            <div className="new-project-file-name">{brandIdentityFile.name}</div>
-                            <div className="new-project-file-size">{formatFileSize(brandIdentityFile.size)}</div>
-                          </div>
-                          <button
-                            type="button"
-                            className="new-project-file-remove"
-                            onClick={(e) => { e.stopPropagation(); clearFile('brand'); }}
-                          >
-                            <XIcon />
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div
-                        className={`new-project-upload-zone ${draggingBrand ? 'dragging' : ''}`}
-                        onDragOver={(e) => handleDragOver(e, 'brand')}
-                        onDragLeave={(e) => handleDragLeave(e, 'brand')}
-                        onDrop={(e) => handleDrop(e, 'brand')}
-                        onClick={() => document.getElementById('brand-upload')?.click()}
-                      >
-                        <div className="new-project-upload-icon">
-                          <UploadIcon />
-                        </div>
-                        <p className="new-project-upload-text">
-                          Drag & drop or <span>click to upload</span>
-                        </p>
-                        <p className="new-project-upload-hint">
-                          .md files only (max 5MB)
-                        </p>
-                        <input
-                          id="brand-upload"
-                          type="file"
-                          className="new-project-upload-input"
-                          accept=".md"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) handleFileSelect(file, 'brand');
-                          }}
-                        />
-                      </div>
-                    )}
-                  </div>
-                  <a
-                    href="/templates/brand-identity-template.md"
-                    download
-                    className="new-project-template-link"
-                  >
-                    <DownloadIcon />
-                    Download template
-                  </a>
-                </div>
-
                 {/* Organization Selectors */}
                 <div className="new-project-org-section">
                   <h3 className="new-project-org-title">Create Under</h3>
@@ -918,7 +723,7 @@ export default function NewProjectPage() {
                 <button
                   className="new-project-create-btn"
                   onClick={handleCreate}
-                  disabled={creating || !githubConnected}
+                  disabled={creating || !githubConnected || !selectedBrand || !selectedBrandData?.isComplete}
                 >
                   {creating ? (
                     <>
@@ -932,6 +737,12 @@ export default function NewProjectPage() {
                     </>
                   )}
                 </button>
+
+                {!selectedBrand && (
+                  <p className="new-project-create-hint">
+                    Select a complete brand to enable project creation
+                  </p>
+                )}
               </div>
 
               {/* What gets created */}
@@ -939,6 +750,7 @@ export default function NewProjectPage() {
                 <h3>What gets created:</h3>
                 <ul>
                   <li>GitHub repository with Next.js 14 + TypeScript template</li>
+                  <li>Project plan and brand identity copied to plans/ folder</li>
                   <li>Supabase client configured and ready to use</li>
                   {includeVercel && vercelConnected && (
                     <li>Vercel project linked to GitHub with auto-deploy</li>
@@ -1022,6 +834,7 @@ export default function NewProjectPage() {
                     setResult(null);
                     setProjectName('');
                     setDescription('');
+                    setSelectedBrand('');
                   }}
                 >
                   Create Another
@@ -1031,6 +844,40 @@ export default function NewProjectPage() {
           )}
         </div>
       </main>
+
+      {/* Plan Preview Modal */}
+      {showPlanPreview && (
+        <div className="new-project-modal-overlay" onClick={() => setShowPlanPreview(false)}>
+          <div className="new-project-modal" onClick={e => e.stopPropagation()}>
+            <div className="new-project-modal-header">
+              <h3>Project Plan</h3>
+              <button className="new-project-modal-close" onClick={() => setShowPlanPreview(false)}>
+                <XIcon />
+              </button>
+            </div>
+            <div className="new-project-modal-content">
+              <pre className="new-project-modal-markdown">{planContent}</pre>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Identity Preview Modal */}
+      {showIdentityPreview && (
+        <div className="new-project-modal-overlay" onClick={() => setShowIdentityPreview(false)}>
+          <div className="new-project-modal" onClick={e => e.stopPropagation()}>
+            <div className="new-project-modal-header">
+              <h3>Brand Identity</h3>
+              <button className="new-project-modal-close" onClick={() => setShowIdentityPreview(false)}>
+                <XIcon />
+              </button>
+            </div>
+            <div className="new-project-modal-content">
+              <pre className="new-project-modal-markdown">{identityContent}</pre>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
