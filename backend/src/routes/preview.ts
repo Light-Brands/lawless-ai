@@ -161,42 +161,48 @@ router.get('/api/preview/ports', authenticateApiKey, async (req: Request, res: R
   const worktreePath = session?.worktree_path || terminalSession?.worktree_path;
 
   try {
-    // Scan ports 3000-3999 using ss command
+    // Scan ports 3000-3999 using ss command, extracting both port and PID
+    // ss output format: LISTEN 0 511 *:3001 *:* users:(("next-server",pid=195462,fd=19))
     const result = execSync(
-      `ss -tlnp 2>/dev/null | grep -E ':3[0-9]{3}\\s' | awk '{print $4}' | sed 's/.*://' | sort -un`,
+      `ss -tlnp 2>/dev/null | grep -E ':3[0-9]{3}\\s'`,
       { encoding: 'utf-8', timeout: 5000 }
     );
 
-    const allPorts = result.split('\n')
-      .map((p: string) => parseInt(p.trim(), 10))
-      .filter((p: number) => !isNaN(p) && p >= 3000 && p <= 3999);
+    // Parse ss output to extract port and PID pairs
+    const portPidPairs: { port: number; pid: number }[] = [];
+    for (const line of result.split('\n')) {
+      if (!line.trim()) continue;
+
+      // Extract port from the local address column (4th field)
+      const portMatch = line.match(/:(\d+)\s+\*:/);
+      const port = portMatch ? parseInt(portMatch[1], 10) : NaN;
+
+      // Extract PID from users:((... pid=XXXXX ...))
+      const pidMatch = line.match(/pid=(\d+)/);
+      const pid = pidMatch ? parseInt(pidMatch[1], 10) : NaN;
+
+      if (!isNaN(port) && port >= 3000 && port <= 3999 && !isNaN(pid)) {
+        portPidPairs.push({ port, pid });
+      }
+    }
+
+    const allPorts = portPidPairs.map(p => p.port);
 
     // Filter ports to only include those running from this session's worktree
     const sessionPorts: number[] = [];
 
     if (worktreePath) {
-      for (const port of allPorts) {
+      for (const { port, pid } of portPidPairs) {
         try {
-          // Use lsof to find the process listening on this port and get its CWD
-          const lsofResult = execSync(
-            `lsof -i :${port} -sTCP:LISTEN -t 2>/dev/null | head -1`,
+          // Get the working directory of the process using /proc
+          const cwdResult = execSync(
+            `readlink /proc/${pid}/cwd 2>/dev/null`,
             { encoding: 'utf-8', timeout: 2000 }
           ).trim();
 
-          if (lsofResult) {
-            const pid = parseInt(lsofResult, 10);
-            if (!isNaN(pid)) {
-              // Get the working directory of the process
-              const cwdResult = execSync(
-                `readlink /proc/${pid}/cwd 2>/dev/null || lsof -p ${pid} 2>/dev/null | grep cwd | awk '{print $NF}'`,
-                { encoding: 'utf-8', timeout: 2000 }
-              ).trim();
-
-              // Check if the process is running from within this session's worktree
-              if (cwdResult && cwdResult.startsWith(worktreePath)) {
-                sessionPorts.push(port);
-              }
-            }
+          // Check if the process is running from within this session's worktree
+          if (cwdResult && cwdResult.startsWith(worktreePath)) {
+            sessionPorts.push(port);
           }
         } catch (e) {
           // If we can't determine the port's owner, skip it
