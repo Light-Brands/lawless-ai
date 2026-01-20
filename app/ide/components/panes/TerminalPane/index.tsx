@@ -441,31 +441,28 @@ export function TerminalPane() {
           height: 100% !important;
         }
 
-        .terminal-wrapper :global(.xterm-screen) {
-          height: 100% !important;
-        }
-
         .terminal-wrapper :global(.xterm-viewport) {
-          overflow-y: auto !important;
+          overflow-y: scroll !important;
           scrollbar-width: thin;
-          scrollbar-color: #2a2a2f transparent;
+          scrollbar-color: #3a3a3f transparent;
         }
 
         .terminal-wrapper :global(.xterm-viewport::-webkit-scrollbar) {
-          width: 8px;
+          width: 10px;
         }
 
         .terminal-wrapper :global(.xterm-viewport::-webkit-scrollbar-track) {
-          background: transparent;
+          background: #1a1a1f;
         }
 
         .terminal-wrapper :global(.xterm-viewport::-webkit-scrollbar-thumb) {
-          background: #2a2a2f;
-          border-radius: 4px;
+          background: #3a3a3f;
+          border-radius: 5px;
+          border: 2px solid #1a1a1f;
         }
 
         .terminal-wrapper :global(.xterm-viewport::-webkit-scrollbar-thumb:hover) {
-          background: #3a3a3f;
+          background: #4a4a4f;
         }
 
         .terminal-mobile-toolbar {
