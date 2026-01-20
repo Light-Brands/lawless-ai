@@ -190,7 +190,6 @@ router.get('/api/preview/ports', authenticateApiKey, async (req: Request, res: R
 
     // Filter ports to only include those running from this session's worktree
     const sessionPorts: number[] = [];
-    const debugInfo: { port: number; pid: number; cwd: string; match: boolean }[] = [];
 
     if (worktreePath) {
       for (const { port, pid } of portPidPairs) {
@@ -202,15 +201,11 @@ router.get('/api/preview/ports', authenticateApiKey, async (req: Request, res: R
           ).trim();
 
           // Check if the process is running from within this session's worktree
-          const isMatch = cwdResult && cwdResult.startsWith(worktreePath);
-          debugInfo.push({ port, pid, cwd: cwdResult, match: !!isMatch });
-
-          if (isMatch) {
+          if (cwdResult && cwdResult.startsWith(worktreePath)) {
             sessionPorts.push(port);
           }
         } catch (e) {
           // If we can't determine the port's owner, skip it
-          debugInfo.push({ port, pid, cwd: `error: ${(e as Error).message}`, match: false });
           continue;
         }
       }
@@ -218,9 +213,6 @@ router.get('/api/preview/ports', authenticateApiKey, async (req: Request, res: R
 
     res.json({
       ports: sessionPorts,
-      allPorts, // Include all ports for debugging
-      worktreePath,
-      debugInfo,
       scannedAt: new Date().toISOString()
     });
   } catch (error) {
