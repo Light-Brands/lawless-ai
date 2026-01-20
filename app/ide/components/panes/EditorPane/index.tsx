@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useIDEStore } from '../../../stores/ideStore';
 import { useIDEContext } from '../../../contexts/IDEContext';
+import { useGitHubConnection } from '../../../contexts/ServiceContext';
 import { CodeEditor } from '../../CodeEditor';
 import { ideEvents } from '../../../lib/eventBus';
 
@@ -63,6 +64,7 @@ function buildFileTree(items: GitHubTreeItem[]): FileTreeItem[] {
 
 export function EditorPane() {
   const { owner, repo } = useIDEContext();
+  const github = useGitHubConnection();
   const { activeFile, openFiles, unsavedFiles, setActiveFile, closeFile, splitView, setSplitView, openFile, markFileUnsaved, markFileSaved } = useIDEStore();
   const [fileTree, setFileTree] = useState<FileTreeItem[]>([]);
   const [fileContents, setFileContents] = useState<Record<string, string>>({});
@@ -74,9 +76,11 @@ export function EditorPane() {
   const [loadingFile, setLoadingFile] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch file tree from GitHub API
+  // Fetch file tree from GitHub API (only when GitHub is connected via ServiceContext)
   useEffect(() => {
     if (!owner || !repo) return;
+    // Wait for GitHub to be connected before fetching
+    if (github.status !== 'connected') return;
 
     const fetchTree = async () => {
       setLoading(true);
@@ -103,7 +107,7 @@ export function EditorPane() {
     };
 
     fetchTree();
-  }, [owner, repo]);
+  }, [owner, repo, github.status]);
 
   // Fetch file content when a file is opened
   const fetchFileContent = useCallback(async (path: string) => {

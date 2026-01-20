@@ -108,10 +108,10 @@ export const useIDEStore = create<IDEStore>()(
           activeSession: state.activeSession?.id === id ? null : state.activeSession,
         })),
 
-      // Pane state - default: Chat + Editor visible
-      paneOrder: [1, 2, 3, 4, 5, 6],
-      paneVisibility: { 1: true, 2: true, 3: false, 4: false, 5: false, 6: false },
-      paneWidths: { 1: 350, 2: 500, 3: 400, 4: 350, 5: 350, 6: 300 },
+      // Pane state - default: Chat + Editor + Terminal visible
+      paneOrder: [1, 2, 7, 3, 4, 5, 6],
+      paneVisibility: { 1: true, 2: true, 3: false, 4: false, 5: false, 6: false, 7: true },
+      paneWidths: { 1: 350, 2: 500, 3: 400, 4: 350, 5: 350, 6: 300, 7: 400 },
       togglePane: (pane) =>
         set((state) => ({
           paneVisibility: { ...state.paneVisibility, [pane]: !state.paneVisibility[pane] },

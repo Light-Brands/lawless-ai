@@ -8,6 +8,9 @@ import { IDEHeader } from '../components/IDEHeader';
 import { CommandPalette } from '../components/CommandPalette';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import { ideEvents } from '../lib/eventBus';
+import { IDEProvider } from '../contexts/IDEContext';
+import { ServiceProvider } from '../contexts/ServiceContext';
+import { InitializationOverlay } from '../components/InitializationOverlay';
 
 interface WorkspaceSession {
   sessionId: string;
@@ -198,20 +201,25 @@ export default function IDERepoPage() {
   }
 
   return (
-    <div className="ide-container">
-      <IDEHeader
-        repoFullName={repoFullName || ''}
-        sessions={sessions}
-        activeSessionId={activeSessionId}
-        onSessionChange={setActiveSessionId}
-        onNewSession={() => createSession()}
-      />
-      <IDELayout
-        owner={owner}
-        repo={repoName}
-        sessionId={activeSessionId}
-      />
-      <CommandPalette />
-    </div>
+    <IDEProvider owner={owner} repo={repoName} sessionId={activeSessionId}>
+      <ServiceProvider sessionId={activeSessionId}>
+        <div className="ide-container">
+          <InitializationOverlay />
+          <IDEHeader
+            repoFullName={repoFullName || ''}
+            sessions={sessions}
+            activeSessionId={activeSessionId}
+            onSessionChange={setActiveSessionId}
+            onNewSession={() => createSession()}
+          />
+          <IDELayout
+            owner={owner}
+            repo={repoName}
+            sessionId={activeSessionId}
+          />
+          <CommandPalette />
+        </div>
+      </ServiceProvider>
+    </IDEProvider>
   );
 }

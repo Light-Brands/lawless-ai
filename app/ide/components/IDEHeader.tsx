@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { useIDEStore } from '../stores/ideStore';
+import { useServiceConnection } from '../hooks/useServiceConnection';
 import Link from 'next/link';
 
 interface Session {
@@ -29,6 +30,7 @@ export function IDEHeader({
   onNewSession,
 }: IDEHeaderProps) {
   const { activeSession, setCommandPaletteOpen } = useIDEStore();
+  const { services, getStatusColor } = useServiceConnection();
   const [sessionMenuOpen, setSessionMenuOpen] = useState(false);
 
   const currentSession = sessions.find((s) => s.sessionId === activeSessionId);
@@ -121,10 +123,26 @@ export function IDEHeader({
       <div className="ide-header-right">
         {/* Status indicators */}
         <div className="status-indicators">
-          <span className="status-dot connected" title="Claude connected" />
-          <span className="status-dot connected" title="GitHub connected" />
-          <span className="status-dot connected" title="Supabase connected" />
-          <span className="status-dot connected" title="Vercel connected" />
+          <span
+            className={`status-dot ${services.terminal.status}`}
+            style={{ backgroundColor: getStatusColor(services.terminal.status) }}
+            title={`Terminal ${services.terminal.status}`}
+          />
+          <span
+            className={`status-dot ${services.github.status}`}
+            style={{ backgroundColor: getStatusColor(services.github.status) }}
+            title={`GitHub ${services.github.status}`}
+          />
+          <span
+            className={`status-dot ${services.supabase.status}`}
+            style={{ backgroundColor: getStatusColor(services.supabase.status) }}
+            title={`Supabase ${services.supabase.status}`}
+          />
+          <span
+            className={`status-dot ${services.vercel.status}`}
+            style={{ backgroundColor: getStatusColor(services.vercel.status) }}
+            title={`Vercel ${services.vercel.status}`}
+          />
         </div>
 
         {/* Settings */}

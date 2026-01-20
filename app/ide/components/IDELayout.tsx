@@ -33,6 +33,11 @@ const ActivityPane = dynamic(() => import('./panes/ActivityPane').then((m) => m.
   loading: () => <PaneSkeleton />,
 });
 
+const TerminalPane = dynamic(() => import('./panes/TerminalPane').then((m) => m.TerminalPane), {
+  loading: () => <PaneSkeleton />,
+  ssr: false, // Terminal uses browser-only APIs
+});
+
 function PaneSkeleton() {
   return (
     <div className="pane-skeleton">
@@ -53,6 +58,7 @@ const PANE_CONFIG = {
   4: { title: 'Database', icon: '🗄️', component: DatabasePane, defaultSize: 20, minSize: 15 },
   5: { title: 'Deployments', icon: '🚀', component: DeploymentsPane, defaultSize: 20, minSize: 15 },
   6: { title: 'Activity', icon: '📋', component: ActivityPane, defaultSize: 18, minSize: 12 },
+  7: { title: 'Terminal', icon: '⌨️', component: TerminalPane, defaultSize: 30, minSize: 15 },
 } as const;
 
 interface IDELayoutProps {

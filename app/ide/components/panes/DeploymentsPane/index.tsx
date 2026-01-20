@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useIDEStore } from '../../../stores/ideStore';
-import { useIDEContext } from '../../../contexts/IDEContext';
+import { useVercelConnection } from '../../../contexts/ServiceContext';
 
 interface Deployment {
   id: string;
@@ -30,43 +30,23 @@ interface EnvVar {
 }
 
 export function DeploymentsPane() {
-  const { repoFullName } = useIDEContext();
+  // Get Vercel connection from ServiceContext (single source of truth)
+  const vercel = useVercelConnection();
+  const projectId = vercel.projectId;
+  const connected = vercel.status === 'connected';
+
   const { deploymentStatus, setDeploymentStatus } = useIDEStore();
   const [activeTab, setActiveTab] = useState<'deployments' | 'env'>('deployments');
 
-  // Vercel connection state
-  const [projectId, setProjectId] = useState<string | null>(null);
+  // Local state for deployments and env vars (not from context)
   const [deployments, setDeployments] = useState<Deployment[]>([]);
   const [envVars, setEnvVars] = useState<EnvVar[]>([]);
   const [loading, setLoading] = useState(false);
   const [envLoading, setEnvLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [connected, setConnected] = useState(false);
   const [selectedDeployment, setSelectedDeployment] = useState<string | null>(null);
   const [deploymentLogs, setDeploymentLogs] = useState<string[]>([]);
   const [logsLoading, setLogsLoading] = useState(false);
-
-  // Fetch repo integrations to get Vercel project ID
-  useEffect(() => {
-    if (!repoFullName) return;
-
-    const fetchIntegrations = async () => {
-      try {
-        const response = await fetch(`/api/repos/integrations?repo=${encodeURIComponent(repoFullName)}`);
-        if (response.ok) {
-          const data = await response.json();
-          if (data.integrations?.vercel?.projectId) {
-            setProjectId(data.integrations.vercel.projectId);
-            setConnected(true);
-          }
-        }
-      } catch (err) {
-        console.error('Failed to fetch integrations:', err);
-      }
-    };
-
-    fetchIntegrations();
-  }, [repoFullName]);
 
   // Fetch deployments when project ID is available
   const fetchDeployments = useCallback(async () => {

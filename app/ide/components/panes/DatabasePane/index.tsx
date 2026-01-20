@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useIDEStore } from '../../../stores/ideStore';
-import { useIDEContext } from '../../../contexts/IDEContext';
+import { useSupabaseConnection } from '../../../contexts/ServiceContext';
 
 interface TableInfo {
   table_name: string;
@@ -25,42 +25,22 @@ interface QueryResult {
 }
 
 export function DatabasePane() {
-  const { repoFullName } = useIDEContext();
+  // Get Supabase connection from ServiceContext (single source of truth)
+  const supabase = useSupabaseConnection();
+  const projectRef = supabase.projectRef;
+  const connected = supabase.status === 'connected';
+
   const { pendingMigrations, autoApplyMigrations, setAutoApplyMigrations } = useIDEStore();
   const [activeTab, setActiveTab] = useState<'migrations' | 'query' | 'schema'>('schema');
   const [query, setQuery] = useState('SELECT * FROM users LIMIT 10;');
 
-  // Supabase connection state
-  const [projectRef, setProjectRef] = useState<string | null>(null);
+  // Local state for tables and queries (not from context)
   const [tables, setTables] = useState<TableInfo[]>([]);
   const [expandedTables, setExpandedTables] = useState<Set<string>>(new Set());
   const [queryResults, setQueryResults] = useState<QueryResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [queryLoading, setQueryLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [connected, setConnected] = useState(false);
-
-  // Fetch repo integrations to get Supabase project ref
-  useEffect(() => {
-    if (!repoFullName) return;
-
-    const fetchIntegrations = async () => {
-      try {
-        const response = await fetch(`/api/repos/integrations?repo=${encodeURIComponent(repoFullName)}`);
-        if (response.ok) {
-          const data = await response.json();
-          if (data.integrations?.supabase?.projectRef) {
-            setProjectRef(data.integrations.supabase.projectRef);
-            setConnected(true);
-          }
-        }
-      } catch (err) {
-        console.error('Failed to fetch integrations:', err);
-      }
-    };
-
-    fetchIntegrations();
-  }, [repoFullName]);
 
   // Fetch tables when project ref is available
   useEffect(() => {

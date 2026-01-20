@@ -12,6 +12,9 @@ export type Json =
 // 'direct' - Claude workspace sidebar sessions
 export type ConversationType = 'root' | 'workspace' | 'direct';
 
+// Activity event type discriminator
+export type ActivityEventType = 'claude' | 'user' | 'git' | 'deployment' | 'database' | 'system' | 'terminal' | 'service';
+
 export interface Database {
   public: {
     Tables: {
@@ -333,6 +336,47 @@ export interface Database {
           created_at?: string;
         };
       };
+      activity_events: {
+        Row: {
+          id: string;
+          user_id: string | null;
+          session_id: string | null;
+          repo_full_name: string | null;
+          event_type: ActivityEventType;
+          icon: string;
+          summary: string;
+          details: string | null;
+          related_file: string | null;
+          metadata: Json;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id?: string | null;
+          session_id?: string | null;
+          repo_full_name?: string | null;
+          event_type: ActivityEventType;
+          icon: string;
+          summary: string;
+          details?: string | null;
+          related_file?: string | null;
+          metadata?: Json;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string | null;
+          session_id?: string | null;
+          repo_full_name?: string | null;
+          event_type?: ActivityEventType;
+          icon?: string;
+          summary?: string;
+          details?: string | null;
+          related_file?: string | null;
+          metadata?: Json;
+          created_at?: string;
+        };
+      };
     };
     Views: {
       [_ in never]: never;
@@ -358,6 +402,8 @@ export type ConversationUpdate = Database['public']['Tables']['conversations']['
 export type TerminalSession = Database['public']['Tables']['terminal_sessions']['Row'];
 export type TerminalOutput = Database['public']['Tables']['terminal_outputs']['Row'];
 export type SqlQueryHistory = Database['public']['Tables']['sql_query_history']['Row'];
+export type ActivityEvent = Database['public']['Tables']['activity_events']['Row'];
+export type ActivityEventInsert = Database['public']['Tables']['activity_events']['Insert'];
 
 // Message types for conversation messages array
 export interface ConversationMessage {

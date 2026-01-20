@@ -20,7 +20,18 @@ type IDEEventType =
   | 'session:action'
   | 'session:initialized'
   | 'toast:show'
-  | 'pane:focus';
+  | 'pane:focus'
+  // Service connection events
+  | 'service:connecting'
+  | 'service:connected'
+  | 'service:error'
+  // Terminal events
+  | 'terminal:connected'
+  | 'terminal:disconnected'
+  | 'terminal:output'
+  // Chat events
+  | 'chat:message'
+  | 'chat:tool_execution';
 
 interface IDEEventMap {
   'file:changed': { path: string; source: 'claude' | 'user' | 'external' };
@@ -37,7 +48,18 @@ interface IDEEventMap {
   'session:action': { action: string; details: any };
   'session:initialized': { sessionId: string };
   'toast:show': { message: string; type: 'info' | 'success' | 'error' | 'warning'; duration?: number };
-  'pane:focus': { pane: number };
+  'pane:focus': { paneId: number };
+  // Service connection events
+  'service:connecting': { service: 'github' | 'supabase' | 'vercel' | 'worktree' | 'terminal' };
+  'service:connected': { service: 'github' | 'supabase' | 'vercel' | 'worktree' | 'terminal' };
+  'service:error': { service: 'github' | 'supabase' | 'vercel' | 'worktree' | 'terminal'; error: string };
+  // Terminal events
+  'terminal:connected': { sessionId: string };
+  'terminal:disconnected': { sessionId: string; code?: number };
+  'terminal:output': { sessionId: string; data: string };
+  // Chat events
+  'chat:message': { type: 'start' | 'end' | 'tool_use'; tool?: string; input?: Record<string, unknown> };
+  'chat:tool_execution': { toolId: string; tool: string; status: 'running' | 'success' | 'error' };
 }
 
 type EventCallback<T extends IDEEventType> = (data: IDEEventMap[T]) => void;
