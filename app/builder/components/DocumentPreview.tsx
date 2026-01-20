@@ -38,6 +38,17 @@ marked.setOptions({
   breaks: true,
 });
 
+// Simple hash function for stable IDs
+function simpleHash(str: string): string {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32bit integer
+  }
+  return Math.abs(hash).toString(36);
+}
+
 // Custom renderer - mermaid blocks get placeholder, others get syntax highlighting
 const renderer = new marked.Renderer();
 renderer.code = function(code: string, infostring: string | undefined): string {
@@ -45,7 +56,8 @@ renderer.code = function(code: string, infostring: string | undefined): string {
 
   // Mermaid blocks get a placeholder div that we'll render client-side
   if (lang === 'mermaid') {
-    const id = `mermaid-${Math.random().toString(36).substr(2, 9)}`;
+    // Use stable hash-based ID so re-renders don't change the ID
+    const id = `mermaid-${simpleHash(code)}`;
     return `<div class="mermaid-placeholder" data-mermaid-id="${id}" data-mermaid-code="${encodeURIComponent(code)}"></div>`;
   }
 
@@ -273,16 +285,14 @@ function DiagramZoomModal({
   );
 }
 
-// Counter for unique mermaid IDs across renders
-let mermaidIdCounter = 0;
+// Cache for rendered mermaid SVGs to avoid re-rendering
+const mermaidCache = new Map<string, string>();
 
 // Markdown rendering with marked + highlight.js + mermaid
 function MarkdownContent({ content }: { content: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [zoomDiagram, setZoomDiagram] = useState<string | null>(null);
-  const renderIdRef = useRef(0);
 
-  // Parse markdown
   const html = useMemo(() => {
     return marked.parse(content, { async: false }) as string;
   }, [content]);
@@ -291,37 +301,34 @@ function MarkdownContent({ content }: { content: string }) {
   useEffect(() => {
     if (!containerRef.current) return;
 
-    const currentRenderId = ++renderIdRef.current;
     const placeholders = containerRef.current.querySelectorAll('.mermaid-placeholder');
-
     if (placeholders.length === 0) return;
 
-    // Process all placeholders
     const renderDiagrams = async () => {
       for (const placeholder of Array.from(placeholders)) {
-        // Check if this render is still current
-        if (renderIdRef.current !== currentRenderId) return;
-
+        const id = placeholder.getAttribute('data-mermaid-id');
         const code = decodeURIComponent(placeholder.getAttribute('data-mermaid-code') || '');
-        if (!code) continue;
 
-        // Generate a unique ID for this render
-        const uniqueId = `mermaid-${Date.now()}-${++mermaidIdCounter}`;
+        if (!id || !code) continue;
+
+        // Check if already rendered (placeholder was replaced)
+        if (!placeholder.parentNode) continue;
 
         try {
-          // Create a temporary container for rendering (mermaid needs it in DOM)
-          const tempContainer = document.createElement('div');
-          tempContainer.id = uniqueId;
-          tempContainer.style.display = 'none';
-          document.body.appendChild(tempContainer);
+          let svg: string;
 
-          const { svg } = await mermaid.render(uniqueId, code);
+          // Check cache first
+          if (mermaidCache.has(id)) {
+            svg = mermaidCache.get(id)!;
+          } else {
+            // Render with mermaid
+            const result = await mermaid.render(id, code);
+            svg = result.svg;
+            mermaidCache.set(id, svg);
+          }
 
-          // Clean up temp container
-          tempContainer.remove();
-
-          // Check if still current render
-          if (renderIdRef.current !== currentRenderId) return;
+          // Double-check placeholder is still in DOM
+          if (!placeholder.parentNode) continue;
 
           // Create wrapper with click-to-zoom
           const wrapper = document.createElement('div');
@@ -329,17 +336,14 @@ function MarkdownContent({ content }: { content: string }) {
           wrapper.innerHTML = svg;
           wrapper.title = 'Click to zoom';
           wrapper.style.cursor = 'pointer';
-
-          // Store svg for zoom handler
-          const svgContent = svg;
-          wrapper.addEventListener('click', () => setZoomDiagram(svgContent));
+          wrapper.onclick = () => setZoomDiagram(svg);
 
           placeholder.replaceWith(wrapper);
         } catch (error) {
           console.error('Mermaid render error:', error);
 
-          // Check if still current render
-          if (renderIdRef.current !== currentRenderId) return;
+          // Check placeholder is still in DOM
+          if (!placeholder.parentNode) continue;
 
           // Show error state
           const errorDiv = document.createElement('div');
