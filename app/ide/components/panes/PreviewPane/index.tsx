@@ -135,11 +135,13 @@ export function PreviewPane() {
     setConsoleLogs([]);
   }, []);
 
-  // Get deployed URL - use proxy to bypass X-Frame-Options
+  // Get deployed URL - use backend proxy to bypass X-Frame-Options
   const getDeployedUrl = useCallback(() => {
     if (latestDeployment?.url) {
-      // Proxy through our API to strip X-Frame-Options header
-      return `/api/preview/vercel?url=${encodeURIComponent(latestDeployment.url)}`;
+      // Proxy through our backend to strip X-Frame-Options header
+      // This serves from dev.lightbrands.ai which we control
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://dev.lightbrands.ai';
+      return `${backendUrl}/preview/vercel?url=${encodeURIComponent(latestDeployment.url)}`;
     }
     return null;
   }, [latestDeployment]);
