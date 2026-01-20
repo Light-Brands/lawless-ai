@@ -1,8 +1,26 @@
 'use client';
 
 import { useMemo } from 'react';
+import { marked } from 'marked';
+import hljs from 'highlight.js';
 import type { BuilderType } from '@/app/types/builder';
 import { getSections, generateDocument } from '../lib/documentTemplates';
+
+// Configure marked with highlight.js
+marked.setOptions({
+  gfm: true,
+  breaks: true,
+});
+
+// Custom renderer for syntax highlighting
+const renderer = new marked.Renderer();
+renderer.code = function({ text, lang }: { text: string; lang?: string }) {
+  const language = lang && hljs.getLanguage(lang) ? lang : 'plaintext';
+  const highlighted = hljs.highlight(text, { language }).value;
+  return `<pre><code class="hljs language-${language}">${highlighted}</code></pre>`;
+};
+
+marked.use({ renderer });
 
 const CopyIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -60,7 +78,7 @@ export function DocumentPreview({
     <div className="builder-preview-panel">
       <div className="builder-preview-header">
         <span className="builder-preview-title">
-          Document Preview ({completedCount}/{sectionConfig.length} sections)
+          {sections['_raw_content'] ? 'Document Preview' : `Document Preview (${completedCount}/${sectionConfig.length} sections)`}
         </span>
         <div className="builder-preview-actions">
           <button
@@ -112,7 +130,7 @@ export function DocumentPreview({
         <button
           className="builder-save-btn"
           onClick={onSave}
-          disabled={saving || completedCount === 0}
+          disabled={saving || (completedCount === 0 && !sections['_raw_content'])}
         >
           {saving ? 'Saving...' : 'Save to Brand Factory'}
         </button>
@@ -121,44 +139,16 @@ export function DocumentPreview({
   );
 }
 
-// Simple markdown rendering for preview
+// Markdown rendering with marked + highlight.js
 function MarkdownContent({ content }: { content: string }) {
-  // Basic markdown to HTML conversion
   const html = useMemo(() => {
-    let result = content;
-
-    // Headers (h3 only since h1/h2 are already used)
-    result = result.replace(/^### (.+)$/gm, '<h3>$1</h3>');
-
-    // Bold
-    result = result.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-
-    // Italic
-    result = result.replace(/\*(.+?)\*/g, '<em>$1</em>');
-
-    // Bullet lists
-    result = result.replace(/^- (.+)$/gm, '<li>$1</li>');
-    result = result.replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>');
-
-    // Tables (basic)
-    const tableRegex = /\|(.+)\|\n\|[-| ]+\|\n((?:\|.+\|\n?)+)/g;
-    result = result.replace(tableRegex, (match, header, body) => {
-      const headerCells = header.split('|').filter((c: string) => c.trim()).map((c: string) => `<th>${c.trim()}</th>`).join('');
-      const rows = body.trim().split('\n').map((row: string) => {
-        const cells = row.split('|').filter((c: string) => c.trim()).map((c: string) => `<td>${c.trim()}</td>`).join('');
-        return `<tr>${cells}</tr>`;
-      }).join('');
-      return `<table><thead><tr>${headerCells}</tr></thead><tbody>${rows}</tbody></table>`;
-    });
-
-    // Paragraphs (wrap remaining text)
-    result = result.replace(/^(?!<[a-z])(.*[^\n])$/gm, '<p>$1</p>');
-
-    // Clean up extra line breaks
-    result = result.replace(/<\/p>\n+<p>/g, '</p><p>');
-
-    return result;
+    return marked.parse(content, { async: false }) as string;
   }, [content]);
 
-  return <div dangerouslySetInnerHTML={{ __html: html }} />;
+  return (
+    <div
+      className="markdown-body"
+      dangerouslySetInnerHTML={{ __html: html }}
+    />
+  );
 }
