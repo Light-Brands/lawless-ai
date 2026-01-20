@@ -141,12 +141,14 @@ export function PreviewPane() {
     }
   }, [vercel.status, vercel.projectId, fetchDeployments]);
 
-  // Build proxy URL for remote localhost - requires sessionId
+  // Build preview URL using dedicated subdomain
+  // This gives a cleaner browsing experience with proper URL isolation
   const getLocalPreviewUrl = useCallback(() => {
     const port = selectedPort || 3000;
-    // Always use proxy - never fall back to localhost
-    // The iframe render condition should prevent this from being called without sessionId
-    return `/api/preview/proxy?sessionId=${effectiveSessionId}&port=${port}`;
+    // Use preview subdomain: preview-{sessionId}.dev.lightbrands.ai
+    // The subdomain handler on the backend proxies to the session's localhost
+    const previewHost = `preview-${effectiveSessionId}.dev.lightbrands.ai`;
+    return `https://${previewHost}${port !== 3000 ? `?port=${port}` : ''}`;
   }, [effectiveSessionId, selectedPort]);
 
   // Refresh iframe
@@ -288,8 +290,8 @@ export function PreviewPane() {
       <div className="preview-url-bar">
         {previewMode === 'local' ? (
           <span>
-            {hasActivePorts
-              ? `http://localhost:${selectedPort || 3000}`
+            {hasActivePorts && effectiveSessionId
+              ? `preview-${effectiveSessionId}.dev.lightbrands.ai`
               : 'Scanning for dev servers...'}
           </span>
         ) : (

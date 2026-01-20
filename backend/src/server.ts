@@ -14,6 +14,7 @@ import { dbPath } from './config/database';
 
 // Import middleware
 import { corsMiddleware, allowedOrigins } from './middleware/cors';
+import { previewSubdomainMiddleware } from './middleware/previewSubdomain';
 
 // Import utils
 import { GIT_COMMIT } from './utils/git';
@@ -39,6 +40,10 @@ const PORT = process.env.PORT || 4000;
 // Apply middleware
 app.use(corsMiddleware);
 app.use(express.json());
+
+// Preview subdomain handler - must be before other routes
+// Handles requests to preview-{sessionId}.dev.lightbrands.ai
+app.use(previewSubdomainMiddleware);
 
 // Health check endpoint
 app.get('/health', (_req: Request, res: Response) => {
