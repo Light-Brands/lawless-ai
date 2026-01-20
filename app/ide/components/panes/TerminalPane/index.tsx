@@ -395,11 +395,10 @@ export function TerminalPane() {
         }
 
         .terminal-container {
-          flex: 1;
+          flex: 1 1 0;
           position: relative;
           overflow: hidden;
-          min-height: 0;
-          max-height: 100%;
+          min-height: 200px;
         }
 
         .terminal-loading {
@@ -431,15 +430,13 @@ export function TerminalPane() {
         }
 
         .terminal-wrapper {
-          position: absolute;
-          inset: 0;
+          width: 100%;
+          height: 100%;
           padding: 0.5rem;
-          overflow: hidden;
         }
 
         .terminal-wrapper :global(.xterm) {
           height: 100% !important;
-          overflow: hidden;
         }
 
         .terminal-wrapper :global(.xterm-screen) {
