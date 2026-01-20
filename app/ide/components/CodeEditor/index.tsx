@@ -121,6 +121,23 @@ export function CodeEditor({ value, onChange, language = 'index.tsx', readOnly =
     }
   }, [value]);
 
+  // Handle container resize (e.g., when sidebar collapses/expands)
+  useEffect(() => {
+    if (!editorRef.current || !viewRef.current) return;
+
+    const resizeObserver = new ResizeObserver(() => {
+      if (viewRef.current) {
+        viewRef.current.requestMeasure();
+      }
+    });
+
+    resizeObserver.observe(editorRef.current);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [isClient]);
+
   if (!isClient) {
     return (
       <div className={`code-editor-placeholder ${className}`}>
