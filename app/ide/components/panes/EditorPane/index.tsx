@@ -288,13 +288,32 @@ export function EditorPane() {
     }
   }, [viewMode, activeFile, fileContents]);
 
-  // Markdown rendering for preview mode
+  // Markdown rendering for preview mode with syntax highlighting
   useEffect(() => {
     if (viewMode === 'preview' && activeFile) {
       const fileName = activeFile.split('/').pop() || '';
       const content = fileContents[activeFile];
       if (isMarkdownFile(fileName) && content) {
-        marked.setOptions({ gfm: true, breaks: true });
+        // Configure marked with syntax highlighting
+        marked.setOptions({
+          gfm: true,
+          breaks: true,
+          highlight: (code: string, lang: string) => {
+            if (lang && hljs.getLanguage(lang)) {
+              try {
+                return hljs.highlight(code, { language: lang }).value;
+              } catch {
+                return code;
+              }
+            }
+            // Auto-detect language if not specified
+            try {
+              return hljs.highlightAuto(code).value;
+            } catch {
+              return code;
+            }
+          },
+        });
         const rendered = marked(content);
         if (typeof rendered === 'string') {
           setRenderedMarkdown(rendered);
