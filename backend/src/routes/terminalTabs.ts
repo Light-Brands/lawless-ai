@@ -53,6 +53,40 @@ router.post('/api/terminal/tabs', authenticateApiKey, async (req: Request, res: 
       { encoding: 'utf-8' }
     );
 
+    // Set git config for commits in the worktree
+    execSync(`git config user.email "lawless-ai@localhost"`, { cwd: worktreePath });
+    execSync(`git config user.name "Lawless AI"`, { cwd: worktreePath });
+
+    // Copy .env.local from main repo if it exists
+    const mainEnvLocal = path.join(mainRepoPath, '.env.local');
+    const worktreeEnvLocal = path.join(worktreePath, '.env.local');
+    if (fs.existsSync(mainEnvLocal) && !fs.existsSync(worktreeEnvLocal)) {
+      try {
+        fs.copyFileSync(mainEnvLocal, worktreeEnvLocal);
+        console.log(`Copied .env.local to tab worktree: ${worktreePath}`);
+      } catch (e) {
+        console.warn(`Failed to copy .env.local to tab worktree:`, e);
+      }
+    }
+
+    // Install dependencies if package.json exists
+    const packageJsonPath = path.join(worktreePath, 'package.json');
+    if (fs.existsSync(packageJsonPath)) {
+      try {
+        console.log(`Installing dependencies in tab worktree: ${worktreePath}`);
+        execSync('npm install', {
+          cwd: worktreePath,
+          encoding: 'utf-8',
+          timeout: 300000, // 5 minute timeout
+          stdio: 'pipe'
+        });
+        console.log(`Dependencies installed in tab worktree: ${worktreePath}`);
+      } catch (e) {
+        console.warn(`Failed to install dependencies in tab worktree (will continue):`, e);
+        // Don't fail the tab creation - user can install manually
+      }
+    }
+
     // Count existing tabs for index
     const tabCount = db.prepare(
       'SELECT COUNT(*) as count FROM terminal_tabs WHERE terminal_session_id = ?'
