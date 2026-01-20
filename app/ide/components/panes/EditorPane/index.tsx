@@ -12,54 +12,24 @@ interface FileTreeItem {
   path: string;
   type: 'file' | 'folder';
   children?: FileTreeItem[];
-  sha?: string;
 }
 
-interface GitHubTreeItem {
+// API tree node structure
+interface ApiTreeNode {
+  name: string;
   path: string;
-  mode: string;
-  type: 'blob' | 'tree';
-  sha: string;
-  size?: number;
+  type: 'file' | 'dir';
+  children?: ApiTreeNode[];
 }
 
-// Convert flat GitHub tree to hierarchical structure
-function buildFileTree(items: GitHubTreeItem[]): FileTreeItem[] {
-  const root: FileTreeItem[] = [];
-  const pathMap = new Map<string, FileTreeItem>();
-
-  // Sort items so directories come first, then alphabetically
-  const sortedItems = [...items].sort((a, b) => {
-    if (a.type !== b.type) return a.type === 'tree' ? -1 : 1;
-    return a.path.localeCompare(b.path);
-  });
-
-  for (const item of sortedItems) {
-    const parts = item.path.split('/');
-    const name = parts[parts.length - 1];
-    const parentPath = parts.slice(0, -1).join('/');
-
-    const node: FileTreeItem = {
-      name,
-      path: item.path,
-      type: item.type === 'tree' ? 'folder' : 'file',
-      sha: item.sha,
-      children: item.type === 'tree' ? [] : undefined,
-    };
-
-    pathMap.set(item.path, node);
-
-    if (parentPath === '') {
-      root.push(node);
-    } else {
-      const parent = pathMap.get(parentPath);
-      if (parent && parent.children) {
-        parent.children.push(node);
-      }
-    }
-  }
-
-  return root;
+// Convert API tree (dir/file) to our format (folder/file)
+function convertApiTree(nodes: ApiTreeNode[]): FileTreeItem[] {
+  return nodes.map(node => ({
+    name: node.name,
+    path: node.path,
+    type: node.type === 'dir' ? 'folder' : 'file',
+    children: node.children ? convertApiTree(node.children) : undefined,
+  }));
 }
 
 export function EditorPane() {
@@ -126,7 +96,7 @@ export function EditorPane() {
         }
         const data = await response.json();
         if (data.tree) {
-          const tree = buildFileTree(data.tree);
+          const tree = convertApiTree(data.tree);
           setFileTree(tree);
           // Auto-expand first level folders
           const firstLevelFolders = tree.filter(item => item.type === 'folder').map(item => item.path);
