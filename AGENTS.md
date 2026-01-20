@@ -182,6 +182,36 @@ cd /home/ubuntu/workspaces/Light-Brands_lawless-ai/main && git worktree list
 git worktree prune && rm -rf ../worktrees/*
 ```
 
+### Preview Subdomain System
+
+The IDE preview pane uses dedicated subdomains for clean iframe isolation:
+
+- **Pattern:** `preview-{sessionId}.dev.lightbrands.ai`
+- **SSL:** Wildcard cert via Let's Encrypt + Cloudflare DNS
+- **Flow:** Subdomain → Nginx → Backend middleware → Session's localhost:3000
+
+**Architecture:**
+```
+preview-{sessionId}.dev.lightbrands.ai
+         │
+         ▼ (HTTPS with wildcard SSL)
+      Nginx (*.dev.lightbrands.ai)
+         │
+         ▼
+      Backend previewSubdomain middleware
+         │
+         ▼
+      Proxies to session's localhost:3000
+```
+
+**Key Files:**
+- `backend/src/middleware/previewSubdomain.ts` - Subdomain routing logic
+- `/etc/nginx/sites-available/preview.dev.lightbrands.ai` - Nginx wildcard config
+- `/etc/letsencrypt/cloudflare/credentials.ini` - Cloudflare API token for cert renewal
+
+**DNS Requirements:**
+- A record: `*.dev.lightbrands.ai` → `147.224.217.154` (Cloudflare, DNS-only mode)
+
 ### Supabase
 
 - **Project:** Lawless AI (`jnxfynvgkguaghhorsov`)

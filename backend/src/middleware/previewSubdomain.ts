@@ -57,10 +57,10 @@ export async function previewSubdomainMiddleware(req: Request, res: Response, ne
     // Get content type
     const contentType = proxyRes.headers.get('content-type') || 'text/html; charset=utf-8';
 
-    // Set response headers
+    // Set response headers - explicitly allow iframe embedding from any origin
     res.setHeader('Content-Type', contentType);
-    res.setHeader('X-Frame-Options', 'SAMEORIGIN');
-    res.removeHeader('Content-Security-Policy');
+    res.removeHeader('X-Frame-Options'); // Allow cross-origin iframe embedding
+    res.removeHeader('Content-Security-Policy'); // Remove any restrictive CSP
 
     // Forward cache headers
     const cacheControl = proxyRes.headers.get('cache-control');
