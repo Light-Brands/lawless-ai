@@ -7,10 +7,11 @@ import { useServiceContext } from '../contexts/ServiceContext';
 // Max lines to store per session
 const MAX_HISTORY_LINES = 1000;
 
-// Auto-reconnect configuration
+// Auto-reconnect configuration for long-running sessions (24+ hours)
 const RECONNECT_BASE_DELAY = 1000; // 1 second
-const RECONNECT_MAX_DELAY = 30000; // 30 seconds
-const RECONNECT_MAX_ATTEMPTS = 10;
+const RECONNECT_MAX_DELAY = 60000; // 60 seconds max between attempts
+const RECONNECT_MAX_ATTEMPTS = 100; // Allow many reconnect attempts for long sessions
+const RECONNECT_RESET_AFTER = 300000; // Reset attempt counter after 5 min of stable connection
 
 // Special key codes for terminal
 export const TERMINAL_KEYS = {
@@ -85,6 +86,9 @@ export function useTerminal(options: UseTerminalOptions = {}): UseTerminalReturn
   const initializedRef = useRef(false);
   const intentionalDisconnectRef = useRef(false);
   const saveOutputTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastPongTimeRef = useRef<number>(Date.now());
+  const connectionStableTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const heartbeatCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Fetch backend WebSocket URL on mount
   useEffect(() => {
@@ -217,8 +221,16 @@ export function useTerminal(options: UseTerminalOptions = {}): UseTerminalReturn
       terminalRef.current?.writeln?.('\x1b[32mConnected!\x1b[0m');
       setIsConnected(true);
       setIsReconnecting(false);
-      setReconnectAttempt(0);
       onConnected?.();
+      lastPongTimeRef.current = Date.now();
+
+      // Reset reconnect counter after stable connection (5 minutes)
+      if (connectionStableTimeoutRef.current) {
+        clearTimeout(connectionStableTimeoutRef.current);
+      }
+      connectionStableTimeoutRef.current = setTimeout(() => {
+        setReconnectAttempt(0);
+      }, RECONNECT_RESET_AFTER);
 
       // Send initial resize
       if (fitAddonRef.current && terminalRef.current) {
@@ -234,6 +246,15 @@ export function useTerminal(options: UseTerminalOptions = {}): UseTerminalReturn
       pingIntervalRef.current = setInterval(() => {
         if (ws.readyState === WebSocket.OPEN) {
           ws.send(JSON.stringify({ type: 'ping' }));
+        }
+      }, 30000);
+
+      // Check for stale connections (no pong in 90 seconds = 3 missed pings)
+      heartbeatCheckIntervalRef.current = setInterval(() => {
+        const timeSinceLastPong = Date.now() - lastPongTimeRef.current;
+        if (timeSinceLastPong > 90000 && ws.readyState === WebSocket.OPEN) {
+          terminalRef.current?.writeln?.('\x1b[33mConnection appears stale, reconnecting...\x1b[0m');
+          ws.close();
         }
       }, 30000);
     };
@@ -266,7 +287,8 @@ export function useTerminal(options: UseTerminalOptions = {}): UseTerminalReturn
             captureOutput(`Process exited with code ${msg.code}\n`);
             break;
           case 'pong':
-            // Keep-alive response received
+            // Keep-alive response received - connection is healthy
+            lastPongTimeRef.current = Date.now();
             break;
         }
       } catch (e) {
@@ -280,6 +302,16 @@ export function useTerminal(options: UseTerminalOptions = {}): UseTerminalReturn
       if (pingIntervalRef.current) {
         clearInterval(pingIntervalRef.current);
         pingIntervalRef.current = null;
+      }
+      // Clear heartbeat check interval
+      if (heartbeatCheckIntervalRef.current) {
+        clearInterval(heartbeatCheckIntervalRef.current);
+        heartbeatCheckIntervalRef.current = null;
+      }
+      // Clear connection stable timeout
+      if (connectionStableTimeoutRef.current) {
+        clearTimeout(connectionStableTimeoutRef.current);
+        connectionStableTimeoutRef.current = null;
       }
 
       setIsConnected(false);
@@ -317,6 +349,14 @@ export function useTerminal(options: UseTerminalOptions = {}): UseTerminalReturn
     if (pingIntervalRef.current) {
       clearInterval(pingIntervalRef.current);
       pingIntervalRef.current = null;
+    }
+    if (heartbeatCheckIntervalRef.current) {
+      clearInterval(heartbeatCheckIntervalRef.current);
+      heartbeatCheckIntervalRef.current = null;
+    }
+    if (connectionStableTimeoutRef.current) {
+      clearTimeout(connectionStableTimeoutRef.current);
+      connectionStableTimeoutRef.current = null;
     }
     setIsConnected(false);
 
@@ -468,6 +508,40 @@ export function useTerminal(options: UseTerminalOptions = {}): UseTerminalReturn
     };
   }, [fit]);
 
+  // Save output on visibility change and beforeunload for reliability
+  useEffect(() => {
+    if (!persistOutput || !sessionId || !repoFullName) return;
+
+    // Save when tab becomes hidden (user navigates away)
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        saveOutputToDatabase();
+      }
+    };
+
+    // Use sendBeacon on page unload for reliable delivery
+    const handleBeforeUnload = () => {
+      if (outputHistoryRef.current.length > 0) {
+        navigator.sendBeacon(
+          '/api/terminal/output',
+          JSON.stringify({
+            sessionId,
+            repoFullName,
+            outputLines: outputHistoryRef.current,
+          })
+        );
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [persistOutput, sessionId, repoFullName, saveOutputToDatabase]);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -476,6 +550,12 @@ export function useTerminal(options: UseTerminalOptions = {}): UseTerminalReturn
       disconnect();
       if (saveOutputTimeoutRef.current) {
         clearTimeout(saveOutputTimeoutRef.current);
+      }
+      if (heartbeatCheckIntervalRef.current) {
+        clearInterval(heartbeatCheckIntervalRef.current);
+      }
+      if (connectionStableTimeoutRef.current) {
+        clearTimeout(connectionStableTimeoutRef.current);
       }
       if (terminalRef.current) {
         terminalRef.current.dispose();
