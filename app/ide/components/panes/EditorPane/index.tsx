@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useIDEStore } from '../../../stores/ideStore';
 import { useIDEContext } from '../../../contexts/IDEContext';
 import { useGitHubConnection } from '../../../contexts/ServiceContext';
@@ -75,6 +75,40 @@ export function EditorPane() {
   const [loading, setLoading] = useState(false);
   const [loadingFile, setLoadingFile] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [sidebarWidth, setSidebarWidth] = useState(250);
+  const [isResizing, setIsResizing] = useState(false);
+  const resizeRef = useRef<{ startX: number; startWidth: number } | null>(null);
+
+  // Handle sidebar resize
+  const handleResizeStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizing(true);
+    resizeRef.current = { startX: e.clientX, startWidth: sidebarWidth };
+  }, [sidebarWidth]);
+
+  useEffect(() => {
+    if (!isResizing) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!resizeRef.current) return;
+      const delta = e.clientX - resizeRef.current.startX;
+      const newWidth = Math.max(150, Math.min(500, resizeRef.current.startWidth + delta));
+      setSidebarWidth(newWidth);
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+      resizeRef.current = null;
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizing]);
 
   // Fetch file tree from GitHub API (only when GitHub is connected via ServiceContext)
   useEffect(() => {
@@ -317,8 +351,8 @@ export function EditorPane() {
       </div>
 
       {/* File tree sidebar */}
-      <div className="editor-layout">
-        <div className="file-tree">
+      <div className={`editor-layout ${isResizing ? 'resizing' : ''}`}>
+        <div className="file-tree" style={{ width: sidebarWidth, minWidth: sidebarWidth }}>
           <div className="file-tree-header">
             <input
               type="text"
@@ -340,6 +374,13 @@ export function EditorPane() {
             )}
           </div>
         </div>
+
+        {/* Resize handle */}
+        <div
+          className="resize-handle"
+          onMouseDown={handleResizeStart}
+          title="Drag to resize"
+        />
 
         {/* Code editor area */}
         <div className="code-editor-container">

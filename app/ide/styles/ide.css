@@ -992,10 +992,32 @@
 }
 
 .file-tree {
-  width: 200px;
+  flex-shrink: 0;
   border-right: 1px solid #2d2d44;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+}
+
+.resize-handle {
+  width: 4px;
+  cursor: col-resize;
+  background: transparent;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+
+.resize-handle:hover {
+  background: #4f46e5;
+}
+
+.editor-layout.resizing {
+  cursor: col-resize;
+  user-select: none;
+}
+
+.editor-layout.resizing .resize-handle {
+  background: #4f46e5;
 }
 
 .file-tree-header {
