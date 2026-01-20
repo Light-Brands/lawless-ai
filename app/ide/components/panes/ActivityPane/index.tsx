@@ -362,6 +362,18 @@ export function ActivityPane() {
     });
   }, [addEvent]);
 
+  useIDEEvent('deployment:failed', (data) => {
+    addEvent({
+      id: `deploy-failed-${Date.now()}`,
+      timestamp: new Date(),
+      type: 'deployment',
+      icon: 'error',
+      summary: 'Deployment failed',
+      details: `Error: ${data.error}\n\nLogs:\n${data.logs}`,
+      persisted: false,
+    });
+  }, [addEvent]);
+
   // Subscribe to migration events
   useIDEEvent('migration:applied', (data) => {
     addEvent({
@@ -558,10 +570,25 @@ export function ActivityPane() {
               <span className="detail-label">Persisted</span>
               <span className="detail-value">{selectedEvent.persisted ? '✓ Yes' : '○ No'}</span>
             </div>
+            {/* Fix Deployment button for failed deployments */}
+            {selectedEvent.type === 'deployment' && selectedEvent.icon === 'error' && (
+              <div className="detail-actions">
+                <button
+                  className="fix-deployment-btn"
+                  onClick={() => {
+                    const errorContext = `Fix this deployment error:\n\nSummary: ${selectedEvent.summary}\n${selectedEvent.details ? `Details: ${selectedEvent.details}\n` : ''}${selectedEvent.relatedFile ? `File: ${selectedEvent.relatedFile}` : ''}`;
+                    ideEvents.emit('chat:send', { message: errorContext, autoSend: true });
+                    setSelectedEvent(null);
+                  }}
+                >
+                  <WrenchIcon size={12} />
+                  Fix Deployment
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
-      </div>
 
       <style jsx>{`
         .activity-pane {
@@ -885,6 +912,37 @@ export function ActivityPane() {
           font-family: monospace;
           font-size: 0.65rem;
           color: var(--text-secondary, #666);
+        }
+
+        .detail-actions {
+          margin-top: 0.5rem;
+          padding-top: 0.5rem;
+          border-top: 1px solid var(--border-color, #2a2a2f);
+        }
+
+        .fix-deployment-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.375rem;
+          padding: 0.375rem 0.75rem;
+          background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+          border: none;
+          border-radius: 4px;
+          color: white;
+          font-size: 0.75rem;
+          font-weight: 500;
+          cursor: pointer;
+          transition: all 0.15s;
+        }
+
+        .fix-deployment-btn:hover {
+          background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+          transform: translateY(-1px);
+          box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+        }
+
+        .fix-deployment-btn:active {
+          transform: translateY(0);
         }
       `}</style>
     </div>

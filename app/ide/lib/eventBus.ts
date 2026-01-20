@@ -31,7 +31,8 @@ type IDEEventType =
   | 'terminal:output'
   // Chat events
   | 'chat:message'
-  | 'chat:tool_execution';
+  | 'chat:tool_execution'
+  | 'chat:send';
 
 interface IDEEventMap {
   'file:changed': { path: string; source: 'claude' | 'user' | 'external' };
@@ -60,6 +61,7 @@ interface IDEEventMap {
   // Chat events
   'chat:message': { type: 'start' | 'end' | 'tool_use'; tool?: string; input?: Record<string, unknown> };
   'chat:tool_execution': { toolId: string; tool: string; status: 'running' | 'success' | 'error' };
+  'chat:send': { message: string; autoSend?: boolean };
 }
 
 type EventCallback<T extends IDEEventType> = (data: IDEEventMap[T]) => void;

@@ -9,7 +9,7 @@ import SlashAutocomplete from '../../../../components/SlashAutocomplete';
 import AtMentionAutocomplete from '../../../../components/AtMentionAutocomplete';
 import CommandDictionary from '../../../../components/CommandDictionary';
 import { DictionaryItem } from '../../../../data/command-dictionary';
-import { ideEvents } from '../../../lib/eventBus';
+import { ideEvents, useIDEEvent } from '../../../lib/eventBus';
 import '../../../../styles/command-dictionary.css';
 import {
   BookIcon,
@@ -95,6 +95,18 @@ export function ChatPane() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  // Listen for chat:send events from other panes
+  useIDEEvent('chat:send', async (data) => {
+    if (data.autoSend) {
+      // Auto-send the message
+      await sendMessage(data.message);
+    } else {
+      // Just populate the input
+      setInput(data.message);
+      inputRef.current?.focus();
+    }
+  }, [sendMessage]);
 
   // Handle input change with autocomplete detection
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -400,14 +412,14 @@ export function ChatPane() {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          padding: 0.5rem 0.75rem;
+          padding: 0.375rem 0.625rem;
           border-bottom: 1px solid var(--border-color, #2a2a2f);
           flex-shrink: 0;
         }
 
         .chat-title {
           margin: 0;
-          font-size: 0.875rem;
+          font-size: 0.75rem;
           font-weight: 600;
           color: var(--text-primary, #fff);
         }
@@ -416,11 +428,11 @@ export function ChatPane() {
           display: flex;
           align-items: center;
           justify-content: center;
-          width: 32px;
-          height: 32px;
+          width: 26px;
+          height: 26px;
           background: transparent;
           border: 1px solid var(--border-color, #2a2a2f);
-          border-radius: 6px;
+          border-radius: 4px;
           color: var(--text-secondary, #888);
           cursor: pointer;
           transition: all 0.15s;
@@ -435,9 +447,9 @@ export function ChatPane() {
         .chat-context-panel {
           background: var(--bg-secondary, #141417);
           border-bottom: 1px solid var(--border-color, #2a2a2f);
-          padding: 0.5rem 0.75rem;
+          padding: 0.375rem 0.5rem;
           flex-shrink: 0;
-          max-height: 280px;
+          max-height: 180px;
           overflow-y: auto;
         }
 
@@ -445,16 +457,16 @@ export function ChatPane() {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          font-size: 0.75rem;
+          font-size: 0.625rem;
           color: var(--text-secondary, #888);
-          margin-bottom: 0.5rem;
+          margin-bottom: 0.25rem;
         }
 
         .context-toggle {
           background: none;
           border: none;
           color: var(--text-secondary, #888);
-          font-size: 0.7rem;
+          font-size: 0.6rem;
           cursor: pointer;
           padding: 0;
         }
@@ -466,21 +478,21 @@ export function ChatPane() {
         .context-sections {
           display: flex;
           flex-direction: column;
-          gap: 0.25rem;
+          gap: 0.125rem;
         }
 
         .context-section {
           background: var(--bg-tertiary, #1a1a1f);
-          border-radius: 6px;
+          border-radius: 4px;
           overflow: hidden;
         }
 
         .context-section-header {
           display: flex;
           align-items: center;
-          gap: 0.5rem;
-          padding: 0.5rem 0.625rem;
-          font-size: 0.75rem;
+          gap: 0.375rem;
+          padding: 0.25rem 0.5rem;
+          font-size: 0.625rem;
         }
 
         .context-section-header.clickable {
@@ -507,7 +519,7 @@ export function ChatPane() {
         .context-value {
           color: var(--text-primary, #e0e0e0);
           font-family: monospace;
-          font-size: 0.7rem;
+          font-size: 0.6rem;
           margin-left: auto;
           overflow: hidden;
           text-overflow: ellipsis;
@@ -517,17 +529,17 @@ export function ChatPane() {
         .context-badge {
           background: var(--accent-color, #7c3aed);
           color: white;
-          font-size: 0.65rem;
+          font-size: 0.55rem;
           font-weight: 600;
-          padding: 0.125rem 0.375rem;
-          border-radius: 10px;
+          padding: 0.0625rem 0.25rem;
+          border-radius: 8px;
           margin-left: auto;
         }
 
         .expand-arrow {
           color: var(--text-secondary, #666);
-          font-size: 0.6rem;
-          margin-left: 0.25rem;
+          font-size: 0.5rem;
+          margin-left: 0.125rem;
           transition: transform 0.15s;
         }
 
@@ -536,32 +548,32 @@ export function ChatPane() {
         }
 
         .context-details {
-          padding: 0 0.625rem 0.5rem;
+          padding: 0 0.5rem 0.25rem;
           display: flex;
           flex-direction: column;
-          gap: 0.25rem;
+          gap: 0.125rem;
           border-top: 1px solid var(--border-color, #2a2a2f);
-          margin-top: 0.25rem;
-          padding-top: 0.5rem;
+          margin-top: 0.125rem;
+          padding-top: 0.25rem;
         }
 
         .context-detail-item {
           display: flex;
           align-items: flex-start;
-          gap: 0.5rem;
-          font-size: 0.7rem;
-          padding: 0.375rem 0.5rem;
+          gap: 0.375rem;
+          font-size: 0.6rem;
+          padding: 0.25rem 0.375rem;
           background: rgba(0, 0, 0, 0.2);
-          border-radius: 4px;
+          border-radius: 3px;
         }
 
         .context-detail-item.tool-item {
           flex-direction: column;
-          gap: 0.125rem;
+          gap: 0.0625rem;
         }
 
         .detail-icon {
-          font-size: 0.75rem;
+          font-size: 0.625rem;
           flex-shrink: 0;
         }
 
@@ -579,15 +591,15 @@ export function ChatPane() {
 
         .tool-desc {
           color: var(--text-secondary, #888);
-          font-size: 0.65rem;
-          line-height: 1.4;
+          font-size: 0.55rem;
+          line-height: 1.3;
         }
 
         .context-detail-empty {
           color: var(--text-secondary, #666);
-          font-size: 0.7rem;
+          font-size: 0.6rem;
           font-style: italic;
-          padding: 0.25rem 0;
+          padding: 0.125rem 0;
         }
 
         .show-context-btn {
@@ -607,7 +619,7 @@ export function ChatPane() {
         .chat-messages-container {
           flex: 1;
           overflow-y: auto;
-          padding: 0.75rem;
+          padding: 0.5rem;
           min-height: 0;
         }
 
@@ -618,69 +630,69 @@ export function ChatPane() {
           justify-content: center;
           height: 100%;
           text-align: center;
-          padding: 1rem;
+          padding: 0.75rem;
         }
 
         .empty-icon {
-          font-size: 2.5rem;
-          margin-bottom: 0.75rem;
+          font-size: 1.75rem;
+          margin-bottom: 0.5rem;
           opacity: 0.5;
         }
 
         .chat-empty-state h3 {
-          margin: 0 0 0.5rem;
-          font-size: 1rem;
+          margin: 0 0 0.25rem;
+          font-size: 0.875rem;
           font-weight: 500;
           color: var(--text-primary, #fff);
         }
 
         .chat-empty-state p {
-          margin: 0 0 1rem;
-          font-size: 0.85rem;
+          margin: 0 0 0.5rem;
+          font-size: 0.75rem;
           color: var(--text-secondary, #888);
-          max-width: 280px;
+          max-width: 240px;
         }
 
         .empty-tips {
           display: flex;
-          gap: 1rem;
-          font-size: 0.75rem;
+          gap: 0.75rem;
+          font-size: 0.625rem;
           color: var(--text-secondary, #666);
         }
 
         .empty-tips code {
           background: var(--bg-secondary, #141417);
-          padding: 0.125rem 0.375rem;
-          border-radius: 3px;
+          padding: 0.0625rem 0.25rem;
+          border-radius: 2px;
           font-family: monospace;
         }
 
         .chat-error {
-          margin: 0 0.75rem;
-          padding: 0.5rem 0.75rem;
+          margin: 0 0.5rem;
+          padding: 0.375rem 0.5rem;
           background: rgba(239, 68, 68, 0.1);
           border: 1px solid rgba(239, 68, 68, 0.3);
-          border-radius: 6px;
+          border-radius: 4px;
           color: #ef4444;
-          font-size: 0.8rem;
+          font-size: 0.7rem;
           flex-shrink: 0;
         }
 
         .prompt-templates {
           display: flex;
-          gap: 0.5rem;
-          padding: 0.5rem 0.75rem;
+          gap: 0.375rem;
+          padding: 0.375rem 0.5rem;
           overflow-x: auto;
           flex-shrink: 0;
         }
 
         .prompt-template {
-          padding: 0.375rem 0.75rem;
+          padding: 0.25rem 0.5rem;
           background: var(--bg-secondary, #141417);
           border: 1px solid var(--border-color, #2a2a2f);
-          border-radius: 16px;
+          border-radius: 12px;
           color: var(--text-secondary, #888);
-          font-size: 0.75rem;
+          font-size: 0.625rem;
           cursor: pointer;
           white-space: nowrap;
           transition: all 0.15s;
@@ -694,24 +706,24 @@ export function ChatPane() {
 
         .chat-input-area {
           position: relative;
-          padding: 0.75rem;
+          padding: 0.5rem;
           border-top: 1px solid var(--border-color, #2a2a2f);
           flex-shrink: 0;
         }
 
         .chat-input-form {
           display: flex;
-          gap: 0.5rem;
+          gap: 0.375rem;
         }
 
         .chat-input {
           flex: 1;
-          padding: 0.625rem 0.875rem;
+          padding: 0.5rem 0.625rem;
           background: var(--bg-secondary, #141417);
           border: 1px solid var(--border-color, #2a2a2f);
-          border-radius: 8px;
+          border-radius: 6px;
           color: var(--text-primary, #fff);
-          font-size: 0.9rem;
+          font-size: 0.75rem;
           outline: none;
           transition: border-color 0.15s;
         }
@@ -733,11 +745,11 @@ export function ChatPane() {
           display: flex;
           align-items: center;
           justify-content: center;
-          width: 40px;
-          height: 40px;
+          width: 32px;
+          height: 32px;
           background: var(--accent-color, #7c3aed);
           border: none;
-          border-radius: 8px;
+          border-radius: 6px;
           color: white;
           cursor: pointer;
           transition: all 0.15s;
@@ -753,9 +765,9 @@ export function ChatPane() {
         }
 
         .sending-indicator {
-          width: 16px;
-          height: 16px;
-          border: 2px solid rgba(255, 255, 255, 0.3);
+          width: 12px;
+          height: 12px;
+          border: 1.5px solid rgba(255, 255, 255, 0.3);
           border-top-color: white;
           border-radius: 50%;
           animation: spin 0.8s linear infinite;
