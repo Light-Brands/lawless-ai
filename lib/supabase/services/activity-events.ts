@@ -1,5 +1,8 @@
-import { SupabaseClient } from '@supabase/supabase-js';
-import type { Database, ActivityEvent, ActivityEventInsert, ActivityEventType } from '@/types/database';
+import type { ActivityEvent, ActivityEventType } from '@/types/database';
+
+// Use generic client type to support both regular and service clients
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type SupabaseClient = any;
 
 export interface ActivityEventInput {
   userId?: string;
