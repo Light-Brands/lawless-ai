@@ -14,9 +14,10 @@ marked.setOptions({
 
 // Custom renderer for syntax highlighting
 const renderer = new marked.Renderer();
-renderer.code = function({ text, lang }: { text: string; lang?: string }) {
-  const language = lang && hljs.getLanguage(lang) ? lang : 'plaintext';
-  const highlighted = hljs.highlight(text, { language }).value;
+renderer.code = function(code: string, infostring: string | undefined): string {
+  const lang = infostring || 'plaintext';
+  const language = hljs.getLanguage(lang) ? lang : 'plaintext';
+  const highlighted = hljs.highlight(code, { language }).value;
   return `<pre><code class="hljs language-${language}">${highlighted}</code></pre>`;
 };
 
