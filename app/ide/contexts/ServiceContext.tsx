@@ -230,25 +230,62 @@ export function ServiceProvider({ children, sessionId }: ServiceProviderProps) {
     }
   }, [owner, repo, sessionId]);
 
-  // Initialize terminal connection (just check if terminal service is available)
+  // Initialize terminal connection - creates the backend session with worktree and Claude CLI
   const initializeTerminal = useCallback(async () => {
-    if (!sessionId) {
+    if (!sessionId || !repoFullName) {
       setTerminal({ status: 'disconnected', sessionId: null });
       return;
     }
 
-    setInitStep('Preparing terminal...');
+    setInitStep('Setting up terminal environment...');
     setTerminal(prev => ({ ...prev, status: 'connecting' }));
 
-    // Terminal is ready when we have a session ID - actual WebSocket connection
-    // happens when the TerminalPane is opened
-    setTerminal({
-      status: 'connected',
-      sessionId,
-    });
+    try {
+      // Create terminal session on backend - this sets up the worktree and prepares Claude CLI
+      const response = await fetch('/api/terminal/session/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          repoFullName,
+          sessionId,
+          baseBranch: 'main',
+        }),
+      });
 
-    setInitProgress(90);
-  }, [sessionId]);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to create terminal session');
+      }
+
+      const data = await response.json();
+
+      // Update worktree info if returned
+      if (data.branchName) {
+        setWorktree(prev => ({
+          ...prev,
+          status: 'connected',
+          branchName: data.branchName,
+          path: data.worktreePath || prev.path,
+        }));
+      }
+
+      // Terminal session is ready - WebSocket connection happens when TerminalPane opens
+      setTerminal({
+        status: 'connected',
+        sessionId,
+      });
+
+      setInitProgress(90);
+      console.log('[ServiceContext] Terminal session created:', data);
+    } catch (err) {
+      console.error('[ServiceContext] Failed to initialize terminal:', err);
+      setTerminal({
+        status: 'error',
+        sessionId: null,
+        error: err instanceof Error ? err.message : 'Failed to create terminal session',
+      });
+    }
+  }, [sessionId, repoFullName]);
 
   // Refresh integrations action
   const refreshIntegrations = useCallback(async () => {

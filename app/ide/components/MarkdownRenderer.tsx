@@ -22,28 +22,36 @@ export function MarkdownRenderer({ content, className }: MarkdownRendererProps) 
   // Parse markdown and extract mermaid blocks
   useEffect(() => {
     const parseContent = async () => {
-      // Configure marked with syntax highlighting (but skip mermaid blocks)
+      // Create a custom renderer for code blocks with syntax highlighting
+      const renderer = new marked.Renderer();
+      renderer.code = (code: string, lang: string | undefined) => {
+        // Don't highlight mermaid blocks - they're handled separately via placeholders
+        if (lang === 'mermaid') {
+          return `<pre><code class="language-mermaid">${code}</code></pre>`;
+        }
+        let highlighted = code;
+        if (lang && hljs.getLanguage(lang)) {
+          try {
+            highlighted = hljs.highlight(code, { language: lang }).value;
+          } catch {
+            // fallback to original code
+          }
+        } else {
+          try {
+            highlighted = hljs.highlightAuto(code).value;
+          } catch {
+            // fallback to original code
+          }
+        }
+        const langClass = lang ? `language-${lang}` : '';
+        return `<pre><code class="hljs ${langClass}">${highlighted}</code></pre>`;
+      };
+
+      // Configure marked
       marked.setOptions({
         gfm: true,
         breaks: true,
-        highlight: (code: string, lang: string) => {
-          // Don't highlight mermaid blocks - we'll handle them separately
-          if (lang === 'mermaid') {
-            return code;
-          }
-          if (lang && hljs.getLanguage(lang)) {
-            try {
-              return hljs.highlight(code, { language: lang }).value;
-            } catch {
-              return code;
-            }
-          }
-          try {
-            return hljs.highlightAuto(code).value;
-          } catch {
-            return code;
-          }
-        },
+        renderer,
       });
 
       // First, extract mermaid blocks and replace with placeholders

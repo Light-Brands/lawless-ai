@@ -295,25 +295,32 @@ export function EditorPane() {
       const fileName = activeFile.split('/').pop() || '';
       const content = fileContents[activeFile];
       if (isMarkdownFile(fileName) && content) {
-        // Configure marked with syntax highlighting
+        // Create custom renderer for code blocks with syntax highlighting
+        const renderer = new marked.Renderer();
+        renderer.code = (code: string, lang: string | undefined) => {
+          let highlighted = code;
+          if (lang && hljs.getLanguage(lang)) {
+            try {
+              highlighted = hljs.highlight(code, { language: lang }).value;
+            } catch {
+              // fallback to original
+            }
+          } else {
+            try {
+              highlighted = hljs.highlightAuto(code).value;
+            } catch {
+              // fallback to original
+            }
+          }
+          const langClass = lang ? `language-${lang}` : '';
+          return `<pre><code class="hljs ${langClass}">${highlighted}</code></pre>`;
+        };
+
+        // Configure marked with custom renderer
         marked.setOptions({
           gfm: true,
           breaks: true,
-          highlight: (code: string, lang: string) => {
-            if (lang && hljs.getLanguage(lang)) {
-              try {
-                return hljs.highlight(code, { language: lang }).value;
-              } catch {
-                return code;
-              }
-            }
-            // Auto-detect language if not specified
-            try {
-              return hljs.highlightAuto(code).value;
-            } catch {
-              return code;
-            }
-          },
+          renderer,
         });
         const rendered = marked(content);
         if (typeof rendered === 'string') {

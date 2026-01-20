@@ -43,24 +43,25 @@ export default function IDERepoPage() {
   // Initialize keyboard shortcuts
   useKeyboardShortcuts();
 
-  // Fetch existing sessions for this repo
-  const fetchSessions = useCallback(async () => {
-    if (!owner || !repoName) return;
+  // Fetch existing sessions for this repo - returns the sessions array
+  const fetchSessions = useCallback(async (): Promise<WorkspaceSession[]> => {
+    if (!owner || !repoName) return [];
 
     try {
       const response = await fetch(`/api/workspace/sessions/${owner}/${repoName}`);
       const data = await response.json();
 
-      if (data.sessions) {
+      if (data.sessions && data.sessions.length > 0) {
         setSessions(data.sessions);
         // If there's a most recent session, use it
-        if (data.sessions.length > 0) {
-          const mostRecent = data.sessions[0];
-          setActiveSessionId(mostRecent.sessionId);
-        }
+        const mostRecent = data.sessions[0];
+        setActiveSessionId(mostRecent.sessionId);
+        return data.sessions;
       }
+      return [];
     } catch (err) {
       console.error('Failed to fetch sessions:', err);
+      return [];
     }
   }, [owner, repoName]);
 
@@ -68,23 +69,29 @@ export default function IDERepoPage() {
   const createSession = useCallback(async (name?: string) => {
     if (!owner || !repoName) return;
 
+    // Generate session ID in the format expected by terminal backend
+    const sessionId = `session_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+    const sessionName = name || `Session ${new Date().toLocaleDateString()}`;
+    const repoFullName = `${owner}/${repoName}`;
+
     try {
       const response = await fetch('/api/workspace/session/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          owner,
-          repo: repoName,
-          name: name || `Session ${new Date().toLocaleDateString()}`,
+          repoFullName,
+          sessionId,
+          sessionName,
+          baseBranch: 'main',
         }),
       });
 
       const data = await response.json();
 
-      if (data.sessionId) {
+      if (response.ok) {
         const newSession: WorkspaceSession = {
-          sessionId: data.sessionId,
-          name: data.name || name || 'New Session',
+          sessionId: data.sessionId || sessionId,
+          name: data.name || sessionName,
           branchName: data.branchName || 'main',
           baseBranch: data.baseBranch || 'main',
           baseCommit: data.baseCommit || '',
@@ -94,19 +101,19 @@ export default function IDERepoPage() {
         };
 
         setSessions((prev) => [newSession, ...prev]);
-        setActiveSessionId(data.sessionId);
+        setActiveSessionId(newSession.sessionId);
 
         // Update IDE store
         addSession({
-          id: data.sessionId,
+          id: newSession.sessionId,
           user_id: '',
-          repo: `${owner}/${repoName}`,
-          branch: data.branchName || 'main',
+          repo: repoFullName,
+          branch: newSession.branchName,
           worktree_path: data.worktreePath || '',
           port: 3000,
           created_at: new Date(),
           expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000),
-          notes: '',
+          notes: sessionName,
           state: {
             pane_order: [1, 2, 3, 4, 5, 6],
             pane_visibility: { 1: true, 2: true, 3: false, 4: false, 5: false, 6: false },
@@ -122,7 +129,10 @@ export default function IDERepoPage() {
           type: 'success',
         });
 
-        return data.sessionId;
+        return newSession.sessionId;
+      } else {
+        console.error('Failed to create session:', data.error || 'Unknown error');
+        setError(data.error || 'Failed to create session');
       }
     } catch (err) {
       console.error('Failed to create session:', err);
@@ -140,10 +150,12 @@ export default function IDERepoPage() {
 
     const init = async () => {
       setLoading(true);
-      await fetchSessions();
+
+      // Fetch existing sessions and check returned value (not state which updates async)
+      const existingSessions = await fetchSessions();
 
       // If no sessions exist, create one
-      if (sessions.length === 0) {
+      if (existingSessions.length === 0) {
         await createSession();
       }
 
@@ -151,7 +163,7 @@ export default function IDERepoPage() {
     };
 
     init();
-  }, [owner, repoName]);
+  }, [owner, repoName, fetchSessions, createSession]);
 
   // Update active session in store when it changes
   useEffect(() => {
