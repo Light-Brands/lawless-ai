@@ -120,6 +120,15 @@ export function DeploymentsPane() {
   const [logsLoading, setLogsLoading] = useState(false);
   const [redeploying, setRedeploying] = useState<string | null>(null);
 
+  // Env var editing state
+  const [envModalOpen, setEnvModalOpen] = useState(false);
+  const [editingEnv, setEditingEnv] = useState<EnvVar | null>(null);
+  const [envFormKey, setEnvFormKey] = useState('');
+  const [envFormValue, setEnvFormValue] = useState('');
+  const [envFormTargets, setEnvFormTargets] = useState<('production' | 'preview' | 'development')[]>(['production', 'preview', 'development']);
+  const [envSaving, setEnvSaving] = useState(false);
+  const [envError, setEnvError] = useState<string | null>(null);
+
   // Fetch deployments
   const fetchDeployments = useCallback(async () => {
     if (!projectId) return;
@@ -229,6 +238,102 @@ export function DeploymentsPane() {
     setSelectedDeployment(deployment);
     fetchLogs(deployment.id);
   }, [fetchLogs]);
+
+  // Open add env modal
+  const handleAddEnv = useCallback(() => {
+    setEditingEnv(null);
+    setEnvFormKey('');
+    setEnvFormValue('');
+    setEnvFormTargets(['production', 'preview', 'development']);
+    setEnvError(null);
+    setEnvModalOpen(true);
+  }, []);
+
+  // Open edit env modal
+  const handleEditEnv = useCallback((env: EnvVar) => {
+    setEditingEnv(env);
+    setEnvFormKey(env.key);
+    setEnvFormValue(''); // Value is masked, user must enter new value
+    setEnvFormTargets(env.target);
+    setEnvError(null);
+    setEnvModalOpen(true);
+  }, []);
+
+  // Save env var (create or update)
+  const handleSaveEnv = useCallback(async () => {
+    if (!projectId || !envFormKey.trim()) {
+      setEnvError('Key is required');
+      return;
+    }
+    if (!envFormValue.trim() && !editingEnv) {
+      setEnvError('Value is required');
+      return;
+    }
+    if (envFormTargets.length === 0) {
+      setEnvError('Select at least one environment');
+      return;
+    }
+
+    setEnvSaving(true);
+    setEnvError(null);
+
+    try {
+      const response = await fetch(`/api/integrations/vercel/projects/${projectId}/env`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          key: envFormKey.trim(),
+          value: envFormValue,
+          target: envFormTargets,
+          type: 'encrypted',
+        }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to save environment variable');
+      }
+
+      setEnvModalOpen(false);
+      fetchEnvVars();
+    } catch (err) {
+      setEnvError(err instanceof Error ? err.message : 'Failed to save');
+    } finally {
+      setEnvSaving(false);
+    }
+  }, [projectId, envFormKey, envFormValue, envFormTargets, editingEnv, fetchEnvVars]);
+
+  // Delete env var
+  const handleDeleteEnv = useCallback(async (env: EnvVar) => {
+    if (!projectId) return;
+    if (!confirm(`Delete "${env.key}"? This cannot be undone.`)) return;
+
+    try {
+      const response = await fetch(`/api/integrations/vercel/projects/${projectId}/env`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ envId: env.id }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to delete');
+      }
+
+      fetchEnvVars();
+    } catch (err) {
+      console.error('Failed to delete env var:', err);
+    }
+  }, [projectId, fetchEnvVars]);
+
+  // Toggle target environment
+  const toggleTarget = useCallback((target: 'production' | 'preview' | 'development') => {
+    setEnvFormTargets(prev =>
+      prev.includes(target)
+        ? prev.filter(t => t !== target)
+        : [...prev, target]
+    );
+  }, []);
 
   if (!connected) {
     return (
@@ -364,13 +469,16 @@ export function DeploymentsPane() {
           <div className="env-vars-content">
             <div className="env-header">
               <span>Environment Variables ({envVars.length})</span>
-              <button className="add-env-btn">+ Add</button>
+              <button className="add-env-btn" onClick={handleAddEnv}>+ Add</button>
             </div>
 
             {envLoading ? (
               <div className="env-loading">Loading environment variables...</div>
             ) : envVars.length === 0 ? (
-              <div className="env-empty">No environment variables configured</div>
+              <div className="env-empty">
+                <p>No environment variables configured</p>
+                <button className="add-env-btn-large" onClick={handleAddEnv}>+ Add Environment Variable</button>
+              </div>
             ) : (
               <>
                 <div className="env-section">
@@ -380,22 +488,46 @@ export function DeploymentsPane() {
                       <span className="env-name">{env.key}</span>
                       <span className="env-value masked">••••••••••••</span>
                       <div className="env-actions">
-                        <button className="edit-btn">Edit</button>
+                        <button className="edit-btn" onClick={() => handleEditEnv(env)}>Edit</button>
+                        <button className="delete-btn" onClick={() => handleDeleteEnv(env)}>Delete</button>
                       </div>
                     </div>
                   ))}
+                  {envVars.filter(env => env.target.includes('production')).length === 0 && (
+                    <div className="env-empty-section">No production variables</div>
+                  )}
                 </div>
                 <div className="env-section">
                   <div className="env-section-title">Preview</div>
-                  {envVars.filter(env => env.target.includes('preview')).map((env) => (
+                  {envVars.filter(env => env.target.includes('preview') && !env.target.includes('production')).map((env) => (
                     <div key={env.id} className="env-item">
                       <span className="env-name">{env.key}</span>
                       <span className="env-value masked">••••••••••••</span>
                       <div className="env-actions">
-                        <button className="edit-btn">Edit</button>
+                        <button className="edit-btn" onClick={() => handleEditEnv(env)}>Edit</button>
+                        <button className="delete-btn" onClick={() => handleDeleteEnv(env)}>Delete</button>
                       </div>
                     </div>
                   ))}
+                  {envVars.filter(env => env.target.includes('preview') && !env.target.includes('production')).length === 0 && (
+                    <div className="env-empty-section">No preview-only variables</div>
+                  )}
+                </div>
+                <div className="env-section">
+                  <div className="env-section-title">Development</div>
+                  {envVars.filter(env => env.target.includes('development') && !env.target.includes('production') && !env.target.includes('preview')).map((env) => (
+                    <div key={env.id} className="env-item">
+                      <span className="env-name">{env.key}</span>
+                      <span className="env-value masked">••••••••••••</span>
+                      <div className="env-actions">
+                        <button className="edit-btn" onClick={() => handleEditEnv(env)}>Edit</button>
+                        <button className="delete-btn" onClick={() => handleDeleteEnv(env)}>Delete</button>
+                      </div>
+                    </div>
+                  ))}
+                  {envVars.filter(env => env.target.includes('development') && !env.target.includes('production') && !env.target.includes('preview')).length === 0 && (
+                    <div className="env-empty-section">No development-only variables</div>
+                  )}
                 </div>
               </>
             )}
@@ -438,6 +570,90 @@ export function DeploymentsPane() {
             ) : (
               deploymentLogs.map((log, idx) => <div key={idx} className="log-line">{log}</div>)
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Env Var Modal */}
+      {envModalOpen && (
+        <div className="env-modal-overlay" onClick={() => setEnvModalOpen(false)}>
+          <div className="env-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="env-modal-header">
+              <h3>{editingEnv ? 'Edit Environment Variable' : 'Add Environment Variable'}</h3>
+              <button className="env-modal-close" onClick={() => setEnvModalOpen(false)}>
+                <CloseIcon />
+              </button>
+            </div>
+
+            <div className="env-modal-body">
+              {envError && <div className="env-modal-error">{envError}</div>}
+
+              <div className="env-form-group">
+                <label>Key</label>
+                <input
+                  type="text"
+                  value={envFormKey}
+                  onChange={(e) => setEnvFormKey(e.target.value.toUpperCase().replace(/[^A-Z0-9_]/g, '_'))}
+                  placeholder="MY_ENV_VAR"
+                  disabled={!!editingEnv}
+                  className="env-input"
+                />
+              </div>
+
+              <div className="env-form-group">
+                <label>Value {editingEnv && <span className="env-hint">(enter new value to update)</span>}</label>
+                <textarea
+                  value={envFormValue}
+                  onChange={(e) => setEnvFormValue(e.target.value)}
+                  placeholder={editingEnv ? 'Enter new value...' : 'Enter value...'}
+                  className="env-input env-textarea"
+                  rows={3}
+                />
+              </div>
+
+              <div className="env-form-group">
+                <label>Environments</label>
+                <div className="env-targets">
+                  <label className="env-target-checkbox">
+                    <input
+                      type="checkbox"
+                      checked={envFormTargets.includes('production')}
+                      onChange={() => toggleTarget('production')}
+                    />
+                    <span>Production</span>
+                  </label>
+                  <label className="env-target-checkbox">
+                    <input
+                      type="checkbox"
+                      checked={envFormTargets.includes('preview')}
+                      onChange={() => toggleTarget('preview')}
+                    />
+                    <span>Preview</span>
+                  </label>
+                  <label className="env-target-checkbox">
+                    <input
+                      type="checkbox"
+                      checked={envFormTargets.includes('development')}
+                      onChange={() => toggleTarget('development')}
+                    />
+                    <span>Development</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div className="env-modal-footer">
+              <button className="env-cancel-btn" onClick={() => setEnvModalOpen(false)}>
+                Cancel
+              </button>
+              <button
+                className="env-save-btn"
+                onClick={handleSaveEnv}
+                disabled={envSaving || !envFormKey.trim() || (!envFormValue.trim() && !editingEnv)}
+              >
+                {envSaving ? 'Saving...' : editingEnv ? 'Update' : 'Create'}
+              </button>
+            </div>
           </div>
         </div>
       )}
