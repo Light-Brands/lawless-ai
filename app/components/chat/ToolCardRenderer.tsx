@@ -101,25 +101,25 @@ export function ToolCardRenderer({ block }: ToolCardRendererProps) {
     default:
       // Generic tool display
       return (
-        <div className="tool-card generic">
-          <div className="tool-card-header">
-            <span className="tool-card-icon">🔧</span>
-            <span className="tool-card-label">{tool}</span>
-            <span className={`tool-card-status ${status}`}>{status}</span>
+        <div className="chat-tool-card generic">
+          <div className="chat-tool-card-header">
+            <span className="chat-tool-card-icon">🔧</span>
+            <span className="chat-tool-card-label">{tool}</span>
+            <span className={`chat-tool-card-status ${status}`}>{status}</span>
           </div>
           {Object.keys(input).length > 0 && (
-            <div className="tool-card-input">
+            <div className="chat-tool-card-input">
               <pre>{JSON.stringify(input, null, 2)}</pre>
             </div>
           )}
           {output && (
-            <div className="tool-card-body">
+            <div className="chat-tool-card-body">
               <pre>{output}</pre>
             </div>
           )}
 
           <style jsx>{`
-            .tool-card.generic {
+            .chat-tool-card.generic {
               background: var(--bg-secondary, #161b22);
               border-radius: 8px;
               overflow: hidden;
@@ -127,7 +127,7 @@ export function ToolCardRenderer({ block }: ToolCardRendererProps) {
               border: 1px solid var(--border-color, #30363d);
             }
 
-            .tool-card-header {
+            .chat-tool-card-header {
               display: flex;
               align-items: center;
               gap: 0.5rem;
@@ -136,47 +136,47 @@ export function ToolCardRenderer({ block }: ToolCardRendererProps) {
               font-size: 0.8rem;
             }
 
-            .tool-card-icon {
+            .chat-tool-card-icon {
               font-size: 1rem;
             }
 
-            .tool-card-label {
+            .chat-tool-card-label {
               flex: 1;
               font-weight: 500;
               color: var(--text-primary, #c9d1d9);
             }
 
-            .tool-card-status {
+            .chat-tool-card-status {
               font-size: 0.7rem;
               padding: 2px 6px;
               border-radius: 4px;
               text-transform: capitalize;
             }
 
-            .tool-card-status.running {
+            .chat-tool-card-status.running {
               background: rgba(88, 166, 255, 0.15);
               color: #58a6ff;
             }
 
-            .tool-card-status.success {
+            .chat-tool-card-status.success {
               background: rgba(63, 185, 80, 0.15);
               color: #3fb950;
             }
 
-            .tool-card-status.error {
+            .chat-tool-card-status.error {
               background: rgba(248, 81, 73, 0.15);
               color: #f85149;
             }
 
-            .tool-card-input,
-            .tool-card-body {
+            .chat-tool-card-input,
+            .chat-tool-card-body {
               padding: 0.5rem 0.75rem;
               font-size: 0.8rem;
               border-top: 1px solid var(--border-color, #30363d);
             }
 
-            .tool-card-input pre,
-            .tool-card-body pre {
+            .chat-tool-card-input pre,
+            .chat-tool-card-body pre {
               margin: 0;
               font-family: 'JetBrains Mono', 'Fira Code', monospace;
               font-size: 0.75rem;

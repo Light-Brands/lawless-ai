@@ -6,7 +6,7 @@
    Tool Card Base
    ============================================================================ */
 
-.tool-card {
+.chat-tool-card {
   background: transparent;
   border: none;
   border-radius: 0;
@@ -14,30 +14,30 @@
   margin: 2px 0;
 }
 
-.tool-card:hover {
+.chat-tool-card:hover {
   background: rgba(255, 255, 255, 0.02);
 }
 
-.tool-card.success {
+.chat-tool-card.success {
   border-left: 2px solid var(--color-success);
   padding-left: 6px;
   margin-left: -6px;
 }
 
-.tool-card.error {
+.chat-tool-card.error {
   border-left: 2px solid var(--color-error);
   padding-left: 6px;
   margin-left: -6px;
 }
 
-.tool-card.running {
+.chat-tool-card.running {
   border-left: 2px solid var(--color-primary-500);
   padding-left: 6px;
   margin-left: -6px;
 }
 
 /* Tool Card Header */
-.tool-card-header {
+.chat-tool-card-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -51,25 +51,25 @@
   transition: background-color var(--transition-fast);
 }
 
-.tool-card-header:hover {
+.chat-tool-card-header:hover {
   background: rgba(255, 255, 255, 0.02);
 }
 
-.tool-card.collapsed .tool-card-header {
+.chat-tool-card.collapsed .chat-tool-card-header {
   border-bottom: none;
 }
 
-.tool-card-header-left {
+.chat-tool-card-header-left {
   display: flex;
   align-items: center;
   gap: 4px;
 }
 
-.tool-card-icon {
+.chat-tool-card-icon {
   font-size: 0.75rem;
 }
 
-.tool-card-label {
+.chat-tool-card-label {
   font-family: var(--font-mono);
   font-size: 0.625rem;
   font-weight: var(--font-weight-semibold);
@@ -78,7 +78,7 @@
   letter-spacing: 0.05em;
 }
 
-.tool-card-header-right {
+.chat-tool-card-header-right {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -87,7 +87,7 @@
   margin-left: 8px;
 }
 
-.tool-card-title {
+.chat-tool-card-title {
   font-family: var(--font-mono);
   font-size: 0.75rem;
   color: var(--color-text-primary);
@@ -97,14 +97,14 @@
   flex: 1;
 }
 
-.tool-card-subtitle {
+.chat-tool-card-subtitle {
   font-size: 0.625rem;
   color: var(--color-text-muted);
   white-space: nowrap;
 }
 
 /* Tool Card Status */
-.tool-card-status {
+.chat-tool-card-status {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -112,19 +112,19 @@
   height: 12px;
 }
 
-.tool-card-status.success {
+.chat-tool-card-status.success {
   color: var(--color-success);
 }
 
-.tool-card-status.error {
+.chat-tool-card-status.error {
   color: var(--color-error);
 }
 
-.tool-card-status.running {
+.chat-tool-card-status.running {
   color: var(--color-primary-500);
 }
 
-.tool-card-spinner {
+.chat-tool-card-spinner {
   width: 10px;
   height: 10px;
   border: 1.5px solid rgba(168, 85, 247, 0.2);
@@ -140,7 +140,7 @@
 }
 
 /* Tool Card Body */
-.tool-card-body {
+.chat-tool-card-body {
   max-height: 120px;
   overflow: auto;
   padding-left: 16px;
@@ -728,8 +728,8 @@
   margin-top: 0;
 }
 
-.workspace-text-block + .tool-card,
-.tool-card + .workspace-text-block {
+.workspace-text-block + .chat-tool-card,
+.chat-tool-card + .workspace-text-block {
   margin-top: var(--space-3);
 }
 

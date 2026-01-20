@@ -58,8 +58,8 @@ const ChevronIcon = ({ expanded }: { expanded: boolean }) => (
 
 function StatusIndicator({ status }: { status: ToolStatus }) {
   return (
-    <span className={`tool-card-status ${status}`}>
-      {status === 'running' && <span className="tool-card-spinner" />}
+    <span className={`chat-tool-card-status ${status}`}>
+      {status === 'running' && <span className="chat-tool-card-spinner" />}
       {status === 'success' && (
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
           <polyline points="20 6 9 17 4 12" />
@@ -86,25 +86,25 @@ export default function ToolCard({
   const [expanded, setExpanded] = useState(defaultExpanded);
 
   return (
-    <div className={`tool-card ${status} ${expanded ? 'expanded' : 'collapsed'}`}>
+    <div className={`chat-tool-card ${status} ${expanded ? 'expanded' : 'collapsed'}`}>
       <button
-        className="tool-card-header"
+        className="chat-tool-card-header"
         onClick={() => setExpanded(!expanded)}
         aria-expanded={expanded}
       >
-        <div className="tool-card-header-left">
-          <span className="tool-card-icon">{toolIcons[tool]}</span>
-          <span className="tool-card-label">{toolLabels[tool]}</span>
+        <div className="chat-tool-card-header-left">
+          <span className="chat-tool-card-icon">{toolIcons[tool]}</span>
+          <span className="chat-tool-card-label">{toolLabels[tool]}</span>
           <StatusIndicator status={status} />
         </div>
-        <div className="tool-card-header-right">
-          <span className="tool-card-title">{title}</span>
-          {subtitle && <span className="tool-card-subtitle">{subtitle}</span>}
+        <div className="chat-tool-card-header-right">
+          <span className="chat-tool-card-title">{title}</span>
+          {subtitle && <span className="chat-tool-card-subtitle">{subtitle}</span>}
           <ChevronIcon expanded={expanded} />
         </div>
       </button>
       {expanded && (
-        <div className="tool-card-body">
+        <div className="chat-tool-card-body">
           {children}
         </div>
       )}
