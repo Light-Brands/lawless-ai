@@ -143,6 +143,36 @@ export function createSessionWorktree(repoFullName: string, sessionId: string, b
   execSync(`git config user.email "lawless-ai@localhost"`, { cwd: worktreePath });
   execSync(`git config user.name "Lawless AI"`, { cwd: worktreePath });
 
+  // Copy .env.local from main repo if it exists
+  const mainEnvLocal = path.join(mainRepoPath, '.env.local');
+  const worktreeEnvLocal = path.join(worktreePath, '.env.local');
+  if (fs.existsSync(mainEnvLocal) && !fs.existsSync(worktreeEnvLocal)) {
+    try {
+      fs.copyFileSync(mainEnvLocal, worktreeEnvLocal);
+      console.log(`Copied .env.local to worktree: ${worktreePath}`);
+    } catch (e) {
+      console.warn(`Failed to copy .env.local to worktree:`, e);
+    }
+  }
+
+  // Install dependencies if package.json exists
+  const packageJsonPath = path.join(worktreePath, 'package.json');
+  if (fs.existsSync(packageJsonPath)) {
+    try {
+      console.log(`Installing dependencies in worktree: ${worktreePath}`);
+      execSync('npm install', {
+        cwd: worktreePath,
+        encoding: 'utf-8',
+        timeout: 300000, // 5 minute timeout
+        stdio: 'pipe'
+      });
+      console.log(`Dependencies installed in worktree: ${worktreePath}`);
+    } catch (e) {
+      console.warn(`Failed to install dependencies in worktree (will continue):`, e);
+      // Don't fail the session creation - user can install manually
+    }
+  }
+
   // Save to database
   db.prepare(`
     INSERT INTO terminal_sessions (session_id, repo_full_name, branch_name, worktree_path, base_branch, base_commit)
