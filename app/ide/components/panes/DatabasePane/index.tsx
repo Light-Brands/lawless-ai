@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { useIDEStore } from '../../../stores/ideStore';
+import { useIDEStore, MigrationFile } from '../../../stores/ideStore';
 import { useSupabaseConnection } from '../../../contexts/ServiceContext';
+import { useIDEContext } from '../../../contexts/IDEContext';
 import { TableIcon, BellIcon } from '../../Icons';
 
 interface TableInfo {
@@ -101,7 +102,19 @@ export function DatabasePane() {
   const projectRef = supabase.projectRef;
   const connected = supabase.status === 'connected';
 
-  const { pendingMigrations, autoApplyMigrations, setAutoApplyMigrations } = useIDEStore();
+  // Get repo context for migrations
+  const { owner, repo } = useIDEContext();
+
+  const {
+    pendingMigrations,
+    autoApplyMigrations,
+    setAutoApplyMigrations,
+    migrations,
+    migrationsLoading,
+    migrationsSummary,
+    setMigrations,
+    setMigrationsLoading,
+  } = useIDEStore();
   const [activeTab, setActiveTab] = useState<'tables' | 'schema' | 'query' | 'migrations'>('tables');
   const [query, setQuery] = useState('SELECT * FROM users LIMIT 10;');
 
@@ -147,6 +160,33 @@ export function DatabasePane() {
 
     fetchTables();
   }, [projectRef, refreshKey]);
+
+  // Fetch migrations when owner/repo is available
+  const fetchMigrations = useCallback(async () => {
+    if (!owner || !repo) return;
+
+    setMigrationsLoading(true);
+    try {
+      const params = new URLSearchParams({ owner, repo });
+      if (projectRef) {
+        params.set('projectRef', projectRef);
+      }
+
+      const response = await fetch(`/api/ide/migrations?${params}`);
+      if (!response.ok) throw new Error('Failed to fetch migrations');
+
+      const data = await response.json();
+      setMigrations(data.migrations || [], data.summary || { total: 0, applied: 0, pending: 0 });
+    } catch (err) {
+      console.error('Failed to fetch migrations:', err);
+    } finally {
+      setMigrationsLoading(false);
+    }
+  }, [owner, repo, projectRef, setMigrations, setMigrationsLoading]);
+
+  useEffect(() => {
+    fetchMigrations();
+  }, [fetchMigrations]);
 
   // Fetch table data when a table is selected
   const fetchTableData = useCallback(async (tableName: string, offset = 0) => {
@@ -648,27 +688,48 @@ export function DatabasePane() {
             {pendingMigrations.length > 0 && (
               <div className="migration-alert">
                 <div className="alert-header">
-                  <span><BellIcon size={14} /> New Migration Detected</span>
-                  <button className="apply-btn">Apply</button>
+                  <span><BellIcon size={14} /> {pendingMigrations.length} Pending Migration{pendingMigrations.length > 1 ? 's' : ''}</span>
                 </div>
-                <div className="alert-file">{pendingMigrations[0]}</div>
                 <div className="auto-apply">
                   <label>
                     <input type="checkbox" checked={autoApplyMigrations} onChange={e => setAutoApplyMigrations(e.target.checked)} />
-                    Auto-apply
+                    Auto-apply migrations on push
                   </label>
                 </div>
               </div>
             )}
             <div className="migration-list">
               <div className="migration-list-header">
-                <span>Migrations</span>
-                <button className="new-migration-btn">+ New</button>
+                <span>
+                  Migrations
+                  {migrationsSummary && (
+                    <span className="migrations-count">
+                      ({migrationsSummary.applied}/{migrationsSummary.total} applied)
+                    </span>
+                  )}
+                </span>
+                <button className="refresh-btn-sm" onClick={fetchMigrations} disabled={migrationsLoading}>
+                  ↻
+                </button>
               </div>
-              <div className="migrations-placeholder">
-                <p>Migration tracking coming soon</p>
-                <p className="hint">Use the Query tab to run SQL directly</p>
-              </div>
+              {migrationsLoading ? (
+                <div className="migrations-loading">
+                  <div className="loading-spinner" />
+                  <span>Loading migrations...</span>
+                </div>
+              ) : migrations.length === 0 ? (
+                <div className="migrations-empty">
+                  <div className="empty-icon">📁</div>
+                  <p>No migrations found</p>
+                  <p className="hint">Migration files should be in supabase/migrations/</p>
+                </div>
+              ) : (
+                <div className="migrations-list-items">
+                  {migrations.map((migration) => (
+                    <MigrationItem key={migration.version} migration={migration} />
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -858,6 +919,63 @@ function AddColumnModal({
             <button type="submit" className="modal-btn primary">Add Column</button>
           </div>
         </form>
+      </div>
+    </div>
+  );
+}
+
+// Migration Item Component
+function MigrationItem({ migration }: { migration: MigrationFile }) {
+  const isApplied = migration.status === 'applied';
+
+  // Format timestamp for display
+  const formatDate = (timestamp: string) => {
+    if (!timestamp) return '';
+    try {
+      const date = new Date(timestamp);
+      return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    } catch {
+      return '';
+    }
+  };
+
+  // Extract readable name from filename
+  const displayName = migration.name
+    .replace(/^\d{14}_/, '') // Remove timestamp prefix
+    .replace(/\.sql$/, '')   // Remove .sql extension
+    .replace(/_/g, ' ');     // Replace underscores with spaces
+
+  return (
+    <div className={`migration-item ${isApplied ? 'applied' : 'pending'}`}>
+      <div className="migration-status">
+        {isApplied ? (
+          <span className="status-icon applied" title="Applied">✓</span>
+        ) : (
+          <span className="status-icon pending" title="Pending">○</span>
+        )}
+      </div>
+      <div className="migration-info">
+        <div className="migration-name" title={migration.name}>
+          {displayName}
+        </div>
+        <div className="migration-meta">
+          <span className="migration-version">{migration.version}</span>
+          {migration.appliedAt && (
+            <span className="migration-applied-at">Applied {formatDate(migration.appliedAt)}</span>
+          )}
+          {!isApplied && migration.timestamp && (
+            <span className="migration-created">Created {formatDate(migration.timestamp)}</span>
+          )}
+        </div>
+      </div>
+      <div className="migration-file" title={migration.path}>
+        {migration.name}
       </div>
     </div>
   );

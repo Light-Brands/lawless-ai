@@ -1,6 +1,21 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
+export interface MigrationFile {
+  name: string;
+  path: string;
+  timestamp: string;
+  version: string;
+  status: 'applied' | 'pending';
+  appliedAt?: string;
+}
+
+export interface MigrationsSummary {
+  total: number;
+  applied: number;
+  pending: number;
+}
+
 export interface Session {
   id: string;
   user_id: string;
@@ -87,6 +102,13 @@ interface IDEStore {
   setPendingMigrations: (migrations: string[]) => void;
   autoApplyMigrations: boolean;
   setAutoApplyMigrations: (enabled: boolean) => void;
+
+  // Migrations
+  migrations: MigrationFile[];
+  migrationsLoading: boolean;
+  migrationsSummary: MigrationsSummary | null;
+  setMigrations: (migrations: MigrationFile[], summary: MigrationsSummary) => void;
+  setMigrationsLoading: (loading: boolean) => void;
 
   // Deployments
   deploymentStatus: 'idle' | 'building' | 'ready' | 'failed';
@@ -218,6 +240,18 @@ export const useIDEStore = create<IDEStore>()(
       setPendingMigrations: (migrations) => set({ pendingMigrations: migrations }),
       autoApplyMigrations: false,
       setAutoApplyMigrations: (enabled) => set({ autoApplyMigrations: enabled }),
+
+      // Migrations
+      migrations: [],
+      migrationsLoading: false,
+      migrationsSummary: null,
+      setMigrations: (migrations, summary) =>
+        set({
+          migrations,
+          migrationsSummary: summary,
+          pendingMigrations: migrations.filter((m) => m.status === 'pending').map((m) => m.name),
+        }),
+      setMigrationsLoading: (loading) => set({ migrationsLoading: loading }),
 
       // Deployments
       deploymentStatus: 'idle',

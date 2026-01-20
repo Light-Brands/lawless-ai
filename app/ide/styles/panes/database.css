@@ -113,33 +113,147 @@
 
 .migration-item {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px;
   border-radius: 6px;
   margin-bottom: 4px;
   font-size: 12px;
+  background: #1a1a2e;
+  border: 1px solid transparent;
+  transition: all 0.15s;
 }
 
 .migration-item:hover {
   background: #2d2d44;
+  border-color: #3d3d5c;
+}
+
+.migration-item.applied {
+  opacity: 0.8;
+}
+
+.migration-item.pending {
+  border-left: 2px solid #f59e0b;
 }
 
 .migration-status {
+  flex-shrink: 0;
+  width: 20px;
+  text-align: center;
+}
+
+.status-icon {
   font-size: 14px;
+  font-weight: bold;
+}
+
+.status-icon.applied {
+  color: #22c55e;
+}
+
+.status-icon.pending {
+  color: #f59e0b;
+}
+
+.migration-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .migration-name {
-  flex: 1;
-  font-family: monospace;
+  font-weight: 500;
+  color: #e0e0e0;
+  text-transform: capitalize;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.migration-state {
+.migration-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 11px;
   color: #888;
 }
 
-.migration-item.pending .migration-state {
-  color: #f59e0b;
+.migration-version {
+  font-family: monospace;
+  color: #666;
+}
+
+.migration-applied-at,
+.migration-created {
+  color: #666;
+}
+
+.migration-file {
+  flex-shrink: 0;
+  font-family: monospace;
+  font-size: 10px;
+  color: #555;
+  max-width: 150px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.migration-item.applied .migration-file {
+  color: #444;
+}
+
+/* Migrations list items container */
+.migrations-list-items {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: calc(100vh - 200px);
+  overflow-y: auto;
+}
+
+/* Migrations loading state */
+.migrations-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 40px 20px;
+  color: #888;
+}
+
+/* Migrations empty state */
+.migrations-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  text-align: center;
+  color: #888;
+}
+
+.migrations-empty .empty-icon {
+  font-size: 32px;
+  margin-bottom: 12px;
+}
+
+.migrations-empty .hint {
+  font-size: 11px;
+  color: #666;
+  margin-top: 4px;
+}
+
+/* Migrations count in header */
+.migrations-count {
+  font-size: 11px;
+  color: #666;
+  margin-left: 8px;
+  font-weight: normal;
 }
 
 .query-content {
