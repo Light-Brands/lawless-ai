@@ -54,8 +54,8 @@ export function PreviewPane() {
   const vercel = useVercelConnection();
   const terminal = useTerminalConnection();
 
-  // Enable port scanning
-  const { scanNow } = usePortScanner({ enabled: true });
+  // Enable port scanning only when terminal session is connected
+  const { scanNow } = usePortScanner({ enabled: terminal.status === 'connected' });
 
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
