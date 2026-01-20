@@ -7,14 +7,15 @@
 1. [Vision & Positioning](#vision--positioning)
 2. [Architecture Overview](#architecture-overview)
 3. [First-Run Setup & Service Connections](#first-run-setup--service-connections)
-4. [Complete Tooling Reference](#complete-tooling-reference)
-5. [Core Differentiators](#core-differentiators-vs-hosted-ide)
-6. [Phase 1: Foundation & Agent Core](#phase-1-foundation--agent-core)
-7. [Phase 2: Browser Integration & Click-to-Edit](#phase-2-browser-integration--click-to-edit)
-8. [Phase 3: Polish & Distribution](#phase-3-polish--distribution)
-9. [Technical Specifications](#technical-specifications)
-10. [Database Schema](#database-schema)
-11. [Deployment & Distribution](#deployment--distribution)
+4. [Project Onboarding Sequence](#project-onboarding-sequence)
+5. [Complete Tooling Reference](#complete-tooling-reference)
+6. [Core Differentiators](#core-differentiators-vs-hosted-ide)
+7. [Phase 1: Foundation & Agent Core](#phase-1-foundation--agent-core)
+8. [Phase 2: Browser Integration & Click-to-Edit](#phase-2-browser-integration--click-to-edit)
+9. [Phase 3: Polish & Distribution](#phase-3-polish--distribution)
+10. [Technical Specifications](#technical-specifications)
+11. [Database Schema](#database-schema)
+12. [Deployment & Distribution](#deployment--distribution)
 
 ---
 
@@ -650,6 +651,596 @@ interface ConnectionStatus {
   };
   setupComplete: boolean;
 }
+```
+
+---
+
+## Project Onboarding Sequence
+
+After services are connected, Claude guides users through a **Project Onboarding** sequence that creates foundational documents before any code is written. This ensures every project starts with clarity and direction.
+
+### Onboarding Flow Overview
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    PROJECT ONBOARDING                            │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│   Services Connected ✓                                           │
+│          ↓                                                       │
+│   ┌─────────────────────────────────────────────────────────┐   │
+│   │  STEP 1: Project Plan                                    │   │
+│   │  "Let's define what we're building"                      │   │
+│   │  → Creates: docs/PROJECT_PLAN.md                         │   │
+│   └─────────────────────────────────────────────────────────┘   │
+│          ↓                                                       │
+│   ┌─────────────────────────────────────────────────────────┐   │
+│   │  STEP 2: Brand Guidelines                                │   │
+│   │  "Let's define how it looks and feels"                   │   │
+│   │  → Creates: docs/BRAND_GUIDELINES.md                     │   │
+│   └─────────────────────────────────────────────────────────┘   │
+│          ↓                                                       │
+│   Ready to Build!                                                │
+│   Claude uses these docs as context for all future work          │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Step 1: Project Plan Creation
+
+Claude has a conversational interview to understand the project, then generates a comprehensive plan.
+
+**The Conversation:**
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  💬 Chat                                                         │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  Claude: "Welcome! Before we start building, let's create a      │
+│  project plan so I understand exactly what you're trying to      │
+│  achieve. I'll ask you a few questions."                         │
+│                                                                  │
+│  Claude: "First, what's the name of your project?"               │
+│                                                                  │
+│  User: "TaskFlow"                                                │
+│                                                                  │
+│  Claude: "Great name! In one sentence, what does TaskFlow do?"   │
+│                                                                  │
+│  User: "It's a task management app for small teams"              │
+│                                                                  │
+│  Claude: "Who is the primary user? What problem are they         │
+│  experiencing that TaskFlow solves?"                             │
+│                                                                  │
+│  User: "Small business owners who are overwhelmed managing       │
+│  tasks across spreadsheets and sticky notes"                     │
+│                                                                  │
+│  Claude: "What are the 3-5 core features that would make         │
+│  TaskFlow valuable in its first version?"                        │
+│                                                                  │
+│  User: "Task creation, team assignment, due dates, and a         │
+│  simple dashboard to see what's overdue"                         │
+│                                                                  │
+│  Claude: "Perfect. Let me create your project plan..."           │
+│                                                                  │
+│  [Creating docs/PROJECT_PLAN.md...]                              │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Generated Document: docs/PROJECT_PLAN.md**
+
+```markdown
+# TaskFlow - Project Plan
+
+## Vision
+A simple, focused task management app that helps small business owners
+escape the chaos of spreadsheets and sticky notes.
+
+## Problem Statement
+Small business owners struggle to track tasks across their team. They're
+using a mix of spreadsheets, sticky notes, and memory - leading to missed
+deadlines, duplicated work, and constant "did you do that?" conversations.
+
+## Target User
+- **Primary**: Small business owners (1-20 employees)
+- **Context**: Managing day-to-day operations, often wearing multiple hats
+- **Pain Point**: No single source of truth for what needs to get done
+
+## Core Features (MVP)
+
+### 1. Task Creation
+- Quick-add tasks with title and description
+- Set due dates with calendar picker
+- Add priority levels (High, Medium, Low)
+
+### 2. Team Assignment
+- Assign tasks to team members
+- View tasks by assignee
+- Reassign with drag-and-drop
+
+### 3. Due Date Tracking
+- Visual due date indicators
+- Overdue highlighting
+- Calendar view option
+
+### 4. Dashboard
+- "What's overdue" section (most important)
+- "Due today" section
+- "Coming up this week" section
+- Team workload at a glance
+
+## Success Metrics
+- User can create a task in under 10 seconds
+- User can see all overdue items in one glance
+- Team members receive clear notifications
+
+## Technical Approach
+- Next.js for the frontend
+- Supabase for database and auth
+- Vercel for hosting
+- Mobile-responsive design
+
+## Out of Scope (for now)
+- Time tracking
+- Recurring tasks
+- Integrations with other tools
+- Mobile native apps
+
+## Open Questions
+- Should we have projects/categories for tasks?
+- Email notifications vs. in-app only?
+- Free tier limits?
+
+---
+*Generated during project onboarding. Update as the project evolves.*
+```
+
+### Interview Questions (Customizable)
+
+Claude uses these questions as a guide, adapting based on responses:
+
+```typescript
+const projectPlanQuestions = [
+  {
+    question: "What's the name of your project?",
+    field: "name",
+    followUp: "Great name! Is there a story behind it?"
+  },
+  {
+    question: "In one sentence, what does {name} do?",
+    field: "oneLiner",
+    followUp: "Perfect. Who specifically is this for?"
+  },
+  {
+    question: "Who is your primary user? What's their biggest pain point?",
+    field: "targetUser",
+    followUp: "How are they solving this problem today?"
+  },
+  {
+    question: "What are the 3-5 core features for the first version?",
+    field: "coreFeatures",
+    followUp: "Which one is the most important? The 'killer feature'?"
+  },
+  {
+    question: "How will you know if {name} is successful?",
+    field: "successMetrics",
+    followUp: "Any specific numbers or goals in mind?"
+  },
+  {
+    question: "What should we explicitly NOT build in the first version?",
+    field: "outOfScope",
+    followUp: "Good - keeping focus is crucial for shipping"
+  },
+  {
+    question: "Any open questions or things you're unsure about?",
+    field: "openQuestions",
+    followUp: "We can figure these out as we build"
+  }
+];
+```
+
+---
+
+### Step 2: Brand Guidelines Creation
+
+After the project plan, Claude guides users through defining visual identity.
+
+**The Conversation:**
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  💬 Chat                                                         │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  Claude: "Now let's define how TaskFlow looks and feels. These   │
+│  brand guidelines will help me make consistent design decisions  │
+│  as we build."                                                   │
+│                                                                  │
+│  Claude: "What mood or feeling should TaskFlow convey?           │
+│  For example: professional, playful, minimal, bold, friendly?"   │
+│                                                                  │
+│  User: "Clean and professional but not boring. Friendly."        │
+│                                                                  │
+│  Claude: "If TaskFlow were a person, how would they dress?"      │
+│                                                                  │
+│  User: "Smart casual - like a startup founder. Put together      │
+│  but approachable"                                               │
+│                                                                  │
+│  Claude: "Do you have any brand colors in mind, or should I      │
+│  suggest some based on the mood?"                                │
+│                                                                  │
+│  User: "I like blue but open to suggestions"                     │
+│                                                                  │
+│  Claude: "Blue is great for trust and productivity. I'll pair    │
+│  it with a warm accent. What about typography - modern and       │
+│  geometric, or more traditional and readable?"                   │
+│                                                                  │
+│  User: "Modern but very readable - our users aren't designers"   │
+│                                                                  │
+│  Claude: "Perfect. Let me create your brand guidelines..."       │
+│                                                                  │
+│  [Creating docs/BRAND_GUIDELINES.md...]                          │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Generated Document: docs/BRAND_GUIDELINES.md**
+
+```markdown
+# TaskFlow - Brand Guidelines
+
+## Brand Personality
+
+### Voice & Tone
+- **Personality**: Friendly professional - like a helpful coworker
+- **Tone**: Clear, encouraging, never condescending
+- **Language**: Simple and direct, avoid jargon
+
+### Brand Attributes
+- ✓ Clean & organized (but not sterile)
+- ✓ Professional (but approachable)
+- ✓ Efficient (but not cold)
+- ✓ Trustworthy (but not corporate)
+
+### The "Smart Casual" Principle
+TaskFlow should feel like a startup founder at a coffee meeting:
+put-together but relaxed, competent but friendly.
+
+---
+
+## Color Palette
+
+### Primary Colors
+| Color | Hex | Usage |
+|-------|-----|-------|
+| **Ocean Blue** | `#2563EB` | Primary actions, links, focus states |
+| **Deep Navy** | `#1E3A5F` | Headers, important text |
+| **White** | `#FFFFFF` | Backgrounds, cards |
+
+### Secondary Colors
+| Color | Hex | Usage |
+|-------|-----|-------|
+| **Warm Coral** | `#F97316` | Accents, notifications, CTAs |
+| **Soft Gray** | `#F3F4F6` | Backgrounds, borders |
+| **Text Gray** | `#6B7280` | Secondary text |
+
+### Status Colors
+| Color | Hex | Usage |
+|-------|-----|-------|
+| **Success Green** | `#10B981` | Completed, success states |
+| **Warning Amber** | `#F59E0B` | Due soon, warnings |
+| **Error Red** | `#EF4444` | Overdue, errors |
+
+### Color Usage Rules
+- Ocean Blue is the hero - use it for primary actions
+- Warm Coral is the accent - use sparingly for emphasis
+- Never use pure black (#000) - use Deep Navy instead
+- Maintain high contrast for accessibility (WCAG AA minimum)
+
+---
+
+## Typography
+
+### Font Stack
+```css
+--font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+--font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+```
+
+### Type Scale
+| Name | Size | Weight | Usage |
+|------|------|--------|-------|
+| **Display** | 36px | 700 | Page titles |
+| **Heading 1** | 24px | 600 | Section headers |
+| **Heading 2** | 20px | 600 | Card titles |
+| **Body** | 16px | 400 | Default text |
+| **Body Small** | 14px | 400 | Secondary text |
+| **Caption** | 12px | 500 | Labels, metadata |
+
+### Typography Rules
+- Line height: 1.5 for body text, 1.2 for headings
+- Maximum line length: 65-75 characters for readability
+- Use font-weight 500+ for any text on colored backgrounds
+
+---
+
+## Spacing & Layout
+
+### Spacing Scale (8px base)
+```
+4px   - Tight (icon padding)
+8px   - Small (text spacing)
+16px  - Medium (element padding)
+24px  - Large (section spacing)
+32px  - XL (card padding)
+48px  - 2XL (section gaps)
+```
+
+### Layout Principles
+- Cards have 24px padding and 8px border radius
+- Consistent 16px gaps between form elements
+- 48px minimum touch targets for mobile
+
+---
+
+## Components
+
+### Buttons
+- **Primary**: Ocean Blue background, white text, subtle shadow
+- **Secondary**: White background, Ocean Blue text, border
+- **Danger**: Error Red background for destructive actions
+- Border radius: 6px
+- Padding: 12px 24px
+
+### Cards
+- White background
+- 1px border in Soft Gray
+- 8px border radius
+- Subtle shadow on hover
+
+### Forms
+- 40px input height
+- 8px border radius
+- Focus ring in Ocean Blue
+- Error states in Error Red
+
+---
+
+## Iconography
+
+### Style
+- Use Lucide icons (or similar line-style icons)
+- 24px default size
+- 1.5px stroke weight
+- Match text color
+
+### Common Icons
+- ✓ Check for completed
+- ● Circle for in progress
+- ○ Empty circle for not started
+- ⚠ Warning triangle for overdue
+
+---
+
+## Voice Examples
+
+### Do Say
+- "Task created!" (clear, brief)
+- "Looks like this is overdue - want to update the date?" (helpful)
+- "Your team's crushing it this week" (encouraging)
+
+### Don't Say
+- "Task successfully created in the database" (too technical)
+- "ERROR: Task overdue" (alarming)
+- "Invalid input" (unhelpful)
+
+---
+
+## Implementation Notes
+
+### CSS Variables
+```css
+:root {
+  /* Colors */
+  --color-primary: #2563EB;
+  --color-primary-dark: #1E3A5F;
+  --color-accent: #F97316;
+  --color-bg: #FFFFFF;
+  --color-bg-secondary: #F3F4F6;
+  --color-text: #1E3A5F;
+  --color-text-secondary: #6B7280;
+  --color-success: #10B981;
+  --color-warning: #F59E0B;
+  --color-error: #EF4444;
+
+  /* Typography */
+  --font-sans: 'Inter', -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  /* Spacing */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 16px;
+  --space-4: 24px;
+  --space-5: 32px;
+  --space-6: 48px;
+
+  /* Borders */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+}
+```
+
+### Tailwind Config (if using)
+```javascript
+// tailwind.config.js
+module.exports = {
+  theme: {
+    extend: {
+      colors: {
+        primary: '#2563EB',
+        'primary-dark': '#1E3A5F',
+        accent: '#F97316',
+      },
+      fontFamily: {
+        sans: ['Inter', ...defaultTheme.fontFamily.sans],
+      },
+    },
+  },
+};
+```
+
+---
+*Generated during project onboarding. Update as the brand evolves.*
+```
+
+### Brand Interview Questions
+
+```typescript
+const brandGuidelineQuestions = [
+  {
+    question: "What mood or feeling should {name} convey? (e.g., professional, playful, minimal, bold)",
+    field: "mood",
+    followUp: "Any brands you admire that have a similar feel?"
+  },
+  {
+    question: "If {name} were a person, how would they dress and speak?",
+    field: "personality",
+    followUp: "This helps me understand the brand's character"
+  },
+  {
+    question: "Do you have brand colors in mind, or should I suggest some?",
+    field: "colors",
+    options: ["I have specific colors", "Suggest based on mood", "No preference"],
+    followUp: "Any colors to definitely avoid?"
+  },
+  {
+    question: "Typography preference: modern/geometric or traditional/readable?",
+    field: "typography",
+    options: ["Modern & geometric", "Traditional & readable", "Mix of both"],
+    followUp: "Should it feel more like a tech product or a friendly tool?"
+  },
+  {
+    question: "Are there any existing brand assets (logo, colors) we need to match?",
+    field: "existingAssets",
+    followUp: "Share any files or links and I'll incorporate them"
+  },
+  {
+    question: "Who are your competitors? How should {name} look different?",
+    field: "differentiation",
+    followUp: "Knowing what to avoid is as important as knowing what to do"
+  }
+];
+```
+
+---
+
+### How Claude Uses These Documents
+
+Once created, these documents become part of Claude's context for ALL future interactions:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    CONTEXT LOADING                               │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  When user says: "Create the dashboard page"                     │
+│                                                                  │
+│  Claude automatically loads:                                     │
+│  ├── docs/PROJECT_PLAN.md (knows the features)                  │
+│  ├── docs/BRAND_GUIDELINES.md (knows the design system)         │
+│  └── .lawless/context/CLAUDE.md (knows the codebase)            │
+│                                                                  │
+│  Claude then creates a dashboard that:                           │
+│  ✓ Shows "What's overdue" prominently (from PROJECT_PLAN)       │
+│  ✓ Uses Ocean Blue for primary actions (from BRAND_GUIDELINES)  │
+│  ✓ Follows the existing component patterns (from codebase)      │
+│                                                                  │
+│  This is the magic: Claude maintains consistency automatically  │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Onboarding State Machine
+
+```typescript
+// .lawless/ide/src/lib/onboarding.ts
+
+type OnboardingStep =
+  | 'services'           // Service connections (existing)
+  | 'project-plan'       // NEW: Project plan interview
+  | 'brand-guidelines'   // NEW: Brand guidelines interview
+  | 'complete';          // Ready to build
+
+interface OnboardingState {
+  currentStep: OnboardingStep;
+  completedSteps: OnboardingStep[];
+  projectPlan?: {
+    name: string;
+    oneLiner: string;
+    targetUser: string;
+    coreFeatures: string[];
+    successMetrics: string[];
+    outOfScope: string[];
+    openQuestions: string[];
+  };
+  brandGuidelines?: {
+    mood: string;
+    personality: string;
+    colors: ColorPalette;
+    typography: TypographyConfig;
+    differentiation: string;
+  };
+}
+
+// Check if onboarding is complete
+export function isOnboardingComplete(state: OnboardingState): boolean {
+  return state.completedSteps.includes('project-plan') &&
+         state.completedSteps.includes('brand-guidelines');
+}
+
+// Get next step
+export function getNextStep(state: OnboardingState): OnboardingStep {
+  if (!state.completedSteps.includes('services')) return 'services';
+  if (!state.completedSteps.includes('project-plan')) return 'project-plan';
+  if (!state.completedSteps.includes('brand-guidelines')) return 'brand-guidelines';
+  return 'complete';
+}
+```
+
+### Skip Options
+
+Users can skip onboarding steps, but Claude will gently remind them:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  💬 Chat (later, when user asks to build something)              │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  User: "Create a login page"                                     │
+│                                                                  │
+│  Claude: "I can create that! I noticed we haven't set up brand   │
+│  guidelines yet. Want me to:                                     │
+│                                                                  │
+│  1. Use sensible defaults for now (I'll make it look good)       │
+│  2. Quick brand setup first (5 min - better consistency)         │
+│                                                                  │
+│  Either way, I'll build you a great login page."                 │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Files Created by Onboarding
+
+```
+project-root/
+├── docs/
+│   ├── PROJECT_PLAN.md        # Created in Step 1
+│   └── BRAND_GUIDELINES.md    # Created in Step 2
+├── src/
+│   └── styles/
+│       └── brand.css          # Optional: Generated CSS variables
+└── tailwind.config.js         # Updated with brand colors (if using Tailwind)
 ```
 
 ---
@@ -2218,6 +2809,10 @@ export async function readEnvVariable(key: string): Promise<string | null> {
 - [ ] GitHub connection setup with token verification
 - [ ] Supabase connection setup with project linking
 - [ ] Vercel connection setup with project verification
+- [ ] **Project Onboarding: Project Plan interview & generation**
+- [ ] **Project Onboarding: Brand Guidelines interview & generation**
+- [ ] **docs/ folder with PROJECT_PLAN.md and BRAND_GUIDELINES.md**
+- [ ] **Context loading for onboarding docs in all Claude interactions**
 - [ ] Settings page for managing connections
 - [ ] Full Claude tool suite (files, git, db, deploy)
 - [ ] **Git push = auto-deploy workflow**
@@ -4584,7 +5179,7 @@ The Local IDE Agent is the **development environment** users get when they creat
 
 ---
 
-*Document Version: 1.3*
+*Document Version: 1.4*
 *Created: January 2026*
 *Last Updated: January 2026*
 *Parallel to: IDE_IMPLEMENTATION_PLAN.md v2.3*
@@ -4592,6 +5187,25 @@ The Local IDE Agent is the **development environment** users get when they creat
 ---
 
 ## Changelog
+
+### v1.4 (Project Onboarding Sequence)
+- **Project Plan Interview**: Claude guides users through defining their project before coding
+  - Name, vision, target user, pain points
+  - Core features for MVP
+  - Success metrics and out-of-scope items
+  - Generates comprehensive `docs/PROJECT_PLAN.md`
+- **Brand Guidelines Interview**: Claude helps define visual identity
+  - Mood, personality, and brand attributes
+  - Color palette generation with usage rules
+  - Typography scale and font recommendations
+  - Component styling guidelines
+  - Generates `docs/BRAND_GUIDELINES.md` with CSS variables
+- **Context-Aware Building**: Onboarding docs automatically loaded into Claude's context
+  - Every future interaction references project plan and brand guidelines
+  - Consistent design decisions without re-explaining
+  - Claude builds features that match the defined vision
+- **Skip Option**: Users can skip but Claude gently prompts later
+- **Customizable Interview Questions**: Defined question sets that can be adapted
 
 ### v1.3 (Agent-First Redesign)
 - **2-Pane Default Layout**: Chat + Browser as the primary view
