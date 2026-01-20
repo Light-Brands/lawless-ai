@@ -1493,6 +1493,199 @@ Section names: brand_overview, mission_statement, voice_and_tone, visual_identit
 
 Start by greeting the user and asking what their brand stands for.`;
 
+// Website analysis endpoint
+app.post('/api/builder/analyze-website', authenticateApiKey, async (req: Request, res: Response) => {
+  const { url } = req.body;
+
+  if (!url) {
+    res.status(400).json({ error: 'URL is required' });
+    return;
+  }
+
+  // Validate URL
+  let parsedUrl: URL;
+  try {
+    parsedUrl = new URL(url);
+    if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+      throw new Error('Invalid protocol');
+    }
+  } catch {
+    res.status(400).json({ error: 'Invalid URL' });
+    return;
+  }
+
+  try {
+    // Fetch the website content
+    const response = await fetch(parsedUrl.toString(), {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; LawlessAI/1.0; +https://lawless.ai)',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      },
+      signal: AbortSignal.timeout(15000),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    const htmlContent = await response.text();
+
+    // Extract text content and metadata from HTML
+    const textContent = extractTextFromHtml(htmlContent);
+    const metadata = extractMetadataFromHtml(htmlContent);
+    const colors = extractColorsFromHtml(htmlContent);
+
+    // Build prompt for Claude
+    const analysisPrompt = `Analyze this website content and extract brand/project information.
+
+Website URL: ${url}
+${metadata.title ? `Page Title: ${metadata.title}` : ''}
+${metadata.description ? `Meta Description: ${metadata.description}` : ''}
+${metadata.ogTitle ? `OG Title: ${metadata.ogTitle}` : ''}
+${metadata.ogDescription ? `OG Description: ${metadata.ogDescription}` : ''}
+
+Extracted Colors: ${colors.length > 0 ? colors.join(', ') : 'None found'}
+
+Page Content:
+${textContent.slice(0, 8000)}
+
+Based on this content, provide a JSON analysis with these fields:
+- summary: A 2-3 sentence overview of what this brand/company does
+- tagline: Their main tagline or value proposition (if found)
+- description: A longer description of their product/service
+- targetAudience: Who their target audience appears to be
+- keyFeatures: Array of key features or offerings (max 5)
+- tone: The brand's communication tone (e.g., "Professional and trustworthy", "Fun and casual")
+
+Respond with ONLY valid JSON, no markdown or explanation.`;
+
+    // Spawn Claude CLI
+    const spawnEnv = {
+      ...process.env,
+      NO_COLOR: '1',
+      HOME: '/home/ubuntu',
+      PATH: '/usr/local/bin:/usr/bin:/bin:/home/ubuntu/.local/bin'
+    };
+
+    const claude: ChildProcessWithoutNullStreams = spawn('claude', [
+      '--print',
+      '--output-format', 'text'
+    ], {
+      env: spawnEnv,
+      cwd: '/home/ubuntu'
+    });
+
+    claude.stdin.write(analysisPrompt);
+    claude.stdin.end();
+
+    let responseContent = '';
+
+    claude.stdout.on('data', (chunk: Buffer) => {
+      responseContent += chunk.toString();
+    });
+
+    claude.stderr.on('data', (data: Buffer) => {
+      console.error('Claude stderr:', data.toString());
+    });
+
+    claude.on('close', (code: number | null) => {
+      if (code !== 0) {
+        res.status(500).json({ error: 'Analysis failed' });
+        return;
+      }
+
+      // Parse Claude's response
+      let analysis: Record<string, unknown>;
+      try {
+        const jsonMatch = responseContent.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          analysis = JSON.parse(jsonMatch[0]);
+        } else {
+          analysis = { summary: responseContent.slice(0, 500) };
+        }
+      } catch {
+        analysis = { summary: responseContent.slice(0, 500) };
+      }
+
+      // Add extracted colors
+      if (colors.length > 0) {
+        analysis.brandColors = colors.slice(0, 6);
+      }
+
+      res.json({
+        success: true,
+        analysis,
+        metadata,
+      });
+    });
+
+    claude.on('error', (err: Error) => {
+      console.error('Failed to spawn Claude:', err);
+      res.status(500).json({ error: 'Failed to start analysis' });
+    });
+
+  } catch (error) {
+    console.error('Website fetch error:', error);
+    res.status(400).json({
+      error: `Failed to fetch website: ${error instanceof Error ? error.message : 'Unknown error'}`
+    });
+  }
+});
+
+// Helper functions for HTML parsing
+function extractTextFromHtml(html: string): string {
+  let text = html
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+    .replace(/<noscript[^>]*>[\s\S]*?<\/noscript>/gi, '')
+    .replace(/<!--[\s\S]*?-->/g, '');
+  text = text.replace(/<[^>]+>/g, ' ');
+  text = text
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'");
+  text = text.replace(/\s+/g, ' ').trim();
+  return text;
+}
+
+function extractMetadataFromHtml(html: string): Record<string, string> {
+  const metadata: Record<string, string> = {};
+  const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+  if (titleMatch) metadata.title = titleMatch[1].trim();
+  const descMatch = html.match(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']+)["']/i);
+  if (descMatch) metadata.description = descMatch[1];
+  const ogTitleMatch = html.match(/<meta[^>]*property=["']og:title["'][^>]*content=["']([^"']+)["']/i);
+  if (ogTitleMatch) metadata.ogTitle = ogTitleMatch[1];
+  const ogDescMatch = html.match(/<meta[^>]*property=["']og:description["'][^>]*content=["']([^"']+)["']/i);
+  if (ogDescMatch) metadata.ogDescription = ogDescMatch[1];
+  return metadata;
+}
+
+function extractColorsFromHtml(html: string): string[] {
+  const colors = new Set<string>();
+  const hexMatches = html.matchAll(/#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})\b/g);
+  for (const match of hexMatches) {
+    const color = match[0].toLowerCase();
+    if (!['#fff', '#ffffff', '#000', '#000000', '#333', '#333333', '#666', '#666666', '#999', '#999999', '#ccc', '#cccccc'].includes(color)) {
+      colors.add(color);
+    }
+  }
+  const rgbMatches = html.matchAll(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/gi);
+  for (const match of rgbMatches) {
+    const r = parseInt(match[1]);
+    const g = parseInt(match[2]);
+    const b = parseInt(match[3]);
+    if (Math.abs(r - g) > 20 || Math.abs(g - b) > 20 || Math.abs(r - b) > 20) {
+      const hex = `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+      colors.add(hex);
+    }
+  }
+  return Array.from(colors).slice(0, 10);
+}
+
 app.post('/api/builder/chat', authenticateApiKey, async (req: Request, res: Response) => {
   const { message, brandName, builderType, history, userId, currentDocument, brandContext } = req.body;
 
