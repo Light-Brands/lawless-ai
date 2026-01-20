@@ -3,13 +3,18 @@
   display: flex;
   flex-direction: column;
   height: 100%;
+  min-height: 0;
+  background: #0d0d0f;
+  overflow: hidden;
 }
 
 .preview-header {
   display: flex;
   justify-content: space-between;
   padding: 8px;
-  border-bottom: 1px solid #2d2d44;
+  background: #0a0a0c;
+  border-bottom: 1px solid #1a1a1f;
+  flex-shrink: 0;
 }
 
 .preview-mode-toggle {
@@ -67,17 +72,20 @@
 
 .preview-url-bar {
   padding: 6px 12px;
-  background: #0d0d1a;
-  border-bottom: 1px solid #2d2d44;
+  background: #0a0a0c;
+  border-bottom: 1px solid #1a1a1f;
   font-size: 12px;
   color: #666;
   font-family: monospace;
+  flex-shrink: 0;
 }
 
 .preview-content {
   flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
+  background: #0d0d0f;
 }
 
 .preview-iframe {
@@ -94,6 +102,7 @@
   justify-content: center;
   gap: 12px;
   color: #666;
+  background: #0d0d0f;
 }
 
 .server-status {
@@ -139,16 +148,18 @@
 
 .preview-console {
   height: 120px;
-  border-top: 1px solid #2d2d44;
+  border-top: 1px solid #1a1a1f;
   display: flex;
   flex-direction: column;
+  background: #0a0a0c;
+  flex-shrink: 0;
 }
 
 .console-tabs {
   display: flex;
   gap: 4px;
   padding: 4px 8px;
-  border-bottom: 1px solid #2d2d44;
+  border-bottom: 1px solid #1a1a1f;
 }
 
 .console-tab {

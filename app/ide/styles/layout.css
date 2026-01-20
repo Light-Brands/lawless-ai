@@ -84,8 +84,8 @@
   flex-direction: column;
   height: 100%;
   min-height: 0; /* Allow shrinking in flex container */
-  background: #1a1a2e;
-  border-right: 1px solid #2d2d44;
+  background: #0d0d0f;
+  border-right: 1px solid #1a1a1f;
   overflow: hidden;
 }
 
@@ -94,9 +94,10 @@
   align-items: center;
   justify-content: space-between;
   padding: 8px 12px;
-  background: #16162a;
-  border-bottom: 1px solid #2d2d44;
+  background: #0a0a0c;
+  border-bottom: 1px solid #1a1a1f;
   min-height: 36px;
+  flex-shrink: 0;
 }
 
 .pane-title {
