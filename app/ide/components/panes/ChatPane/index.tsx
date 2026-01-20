@@ -479,6 +479,8 @@ export function ChatPane() {
           border-bottom: 1px solid var(--border-color, #2a2a2f);
           padding: 0.5rem 0.75rem;
           flex-shrink: 0;
+          max-height: 280px;
+          overflow-y: auto;
         }
 
         .context-header {
@@ -503,25 +505,131 @@ export function ChatPane() {
           color: var(--text-primary, #fff);
         }
 
-        .context-items {
+        .context-sections {
           display: flex;
-          flex-wrap: wrap;
-          gap: 0.5rem;
+          flex-direction: column;
+          gap: 0.25rem;
         }
 
-        .context-item {
+        .context-section {
+          background: var(--bg-tertiary, #1a1a1f);
+          border-radius: 6px;
+          overflow: hidden;
+        }
+
+        .context-section-header {
           display: flex;
           align-items: center;
-          gap: 0.25rem;
-          font-size: 0.7rem;
-          color: var(--text-secondary, #888);
-          background: var(--bg-tertiary, #1a1a1f);
-          padding: 0.25rem 0.5rem;
-          border-radius: 4px;
+          gap: 0.5rem;
+          padding: 0.5rem 0.625rem;
+          font-size: 0.75rem;
+        }
+
+        .context-section-header.clickable {
+          cursor: pointer;
+          transition: background 0.15s;
+        }
+
+        .context-section-header.clickable:hover {
+          background: rgba(124, 58, 237, 0.1);
         }
 
         .context-icon {
-          font-size: 0.8rem;
+          display: flex;
+          align-items: center;
+          color: var(--accent-color, #7c3aed);
+          flex-shrink: 0;
+        }
+
+        .context-label {
+          color: var(--text-secondary, #888);
+          flex-shrink: 0;
+        }
+
+        .context-value {
+          color: var(--text-primary, #e0e0e0);
+          font-family: monospace;
+          font-size: 0.7rem;
+          margin-left: auto;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .context-badge {
+          background: var(--accent-color, #7c3aed);
+          color: white;
+          font-size: 0.65rem;
+          font-weight: 600;
+          padding: 0.125rem 0.375rem;
+          border-radius: 10px;
+          margin-left: auto;
+        }
+
+        .expand-arrow {
+          color: var(--text-secondary, #666);
+          font-size: 0.6rem;
+          margin-left: 0.25rem;
+          transition: transform 0.15s;
+        }
+
+        .context-section.expanded .expand-arrow {
+          color: var(--accent-color, #7c3aed);
+        }
+
+        .context-details {
+          padding: 0 0.625rem 0.5rem;
+          display: flex;
+          flex-direction: column;
+          gap: 0.25rem;
+          border-top: 1px solid var(--border-color, #2a2a2f);
+          margin-top: 0.25rem;
+          padding-top: 0.5rem;
+        }
+
+        .context-detail-item {
+          display: flex;
+          align-items: flex-start;
+          gap: 0.5rem;
+          font-size: 0.7rem;
+          padding: 0.375rem 0.5rem;
+          background: rgba(0, 0, 0, 0.2);
+          border-radius: 4px;
+        }
+
+        .context-detail-item.tool-item {
+          flex-direction: column;
+          gap: 0.125rem;
+        }
+
+        .detail-icon {
+          font-size: 0.75rem;
+          flex-shrink: 0;
+        }
+
+        .detail-text {
+          color: var(--text-primary, #e0e0e0);
+          font-family: monospace;
+          word-break: break-all;
+        }
+
+        .tool-name {
+          color: var(--accent-color, #a78bfa);
+          font-family: monospace;
+          font-weight: 500;
+        }
+
+        .tool-desc {
+          color: var(--text-secondary, #888);
+          font-size: 0.65rem;
+          line-height: 1.4;
+        }
+
+        .context-detail-empty {
+          color: var(--text-secondary, #666);
+          font-size: 0.7rem;
+          font-style: italic;
+          padding: 0.25rem 0;
         }
 
         .show-context-btn {
