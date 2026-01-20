@@ -89,6 +89,7 @@ export function useTerminal(options: UseTerminalOptions = {}): UseTerminalReturn
   const lastPongTimeRef = useRef<number>(Date.now());
   const connectionStableTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const heartbeatCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const previousSessionIdRef = useRef<string | null>(null);
 
   // Fetch backend WebSocket URL on mount
   useEffect(() => {
@@ -363,6 +364,76 @@ export function useTerminal(options: UseTerminalOptions = {}): UseTerminalReturn
     // Save output on disconnect
     saveOutputToDatabase();
   }, [cancelReconnect, saveOutputToDatabase]);
+
+  // Handle session changes - disconnect old, clear state, reconnect new
+  useEffect(() => {
+    // Skip on initial mount (no previous session)
+    if (previousSessionIdRef.current === null) {
+      previousSessionIdRef.current = sessionId;
+      return;
+    }
+
+    // Session changed - need to switch
+    if (previousSessionIdRef.current !== sessionId && sessionId) {
+      console.log(`[Terminal] Session changed: ${previousSessionIdRef.current} -> ${sessionId}`);
+
+      // Save output for old session before switching
+      if (previousSessionIdRef.current && outputHistoryRef.current.length > 0) {
+        const oldSessionId = previousSessionIdRef.current;
+        fetch('/api/terminal/output', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sessionId: oldSessionId,
+            repoFullName,
+            outputLines: outputHistoryRef.current,
+          }),
+        }).catch(err => console.error('Failed to save old session output:', err));
+      }
+
+      // Disconnect from old session
+      intentionalDisconnectRef.current = true;
+      cancelReconnect();
+      if (websocketRef.current) {
+        websocketRef.current.close();
+        websocketRef.current = null;
+      }
+      if (pingIntervalRef.current) {
+        clearInterval(pingIntervalRef.current);
+        pingIntervalRef.current = null;
+      }
+      if (heartbeatCheckIntervalRef.current) {
+        clearInterval(heartbeatCheckIntervalRef.current);
+        heartbeatCheckIntervalRef.current = null;
+      }
+      setIsConnected(false);
+
+      // Clear output history for new session
+      outputHistoryRef.current = [];
+
+      // Clear terminal display
+      if (terminalRef.current) {
+        terminalRef.current.clear();
+        terminalRef.current.writeln('\x1b[90m--- Switched to new session ---\x1b[0m\r\n');
+      }
+
+      // Update ref to new session
+      previousSessionIdRef.current = sessionId;
+
+      // Reset state
+      setBranchName(null);
+      setReconnectAttempt(0);
+      setIsReconnecting(false);
+      intentionalDisconnectRef.current = false;
+
+      // Load saved output for new session and connect
+      if (terminalRef.current && backendWsUrlRef.current) {
+        loadSavedOutput().then(() => {
+          setTimeout(() => connect(), 100);
+        });
+      }
+    }
+  }, [sessionId, repoFullName, cancelReconnect, connect, loadSavedOutput]);
 
   // Restart Claude
   const restart = useCallback(() => {
