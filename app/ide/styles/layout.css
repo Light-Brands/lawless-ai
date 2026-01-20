@@ -3,6 +3,8 @@
   flex: 1;
   display: flex;
   overflow: hidden;
+  min-height: 0; /* Allow shrinking in flex container */
+  height: 100%;
 }
 
 .collapsed-panes {
@@ -54,6 +56,7 @@
   flex-direction: column;
   flex: 1;
   min-height: 0;
+  height: 100%;
   overflow: hidden;
 }
 
@@ -61,6 +64,8 @@
   flex: 1;
   display: flex;
   overflow: hidden;
+  min-height: 0; /* Allow shrinking in flex container */
+  height: 100%;
 }
 
 /* Panel (react-resizable-panels) */
@@ -68,6 +73,8 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
+  min-height: 0; /* Allow shrinking in flex container */
+  height: 100%;
   overflow: hidden;
 }
 
@@ -76,6 +83,7 @@
   display: flex;
   flex-direction: column;
   height: 100%;
+  min-height: 0; /* Allow shrinking in flex container */
   background: #1a1a2e;
   border-right: 1px solid #2d2d44;
   overflow: hidden;
@@ -124,7 +132,10 @@
 
 .pane-content {
   flex: 1;
-  overflow: auto;
+  min-height: 0; /* Allow shrinking in flex container */
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Resize Handle (react-resizable-panels) */
