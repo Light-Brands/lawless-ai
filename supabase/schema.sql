@@ -62,6 +62,7 @@ CREATE TABLE IF NOT EXISTS public.repo_integrations (
   user_id TEXT NOT NULL,
   repo_full_name TEXT NOT NULL,
   vercel_project_id TEXT,
+  vercel_project_name TEXT,
   supabase_project_ref TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),

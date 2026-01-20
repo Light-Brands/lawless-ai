@@ -16,6 +16,7 @@ export interface SupabaseConnection {
 export interface VercelConnection {
   status: ConnectionStatus;
   projectId: string | null;
+  projectName: string | null;
   teamId?: string | null;
   error?: string;
 }
@@ -64,7 +65,7 @@ const defaultServiceContext: ServiceContextValue = {
   initStep: 'Initializing...',
 
   supabase: { status: 'disconnected', projectRef: null },
-  vercel: { status: 'disconnected', projectId: null },
+  vercel: { status: 'disconnected', projectId: null, projectName: null },
   github: { status: 'disconnected' },
   worktree: { status: 'disconnected', path: null, branchName: null },
   terminal: { status: 'disconnected', sessionId: null },
@@ -98,6 +99,7 @@ export function ServiceProvider({ children, sessionId }: ServiceProviderProps) {
   const [vercel, setVercel] = useState<VercelConnection>({
     status: 'disconnected',
     projectId: null,
+    projectName: null,
   });
 
   const [github, setGithub] = useState<GitHubConnection>({
@@ -150,12 +152,14 @@ export function ServiceProvider({ children, sessionId }: ServiceProviderProps) {
         setVercel({
           status: 'connected',
           projectId: data.integrations.vercel.projectId,
+          projectName: data.integrations.vercel.projectName || null,
           teamId: data.integrations.vercel.teamId,
         });
       } else {
         setVercel({
           status: 'disconnected',
           projectId: null,
+          projectName: null,
         });
       }
 

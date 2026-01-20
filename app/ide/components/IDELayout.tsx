@@ -142,10 +142,11 @@ export function IDELayout({ owner = '', repo = '', sessionId = null }: IDELayout
         return { url: 'https://github.com', title: 'Open GitHub' };
 
       case 'vercel':
-        // Link to exact project deployments
+        // Link to exact project - use projectName (slug) for URL, fall back to projectId
         if (vercel.projectId) {
-          const teamPath = vercel.teamId || '~';
-          return { url: `https://vercel.com/${teamPath}/${vercel.projectId}`, title: 'Open Vercel Project' };
+          const teamPath = vercel.teamId || 'autod3vs-projects';
+          const projectSlug = vercel.projectName || vercel.projectId;
+          return { url: `https://vercel.com/${teamPath}/${projectSlug}`, title: 'Open Vercel Project' };
         }
         return { url: 'https://vercel.com/autod3vs-projects/~/deployments', title: 'Open Vercel' };
 
@@ -159,7 +160,7 @@ export function IDELayout({ owner = '', repo = '', sessionId = null }: IDELayout
       default:
         return null;
     }
-  }, [owner, repo, vercel.projectId, vercel.teamId, supabase.projectRef]);
+  }, [owner, repo, vercel.projectId, vercel.projectName, vercel.teamId, supabase.projectRef]);
 
   const registerTarget = useCallback((paneId: number, element: HTMLDivElement | null) => {
     setPortalTargets((prev) => {
