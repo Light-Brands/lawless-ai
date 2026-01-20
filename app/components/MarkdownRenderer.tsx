@@ -92,13 +92,22 @@ export function MarkdownRenderer({ content, className = '', onDiagramClick }: Ma
   useEffect(() => {
     if (!containerRef.current) return;
 
-    const placeholders = containerRef.current.querySelectorAll('.mermaid-placeholder');
-    if (placeholders.length === 0) return;
-
     // Initialize mermaid if needed
     initMermaid();
 
     const renderDiagrams = async () => {
+      // Query for placeholders INSIDE the timeout to get current DOM elements
+      const container = containerRef.current;
+      if (!container) {
+        console.log('[Mermaid] Container gone during render');
+        return;
+      }
+
+      const placeholders = container.querySelectorAll('.mermaid-placeholder');
+      console.log('[Mermaid] Found placeholders to render:', placeholders.length);
+
+      if (placeholders.length === 0) return;
+
       for (const placeholder of Array.from(placeholders)) {
         const id = placeholder.getAttribute('data-mermaid-id');
         const code = decodeURIComponent(placeholder.getAttribute('data-mermaid-code') || '');
@@ -112,6 +121,7 @@ export function MarkdownRenderer({ content, className = '', onDiagramClick }: Ma
           if (mermaidCache.has(id)) {
             svg = mermaidCache.get(id)!;
           } else {
+            console.log('[Mermaid] Rendering:', id);
             const result = await mermaid.render(id, code);
             svg = result.svg;
             mermaidCache.set(id, svg);
@@ -145,8 +155,8 @@ export function MarkdownRenderer({ content, className = '', onDiagramClick }: Ma
       }
     };
 
-    // Small delay to ensure DOM is ready
-    const timeoutId = setTimeout(renderDiagrams, 100);
+    // Small delay to ensure DOM is stable after React's strict mode double-render
+    const timeoutId = setTimeout(renderDiagrams, 150);
     return () => clearTimeout(timeoutId);
   }, [html, onDiagramClick]);
 
