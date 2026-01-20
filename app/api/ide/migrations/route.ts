@@ -156,6 +156,13 @@ export async function GET(request: NextRequest) {
     // Calculate pending migrations
     const pendingMigrations = migrationFiles.filter((m) => m.status === 'pending');
 
+    // Sort: pending migrations first (by version), then applied (by version)
+    migrationFiles.sort((a, b) => {
+      if (a.status === 'pending' && b.status === 'applied') return -1;
+      if (a.status === 'applied' && b.status === 'pending') return 1;
+      return a.version.localeCompare(b.version);
+    });
+
     return NextResponse.json({
       migrations: migrationFiles,
       summary: {

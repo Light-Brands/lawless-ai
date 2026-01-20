@@ -188,6 +188,51 @@ export function DatabasePane() {
     fetchMigrations();
   }, [fetchMigrations]);
 
+  // State for tracking which migration is being run
+  const [runningMigration, setRunningMigration] = useState<string | null>(null);
+
+  // Run a specific migration
+  const runMigration = useCallback(async (migration: MigrationFile) => {
+    if (!owner || !repo || !projectRef) {
+      alert('Supabase project must be connected to run migrations');
+      return;
+    }
+
+    if (!confirm(`Are you sure you want to run migration "${migration.name}"?`)) {
+      return;
+    }
+
+    setRunningMigration(migration.version);
+    try {
+      const response = await fetch('/api/ide/migrations/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          owner,
+          repo,
+          projectRef,
+          migrationPath: migration.path,
+          migrationVersion: migration.version,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(`Failed to run migration: ${data.error || 'Unknown error'}`);
+        return;
+      }
+
+      // Refresh migrations list to show updated status
+      await fetchMigrations();
+    } catch (err) {
+      console.error('Failed to run migration:', err);
+      alert('Failed to run migration. Check console for details.');
+    } finally {
+      setRunningMigration(null);
+    }
+  }, [owner, repo, projectRef, fetchMigrations]);
+
   // Fetch table data when a table is selected
   const fetchTableData = useCallback(async (tableName: string, offset = 0) => {
     if (!projectRef) return;
@@ -726,7 +771,13 @@ export function DatabasePane() {
               ) : (
                 <div className="migrations-list-items">
                   {migrations.map((migration) => (
-                    <MigrationItem key={migration.version} migration={migration} />
+                    <MigrationItem
+                      key={migration.version}
+                      migration={migration}
+                      onRun={runMigration}
+                      isRunning={runningMigration === migration.version}
+                      canRun={connected}
+                    />
                   ))}
                 </div>
               )}
@@ -925,7 +976,17 @@ function AddColumnModal({
 }
 
 // Migration Item Component
-function MigrationItem({ migration }: { migration: MigrationFile }) {
+function MigrationItem({
+  migration,
+  onRun,
+  isRunning,
+  canRun,
+}: {
+  migration: MigrationFile;
+  onRun: (migration: MigrationFile) => void;
+  isRunning: boolean;
+  canRun: boolean;
+}) {
   const isApplied = migration.status === 'applied';
 
   // Format timestamp for display
@@ -974,8 +1035,24 @@ function MigrationItem({ migration }: { migration: MigrationFile }) {
           )}
         </div>
       </div>
-      <div className="migration-file" title={migration.path}>
-        {migration.name}
+      <div className="migration-actions">
+        {!isApplied && (
+          <button
+            className="run-migration-btn"
+            onClick={() => onRun(migration)}
+            disabled={isRunning || !canRun}
+            title={!canRun ? 'Connect Supabase to run migrations' : 'Run this migration'}
+          >
+            {isRunning ? (
+              <>
+                <span className="loading-spinner-sm" />
+                Running...
+              </>
+            ) : (
+              <>▶ Run</>
+            )}
+          </button>
+        )}
       </div>
     </div>
   );
