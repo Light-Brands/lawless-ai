@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Image from 'next/image';
 import { useIDEStore } from '../stores/ideStore';
 import { useServiceConnection } from '../hooks/useServiceConnection';
 import Link from 'next/link';
@@ -42,6 +43,14 @@ export function IDEHeader({
     <header className="ide-header">
       <div className="ide-header-left">
         <Link href="/" className="ide-logo">
+          <Image
+            src="/logo.png"
+            alt="Lawless AI"
+            width={28}
+            height={28}
+            className="ide-logo-image"
+            priority
+          />
           <span className="logo-text">Lawless AI</span>
         </Link>
 
