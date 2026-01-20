@@ -20,7 +20,7 @@ cat > /etc/nginx/sites-available/lawless-ai << EOF
 limit_req_zone \$binary_remote_addr zone=api_limit:10m rate=10r/s;
 
 upstream lawless_backend {
-    server 127.0.0.1:3001;
+    server 127.0.0.1:4000;
     keepalive 64;
 }
 

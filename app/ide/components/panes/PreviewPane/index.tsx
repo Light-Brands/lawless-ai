@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useIDEStore } from '../../../stores/ideStore';
 import { useVercelConnection, useTerminalConnection } from '../../../contexts/ServiceContext';
+import { usePortScanner } from '../../../hooks/usePortScanner';
 
 interface Deployment {
   id: string;
@@ -43,11 +44,24 @@ const ExternalLinkIcon = () => (
 );
 
 export function PreviewPane() {
-  const { previewMode, setPreviewMode, serverStatus, serverPort } = useIDEStore();
+  const {
+    previewMode,
+    setPreviewMode,
+    activePorts,
+    selectedPort,
+    setSelectedPort
+  } = useIDEStore();
   const vercel = useVercelConnection();
   const terminal = useTerminalConnection();
 
+  // Enable port scanning
+  const { scanNow } = usePortScanner({ enabled: true });
+
   const iframeRef = useRef<HTMLIFrameElement>(null);
+
+  // Convert activePorts to sorted array
+  const portsArray = Object.values(activePorts).sort((a, b) => a.port - b.port);
+  const hasActivePorts = portsArray.length > 0;
 
   // Deployments state
   const [deployments, setDeployments] = useState<Deployment[]>([]);
@@ -110,13 +124,14 @@ export function PreviewPane() {
 
   // Build proxy URL for remote localhost
   const getLocalPreviewUrl = useCallback(() => {
-    if (terminal.sessionId && serverStatus === 'running') {
+    const port = selectedPort || 3000;
+    if (terminal.sessionId && hasActivePorts) {
       // Proxy through backend for remote server
-      return `/api/preview/proxy?sessionId=${terminal.sessionId}&port=${serverPort || 3000}`;
+      return `/api/preview/proxy?sessionId=${terminal.sessionId}&port=${port}`;
     }
     // Fallback to direct localhost (for local development)
-    return `http://localhost:${serverPort || 3000}`;
-  }, [terminal.sessionId, serverStatus, serverPort]);
+    return `http://localhost:${port}`;
+  }, [terminal.sessionId, selectedPort, hasActivePorts]);
 
   // Refresh iframe
   const handleRefresh = useCallback(() => {
@@ -125,10 +140,13 @@ export function PreviewPane() {
     }
     if (previewMode === 'deployed') {
       fetchDeployments();
+    } else {
+      // Rescan ports in local mode
+      scanNow();
     }
     const now = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
     setConsoleLogs(prev => [...prev, { time: now, message: 'Refreshed' }]);
-  }, [previewMode, fetchDeployments]);
+  }, [previewMode, fetchDeployments, scanNow]);
 
   // Clear console
   const handleClearConsole = useCallback(() => {
@@ -165,7 +183,7 @@ export function PreviewPane() {
             onClick={() => setPreviewMode('local')}
           >
             Local
-            {serverStatus === 'running' && <span className="status-indicator running" />}
+            {hasActivePorts && <span className="status-indicator running" />}
           </button>
           <button
             className={`preview-mode-btn ${previewMode === 'deployed' ? 'active' : ''}`}
@@ -216,13 +234,31 @@ export function PreviewPane() {
         </div>
       </div>
 
+      {/* Port pills bar for local mode */}
+      {previewMode === 'local' && hasActivePorts && (
+        <div className="preview-ports-bar">
+          {portsArray.map((info) => (
+            <button
+              key={info.port}
+              className={`port-pill ${selectedPort === info.port ? 'active' : ''}`}
+              onClick={() => setSelectedPort(info.port)}
+              title={`Source: ${info.source}${info.tabId ? ` (Tab: ${info.tabId})` : ''}`}
+            >
+              <span className="port-dot" />
+              <span className="port-number">{info.port}</span>
+              {info.label && <span className="port-label">{info.label}</span>}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* URL bar */}
       <div className="preview-url-bar">
         {previewMode === 'local' ? (
           <span>
-            {serverStatus === 'running'
-              ? `http://localhost:${serverPort || 3000}`
-              : 'Server not running'}
+            {hasActivePorts
+              ? `http://localhost:${selectedPort || 3000}`
+              : 'Scanning for dev servers...'}
           </span>
         ) : (
           <div className="preview-url-deployed">
@@ -251,7 +287,7 @@ export function PreviewPane() {
       {/* Preview iframe */}
       <div className="preview-content">
         {previewMode === 'local' ? (
-          serverStatus === 'running' ? (
+          hasActivePorts && selectedPort ? (
             <iframe
               ref={iframeRef}
               src={getLocalPreviewUrl()}
@@ -260,14 +296,12 @@ export function PreviewPane() {
             />
           ) : (
             <div className="preview-placeholder">
-              <div className="server-status">
-                <span className={`status-icon ${serverStatus}`} />
-                <span>Server {serverStatus}</span>
+              <div className="server-status scanning">
+                <div className="scanning-animation" />
+                <span>Scanning for dev servers</span>
               </div>
-              {serverStatus === 'stopped' && (
-                <button className="start-server-btn">Start Dev Server</button>
-              )}
-              {serverStatus === 'starting' && <div className="loading-spinner" />}
+              <p className="preview-hint">Start a dev server in the terminal</p>
+              <p className="preview-ports-hint">Monitoring ports 3000-3999</p>
             </div>
           )
         ) : (

@@ -30,12 +30,13 @@ export const TERMINAL_KEYS = {
 } as const;
 
 export interface UseTerminalOptions {
+  tabId?: string;  // Terminal tab ID for isolated worktree (defaults to 'main')
   onConnected?: () => void;
   onDisconnected?: (code: number) => void;
   onError?: (error: string) => void;
   onBranchInfo?: (branchName: string, baseBranch: string, baseCommit: string) => void;
-  onServerDetected?: (port: number) => void;
-  onServerStopped?: () => void;
+  onServerDetected?: (port: number, label?: string) => void;
+  onServerStopped?: (port?: number) => void;
   autoReconnect?: boolean;
   persistOutput?: boolean;
 }
@@ -47,6 +48,7 @@ export interface UseTerminalReturn {
   isReconnecting: boolean;
   reconnectAttempt: number;
   branchName: string | null;
+  tabId: string;
   connect: () => void;
   disconnect: () => void;
   restart: () => void;
@@ -87,6 +89,7 @@ const SERVER_STOPPED_PATTERNS = [
 
 export function useTerminal(options: UseTerminalOptions = {}): UseTerminalReturn {
   const {
+    tabId = 'main',
     onConnected,
     onDisconnected,
     onError,
@@ -268,7 +271,7 @@ export function useTerminal(options: UseTerminalOptions = {}): UseTerminalReturn
     intentionalDisconnectRef.current = false;
     setIsReconnecting(false);
 
-    const wsUrl = `${backendWsUrlRef.current}/ws/terminal?repo=${encodeURIComponent(repoFullName)}&session=${sessionId}`;
+    const wsUrl = `${backendWsUrlRef.current}/ws/terminal?repo=${encodeURIComponent(repoFullName)}&session=${sessionId}&tab=${encodeURIComponent(tabId)}`;
 
     terminalRef.current?.writeln?.('\x1b[90mConnecting to server...\x1b[0m');
 
@@ -712,6 +715,7 @@ export function useTerminal(options: UseTerminalOptions = {}): UseTerminalReturn
     isReconnecting,
     reconnectAttempt,
     branchName,
+    tabId,
     connect,
     disconnect,
     restart,

@@ -4,7 +4,7 @@ import { getIntegrationToken } from '@/lib/integrations/tokens';
 
 export const runtime = 'nodejs';
 
-const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:3001';
+const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:4000';
 const BACKEND_API_KEY = process.env.BACKEND_API_KEY || '';
 
 export async function POST(request: NextRequest) {

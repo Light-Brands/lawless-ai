@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get backend URL from environment
-    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
+    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:4000';
 
     // Get API key from cookies (set during auth)
     const cookieStore = await cookies();

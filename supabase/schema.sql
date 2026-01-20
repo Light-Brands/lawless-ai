@@ -120,9 +120,25 @@ CREATE TABLE IF NOT EXISTS public.terminal_sessions (
 CREATE TABLE IF NOT EXISTS public.terminal_outputs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   terminal_session_id UUID NOT NULL REFERENCES public.terminal_sessions(id) ON DELETE CASCADE,
+  tab_id TEXT,
   output_lines TEXT[],
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE(terminal_session_id)
+);
+
+-- Terminal tabs (each tab has its own isolated git worktree)
+CREATE TABLE IF NOT EXISTS public.terminal_tabs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  terminal_session_id UUID NOT NULL REFERENCES public.terminal_sessions(id) ON DELETE CASCADE,
+  tab_id TEXT NOT NULL,
+  name TEXT NOT NULL DEFAULT 'Terminal',
+  tab_index INTEGER NOT NULL DEFAULT 0,
+  worktree_path TEXT NOT NULL,
+  branch_name TEXT NOT NULL,
+  base_branch TEXT DEFAULT 'main',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  last_focused_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(terminal_session_id, tab_id)
 );
 
 -- SQL query history
@@ -153,6 +169,9 @@ CREATE INDEX IF NOT EXISTS idx_conversations_active ON public.conversations(user
 CREATE INDEX IF NOT EXISTS idx_conversations_repo ON public.conversations(user_id, repo_full_name);
 CREATE INDEX IF NOT EXISTS idx_terminal_sessions_user ON public.terminal_sessions(user_id);
 CREATE INDEX IF NOT EXISTS idx_terminal_sessions_repo ON public.terminal_sessions(repo_full_name);
+CREATE INDEX IF NOT EXISTS idx_terminal_tabs_session ON public.terminal_tabs(terminal_session_id);
+CREATE INDEX IF NOT EXISTS idx_terminal_tabs_worktree ON public.terminal_tabs(worktree_path);
+CREATE INDEX IF NOT EXISTS idx_terminal_outputs_tab ON public.terminal_outputs(terminal_session_id, tab_id);
 CREATE INDEX IF NOT EXISTS idx_sql_history_user ON public.sql_query_history(user_id);
 CREATE INDEX IF NOT EXISTS idx_sql_history_project ON public.sql_query_history(project_ref);
 
@@ -165,6 +184,7 @@ ALTER TABLE public.workspace_sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.conversations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.terminal_sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.terminal_outputs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.terminal_tabs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.sql_query_history ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies for users
@@ -218,6 +238,17 @@ CREATE POLICY "Users can manage own terminal sessions"
 -- RLS Policies for terminal_outputs (via terminal_sessions)
 CREATE POLICY "Users can manage own terminal outputs"
   ON public.terminal_outputs FOR ALL
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.terminal_sessions
+      WHERE id = terminal_session_id
+        AND user_id = (SELECT github_username FROM public.users WHERE id = auth.uid()::text)
+    )
+  );
+
+-- RLS Policies for terminal_tabs (via terminal_sessions)
+CREATE POLICY "Users can manage own terminal tabs"
+  ON public.terminal_tabs FOR ALL
   USING (
     EXISTS (
       SELECT 1 FROM public.terminal_sessions

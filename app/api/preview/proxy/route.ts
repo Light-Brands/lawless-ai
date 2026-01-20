@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Session ID required' }, { status: 400 });
   }
 
-  const backendUrl = process.env.BACKEND_URL || 'http://localhost:3001';
+  const backendUrl = process.env.BACKEND_URL || 'http://localhost:4000';
   const apiKey = process.env.BACKEND_API_KEY;
 
   try {

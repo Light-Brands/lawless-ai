@@ -28,7 +28,7 @@ dotenv.config({ path: path.join(__dirname, '..', '..', '.env.local') });
 dotenv.config({ path: path.join(__dirname, '..', '..', '.env') });
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 4000;
 
 // Initialize SQLite database
 const dbPath = process.env.DB_PATH || path.join(__dirname, '..', 'data', 'conversations.db');
@@ -83,6 +83,27 @@ db.exec(`
 
   CREATE INDEX IF NOT EXISTS idx_workspace_sessions_repo
   ON workspace_sessions(repo_full_name);
+
+  CREATE TABLE IF NOT EXISTS terminal_tabs (
+    id TEXT PRIMARY KEY,
+    terminal_session_id TEXT NOT NULL,
+    tab_id TEXT NOT NULL,
+    name TEXT NOT NULL DEFAULT 'Terminal',
+    tab_index INTEGER NOT NULL DEFAULT 0,
+    worktree_path TEXT NOT NULL,
+    branch_name TEXT NOT NULL,
+    base_branch TEXT DEFAULT 'main',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    last_focused_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(terminal_session_id, tab_id),
+    FOREIGN KEY (terminal_session_id) REFERENCES terminal_sessions(session_id) ON DELETE CASCADE
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_terminal_tabs_session
+  ON terminal_tabs(terminal_session_id);
+
+  CREATE INDEX IF NOT EXISTS idx_terminal_tabs_worktree
+  ON terminal_tabs(worktree_path);
 `);
 
 // Add workspace_session_id column to conversations if it doesn't exist
@@ -2996,6 +3017,256 @@ app.get('/preview/vercel', async (req: Request, res: Response) => {
 
 
 
+// ===========================================
+// Terminal Tabs & Port Scanning Endpoints
+// ===========================================
+
+// Scan ports 3000-3999 for active dev servers
+app.get('/api/preview/ports', authenticateApiKey, async (req: Request, res: Response) => {
+  const sessionId = req.query.sessionId as string;
+
+  if (!sessionId) {
+    res.status(400).json({ error: 'Session ID required' });
+    return;
+  }
+
+  // Verify session exists
+  const session = db.prepare('SELECT * FROM workspace_sessions WHERE session_id = ?').get(sessionId);
+  const terminalSession = db.prepare('SELECT * FROM terminal_sessions WHERE session_id = ?').get(sessionId);
+
+  if (!session && !terminalSession) {
+    res.status(404).json({ error: 'Session not found' });
+    return;
+  }
+
+  try {
+    // Scan ports 3000-3999 using ss command
+    const result = execSync(
+      `ss -tlnp 2>/dev/null | grep -E ':3[0-9]{3}\\s' | awk '{print $4}' | sed 's/.*://' | sort -un`,
+      { encoding: 'utf-8', timeout: 5000 }
+    );
+
+    const ports = result.split('\n')
+      .map((p: string) => parseInt(p.trim(), 10))
+      .filter((p: number) => !isNaN(p) && p >= 3000 && p <= 3999);
+
+    res.json({ ports, scannedAt: new Date().toISOString() });
+  } catch (error) {
+    // No ports found or error scanning
+    res.json({ ports: [], scannedAt: new Date().toISOString() });
+  }
+});
+
+// Create terminal tab with isolated worktree
+app.post('/api/terminal/tabs', authenticateApiKey, async (req: Request, res: Response) => {
+  const { sessionId, tabId, name, branchName, baseBranch = 'main' } = req.body;
+
+  if (!sessionId || !tabId) {
+    res.status(400).json({ error: 'sessionId and tabId required' });
+    return;
+  }
+
+  // Get terminal session with repo info
+  const terminalSession = db.prepare(`
+    SELECT session_id, repo_full_name
+    FROM terminal_sessions
+    WHERE session_id = ?
+  `).get(sessionId) as any;
+
+  if (!terminalSession) {
+    res.status(404).json({ error: 'Terminal session not found' });
+    return;
+  }
+
+  // Parse repo info
+  const repoFullName = terminalSession.repo_full_name;
+  const mainRepoPath = getMainRepoPath(repoFullName);
+
+  // Create unique worktree for this tab
+  const worktreeName = `ws_${sessionId}_tab_${tabId}`;
+  const worktreePath = path.join(mainRepoPath, 'worktrees', worktreeName);
+  const targetBranch = branchName || `workspace/${sessionId}/${tabId}`;
+
+  try {
+    // Ensure worktrees directory exists
+    const worktreesDir = path.join(mainRepoPath, 'worktrees');
+    if (!fs.existsSync(worktreesDir)) {
+      fs.mkdirSync(worktreesDir, { recursive: true });
+    }
+
+    // Create worktree with new branch from base
+    execSync(
+      `cd "${mainRepoPath}" && git worktree add -b "${targetBranch}" "${worktreePath}" "${baseBranch}"`,
+      { encoding: 'utf-8' }
+    );
+
+    // Count existing tabs for index
+    const tabCount = db.prepare(
+      'SELECT COUNT(*) as count FROM terminal_tabs WHERE terminal_session_id = ?'
+    ).get(sessionId) as any;
+
+    // Insert new tab with worktree info
+    const tabDbId = uuidv4();
+    db.prepare(`
+      INSERT INTO terminal_tabs (id, terminal_session_id, tab_id, name, tab_index, worktree_path, branch_name, base_branch)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(tabDbId, sessionId, tabId, name || 'Terminal', tabCount?.count || 0, worktreePath, targetBranch, baseBranch);
+
+    res.json({
+      id: tabDbId,
+      tabId,
+      name: name || 'Terminal',
+      index: tabCount?.count || 0,
+      worktreePath,
+      branchName: targetBranch,
+      baseBranch,
+    });
+  } catch (error: any) {
+    console.error('Failed to create worktree for tab:', error);
+    res.status(500).json({ error: 'Failed to create isolated worktree: ' + error.message });
+  }
+});
+
+// List terminal tabs
+app.get('/api/terminal/tabs/:sessionId', authenticateApiKey, (req: Request, res: Response) => {
+  const { sessionId } = req.params;
+
+  const terminalSession = db.prepare(
+    'SELECT session_id FROM terminal_sessions WHERE session_id = ?'
+  ).get(sessionId);
+
+  if (!terminalSession) {
+    res.status(404).json({ error: 'Terminal session not found' });
+    return;
+  }
+
+  const tabs = db.prepare(`
+    SELECT tab_id, name, tab_index, worktree_path, branch_name, base_branch, created_at, last_focused_at
+    FROM terminal_tabs
+    WHERE terminal_session_id = ?
+    ORDER BY tab_index ASC
+  `).all(sessionId);
+
+  res.json({ tabs });
+});
+
+// Delete terminal tab and cleanup worktree
+app.delete('/api/terminal/tabs/:sessionId/:tabId', authenticateApiKey, async (req: Request, res: Response) => {
+  const { sessionId, tabId } = req.params;
+
+  // Get terminal session info
+  const terminalSession = db.prepare(
+    'SELECT session_id, repo_full_name FROM terminal_sessions WHERE session_id = ?'
+  ).get(sessionId) as any;
+
+  if (!terminalSession) {
+    res.status(404).json({ error: 'Session not found' });
+    return;
+  }
+
+  // Get tab info for worktree path
+  const tab = db.prepare(
+    'SELECT worktree_path, branch_name FROM terminal_tabs WHERE terminal_session_id = ? AND tab_id = ?'
+  ).get(sessionId, tabId) as any;
+
+  // Kill tmux session for this tab
+  const tmuxSessionName = `lw_${sessionId.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 50)}_tab_${tabId.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 20)}`;
+  try {
+    execSync(`tmux kill-session -t ${tmuxSessionName} 2>/dev/null`);
+  } catch (e) { /* Session may not exist */ }
+
+  // Remove worktree if it exists
+  if (tab?.worktree_path) {
+    const mainRepoPath = getMainRepoPath(terminalSession.repo_full_name);
+
+    try {
+      // Remove worktree (git worktree remove)
+      execSync(`cd "${mainRepoPath}" && git worktree remove "${tab.worktree_path}" --force 2>/dev/null`);
+
+      // Optionally delete the branch if it was auto-created
+      if (tab.branch_name?.startsWith('workspace/')) {
+        execSync(`cd "${mainRepoPath}" && git branch -D "${tab.branch_name}" 2>/dev/null`);
+      }
+    } catch (e) {
+      console.warn('Failed to cleanup worktree:', e);
+      // Continue with deletion even if worktree cleanup fails
+    }
+  }
+
+  // Delete from database
+  db.prepare(
+    'DELETE FROM terminal_tabs WHERE terminal_session_id = ? AND tab_id = ?'
+  ).run(sessionId, tabId);
+
+  res.json({ success: true });
+});
+
+// Update terminal tab (focus time, name)
+app.put('/api/terminal/tabs/:sessionId/:tabId', authenticateApiKey, (req: Request, res: Response) => {
+  const { sessionId, tabId } = req.params;
+  const { name, focused } = req.body;
+
+  const tab = db.prepare(
+    'SELECT id FROM terminal_tabs WHERE terminal_session_id = ? AND tab_id = ?'
+  ).get(sessionId, tabId);
+
+  if (!tab) {
+    res.status(404).json({ error: 'Tab not found' });
+    return;
+  }
+
+  if (name) {
+    db.prepare('UPDATE terminal_tabs SET name = ? WHERE terminal_session_id = ? AND tab_id = ?').run(name, sessionId, tabId);
+  }
+
+  if (focused) {
+    db.prepare('UPDATE terminal_tabs SET last_focused_at = CURRENT_TIMESTAMP WHERE terminal_session_id = ? AND tab_id = ?').run(sessionId, tabId);
+  }
+
+  res.json({ success: true });
+});
+
+// List available branches for worktree creation
+app.get('/api/git/branches', authenticateApiKey, (req: Request, res: Response) => {
+  const sessionId = req.query.sessionId as string;
+
+  if (!sessionId) {
+    res.status(400).json({ error: 'sessionId required' });
+    return;
+  }
+
+  const terminalSession = db.prepare(
+    'SELECT repo_full_name FROM terminal_sessions WHERE session_id = ?'
+  ).get(sessionId) as any;
+
+  if (!terminalSession) {
+    res.status(404).json({ error: 'Session not found' });
+    return;
+  }
+
+  const repoPath = getMainRepoPath(terminalSession.repo_full_name);
+
+  try {
+    // Get all branches (local and remote)
+    const result = execSync(
+      `cd "${repoPath}" && git branch -a --format='%(refname:short)'`,
+      { encoding: 'utf-8' }
+    );
+
+    const branches = result
+      .split('\n')
+      .map((b: string) => b.trim())
+      .filter((b: string) => b && !b.includes('HEAD'))
+      .map((b: string) => b.replace('origin/', ''))
+      .filter((b: string, i: number, arr: string[]) => arr.indexOf(b) === i); // Dedupe
+
+    res.json({ branches });
+  } catch (error) {
+    console.error('Failed to list branches:', error);
+    res.json({ branches: ['main'] });
+  }
+});
+
 // Create HTTP server for both Express and WebSocket
 const server = http.createServer(app);
 
@@ -3035,11 +3306,12 @@ wss.on('connection', (ws: WebSocket, req) => {
   const url = new URL(req.url || '', `http://${req.headers.host}`);
   const repoFullName = url.searchParams.get('repo');
   const clientSessionId = url.searchParams.get('session');
+  const tabId = url.searchParams.get('tab') || 'main';  // Default tab
 
   // Use client-provided session ID if available
   const sessionId = clientSessionId || uuidv4();
 
-  console.log(`Terminal WebSocket connected: ${sessionId}, repo: ${repoFullName}`);
+  console.log(`Terminal WebSocket connected: ${sessionId}, tab: ${tabId}, repo: ${repoFullName}`);
 
   if (!repoFullName) {
     ws.send(JSON.stringify({ type: 'error', message: 'Repository name required' }));
@@ -3059,10 +3331,22 @@ wss.on('connection', (ws: WebSocket, req) => {
   let sessionInfo = getSessionInfo(sessionId);
   let isNewSession = false;
   let workingDirectory: string;
+  let branchName: string;
 
-  if (sessionInfo && isSessionWorktreeValid(sessionId)) {
-    // Reconnecting to existing session
+  // Check if connecting to a specific tab with its own worktree
+  const tabInfo = tabId !== 'main' ? db.prepare(
+    'SELECT worktree_path, branch_name, base_branch FROM terminal_tabs WHERE terminal_session_id = ? AND tab_id = ?'
+  ).get(sessionId, tabId) as any : null;
+
+  if (tabInfo && fs.existsSync(tabInfo.worktree_path)) {
+    // Tab has its own worktree - use that
+    workingDirectory = tabInfo.worktree_path;
+    branchName = tabInfo.branch_name;
+    console.log(`Using tab-specific worktree: ${workingDirectory}, branch: ${branchName}`);
+  } else if (sessionInfo && isSessionWorktreeValid(sessionId)) {
+    // Reconnecting to existing session (main worktree)
     workingDirectory = sessionInfo.worktree_path;
+    branchName = sessionInfo.branch_name;
     updateSessionAccess(sessionId);
     console.log(`Reconnecting to existing session worktree: ${workingDirectory}`);
   } else if (sessionInfo) {
@@ -3071,17 +3355,21 @@ wss.on('connection', (ws: WebSocket, req) => {
     db.prepare('DELETE FROM terminal_sessions WHERE session_id = ?').run(sessionId);
     sessionInfo = createSessionWorktree(repoFullName, sessionId);
     workingDirectory = sessionInfo.worktree_path;
+    branchName = sessionInfo.branch_name;
     isNewSession = true;
   } else {
     // New session - create worktree
     console.log(`Creating new session worktree for: ${sessionId}`);
     sessionInfo = createSessionWorktree(repoFullName, sessionId);
     workingDirectory = sessionInfo.worktree_path;
+    branchName = sessionInfo.branch_name;
     isNewSession = true;
   }
 
-  // Create tmux session name from session ID
-  const tmuxSessionName = "lw_" + sessionId.replace(/[^a-zA-Z0-9]/g, "_").substring(0, 50);
+  // Create tmux session name - include tab ID for isolation
+  const tmuxSessionName = tabId !== 'main'
+    ? `lw_${sessionId.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 40)}_tab_${tabId.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 15)}`
+    : `lw_${sessionId.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 50)}`;
 
   // Check if tmux session already exists
   const tmuxSessionExists = (): boolean => {
@@ -3121,21 +3409,25 @@ wss.on('connection', (ws: WebSocket, req) => {
     } as { [key: string]: string },
   });
 
-  terminalSessions.set(sessionId, ptyProcess);
+  // Key includes tabId for tab isolation
+  const ptyKey = tabId !== 'main' ? `${sessionId}_${tabId}` : sessionId;
+  terminalSessions.set(ptyKey, ptyProcess);
 
   // Send initial message with session info
   ws.send(JSON.stringify({
     type: "connected",
     sessionId,
+    tabId,
     tmuxSession: tmuxSessionName,
-    branchName: sessionInfo.branch_name,
-    baseBranch: sessionInfo.base_branch,
-    baseCommit: sessionInfo.base_commit,
+    branchName: branchName,
+    baseBranch: tabInfo?.base_branch || sessionInfo?.base_branch,
+    baseCommit: sessionInfo?.base_commit,
+    worktreePath: workingDirectory,
     isNewSession: !existingTmux,
     reconnected: existingTmux,
     message: existingTmux
-      ? "[Reconnected] tmux:" + tmuxSessionName + " | Branch: " + sessionInfo.branch_name + "\r\n"
-      : "[New Session] tmux:" + tmuxSessionName + " | Branch: " + sessionInfo.branch_name + "\r\n"
+      ? `[Reconnected] tmux:${tmuxSessionName} | Branch: ${branchName}\r\n`
+      : `[New Session] tmux:${tmuxSessionName} | Branch: ${branchName}\r\n`
   }));
 
   // Only start Claude CLI for new tmux sessions

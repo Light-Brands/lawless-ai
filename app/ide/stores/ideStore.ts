@@ -44,6 +44,25 @@ export interface Message {
   toolCalls?: any[];
 }
 
+// Terminal tab with isolated worktree
+export interface TerminalTab {
+  tabId: string;
+  name: string;
+  index: number;
+  worktreePath: string;
+  branchName: string;
+  baseBranch: string;
+}
+
+// Port information for dev servers
+export interface PortInfo {
+  port: number;
+  detectedAt: Date;
+  source: 'terminal' | 'scan';
+  label?: string;  // "Next.js", "Vite", etc.
+  tabId?: string;  // Which terminal detected it
+}
+
 interface IDEStore {
   // Sessions
   activeSession: Session | null;
@@ -96,6 +115,22 @@ interface IDEStore {
   setServerStatus: (status: 'stopped' | 'starting' | 'running' | 'error') => void;
   serverPort: number | null;
   setServerPort: (port: number | null) => void;
+
+  // Multi-port preview (for detecting multiple dev servers)
+  activePorts: Record<number, PortInfo>;
+  selectedPort: number | null;
+  addPort: (port: number, source: 'terminal' | 'scan', label?: string, tabId?: string) => void;
+  removePort: (port: number) => void;
+  setSelectedPort: (port: number | null) => void;
+  syncPortsFromScan: (ports: number[]) => void;
+
+  // Terminal tabs
+  terminalTabs: TerminalTab[];
+  activeTabId: string | null;
+  addTerminalTab: (tab: TerminalTab) => void;
+  removeTerminalTab: (tabId: string) => void;
+  setActiveTab: (tabId: string) => void;
+  setTerminalTabs: (tabs: TerminalTab[]) => void;
 
   // Database
   pendingMigrations: string[];
@@ -234,6 +269,75 @@ export const useIDEStore = create<IDEStore>()(
       setServerStatus: (status) => set({ serverStatus: status }),
       serverPort: null,
       setServerPort: (port) => set({ serverPort: port }),
+
+      // Multi-port preview
+      activePorts: {},
+      selectedPort: null,
+      addPort: (port, source, label, tabId) => set((state) => {
+        const existing = state.activePorts[port];
+        // Terminal detection takes precedence over scan detection
+        if (existing && source === 'scan' && existing.source === 'terminal') {
+          return state;
+        }
+        return {
+          activePorts: {
+            ...state.activePorts,
+            [port]: { port, detectedAt: new Date(), source, label, tabId },
+          },
+          // Auto-select first port if none selected
+          selectedPort: state.selectedPort ?? port,
+        };
+      }),
+      removePort: (port) => set((state) => {
+        const { [port]: _, ...rest } = state.activePorts;
+        const newSelected = state.selectedPort === port
+          ? (Object.keys(rest).length > 0 ? parseInt(Object.keys(rest)[0]) : null)
+          : state.selectedPort;
+        return { activePorts: rest, selectedPort: newSelected };
+      }),
+      setSelectedPort: (port) => set({ selectedPort: port }),
+      syncPortsFromScan: (ports) => set((state) => {
+        const portSet = new Set(ports);
+        const newPorts = { ...state.activePorts };
+
+        // Remove scan-detected ports that are no longer active
+        for (const [p, info] of Object.entries(newPorts)) {
+          if (info.source === 'scan' && !portSet.has(parseInt(p))) {
+            delete newPorts[parseInt(p)];
+          }
+        }
+
+        // Add newly discovered ports
+        for (const port of ports) {
+          if (!newPorts[port]) {
+            newPorts[port] = { port, detectedAt: new Date(), source: 'scan' };
+          }
+        }
+
+        // Update selected port if current selection is gone
+        const newSelected = state.selectedPort && newPorts[state.selectedPort]
+          ? state.selectedPort
+          : (Object.keys(newPorts).length > 0 ? parseInt(Object.keys(newPorts)[0]) : null);
+
+        return { activePorts: newPorts, selectedPort: newSelected };
+      }),
+
+      // Terminal tabs
+      terminalTabs: [],
+      activeTabId: null,
+      addTerminalTab: (tab) => set((state) => ({
+        terminalTabs: [...state.terminalTabs, tab].sort((a, b) => a.index - b.index),
+        activeTabId: state.activeTabId ?? tab.tabId,
+      })),
+      removeTerminalTab: (tabId) => set((state) => {
+        const newTabs = state.terminalTabs.filter(t => t.tabId !== tabId);
+        const newActiveTabId = state.activeTabId === tabId
+          ? (newTabs[0]?.tabId ?? null)
+          : state.activeTabId;
+        return { terminalTabs: newTabs, activeTabId: newActiveTabId };
+      }),
+      setActiveTab: (tabId) => set({ activeTabId: tabId }),
+      setTerminalTabs: (tabs) => set({ terminalTabs: tabs }),
 
       // Database
       pendingMigrations: [],

@@ -380,3 +380,81 @@
   border-color: #555;
 }
 
+/* Port Pills */
+.preview-ports-bar {
+  display: flex;
+  gap: 6px;
+  padding: 6px 12px;
+  background: #0a0a0c;
+  border-bottom: 1px solid #1a1a1f;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.port-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: #1a1a2e;
+  border: 1px solid #3d3d5c;
+  border-radius: 20px;
+  color: #888;
+  cursor: pointer;
+  font-size: 11px;
+  transition: all 0.15s ease;
+}
+
+.port-pill:hover {
+  background: #2d2d44;
+  color: #e0e0e0;
+  border-color: #4d4d6c;
+}
+
+.port-pill.active {
+  background: #2d2d44;
+  border-color: #7c3aed;
+  color: #e0e0e0;
+}
+
+.port-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #4ade80;
+}
+
+.port-number {
+  font-family: monospace;
+  font-weight: 500;
+}
+
+.port-label {
+  color: #666;
+  font-size: 10px;
+}
+
+.port-pill.active .port-label {
+  color: #888;
+}
+
+/* Scanning Animation */
+.server-status.scanning {
+  color: #888;
+}
+
+.scanning-animation {
+  width: 24px;
+  height: 24px;
+  border: 2px solid #2d2d44;
+  border-top-color: #7c3aed;
+  border-radius: 50%;
+  animation: spin 1.2s linear infinite;
+}
+
+.preview-ports-hint {
+  font-size: 10px;
+  color: #555;
+  font-family: monospace;
+}
+

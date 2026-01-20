@@ -288,20 +288,61 @@ export interface Database {
         Row: {
           id: string;
           terminal_session_id: string;
+          tab_id: string | null;
           output_lines: string[] | null;
           updated_at: string;
         };
         Insert: {
           id?: string;
           terminal_session_id: string;
+          tab_id?: string | null;
           output_lines?: string[] | null;
           updated_at?: string;
         };
         Update: {
           id?: string;
           terminal_session_id?: string;
+          tab_id?: string | null;
           output_lines?: string[] | null;
           updated_at?: string;
+        };
+      };
+      terminal_tabs: {
+        Row: {
+          id: string;
+          terminal_session_id: string;
+          tab_id: string;
+          name: string;
+          tab_index: number;
+          worktree_path: string;
+          branch_name: string;
+          base_branch: string;
+          created_at: string;
+          last_focused_at: string;
+        };
+        Insert: {
+          id?: string;
+          terminal_session_id: string;
+          tab_id: string;
+          name?: string;
+          tab_index?: number;
+          worktree_path: string;
+          branch_name: string;
+          base_branch?: string;
+          created_at?: string;
+          last_focused_at?: string;
+        };
+        Update: {
+          id?: string;
+          terminal_session_id?: string;
+          tab_id?: string;
+          name?: string;
+          tab_index?: number;
+          worktree_path?: string;
+          branch_name?: string;
+          base_branch?: string;
+          created_at?: string;
+          last_focused_at?: string;
         };
       };
       sql_query_history: {
@@ -401,6 +442,8 @@ export type ConversationInsert = Database['public']['Tables']['conversations']['
 export type ConversationUpdate = Database['public']['Tables']['conversations']['Update'];
 export type TerminalSession = Database['public']['Tables']['terminal_sessions']['Row'];
 export type TerminalOutput = Database['public']['Tables']['terminal_outputs']['Row'];
+export type TerminalTab = Database['public']['Tables']['terminal_tabs']['Row'];
+export type TerminalTabInsert = Database['public']['Tables']['terminal_tabs']['Insert'];
 export type SqlQueryHistory = Database['public']['Tables']['sql_query_history']['Row'];
 export type ActivityEvent = Database['public']['Tables']['activity_events']['Row'];
 export type ActivityEventInsert = Database['public']['Tables']['activity_events']['Insert'];

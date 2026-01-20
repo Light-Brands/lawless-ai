@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useTerminal, TERMINAL_KEYS } from '../../../hooks/useTerminal';
 import { useIDEContext } from '../../../contexts/IDEContext';
-import { useIDEStore } from '../../../stores/ideStore';
+import { useIDEStore, TerminalTab } from '../../../stores/ideStore';
 import { ideEvents } from '../../../lib/eventBus';
 import '@xterm/xterm/css/xterm.css';
 
@@ -48,10 +48,89 @@ const GitBranchIcon = () => (
   </svg>
 );
 
+const PlusIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 5v14" />
+    <path d="M5 12h14" />
+  </svg>
+);
+
+const CloseIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M18 6 6 18" />
+    <path d="m6 6 12 12" />
+  </svg>
+);
+
 export function TerminalPane() {
   const { sessionId } = useIDEContext();
-  const { setServerStatus, setServerPort } = useIDEStore();
+  const {
+    setServerStatus,
+    setServerPort,
+    addPort,
+    terminalTabs,
+    activeTabId,
+    addTerminalTab,
+    removeTerminalTab,
+    setActiveTab,
+    setTerminalTabs,
+  } = useIDEStore();
+
   const [error, setError] = useState<string | null>(null);
+  const [showNewTabDialog, setShowNewTabDialog] = useState(false);
+  const [branches, setBranches] = useState<string[]>(['main']);
+  const [isLoadingBranches, setIsLoadingBranches] = useState(false);
+  const [isCreatingTab, setIsCreatingTab] = useState(false);
+
+  // Get current active tab
+  const currentTab = terminalTabs.find(t => t.tabId === activeTabId);
+  const currentTabId = activeTabId || 'main';
+
+  // Fetch branches for new tab creation
+  const fetchBranches = useCallback(async () => {
+    if (!sessionId) return;
+    setIsLoadingBranches(true);
+    try {
+      const res = await fetch(`/api/git/branches?sessionId=${sessionId}`);
+      const data = await res.json();
+      setBranches(data.branches || ['main']);
+    } catch (e) {
+      console.error('Failed to fetch branches:', e);
+      setBranches(['main']);
+    } finally {
+      setIsLoadingBranches(false);
+    }
+  }, [sessionId]);
+
+  // Load tabs from backend on mount
+  useEffect(() => {
+    if (!sessionId) return;
+
+    const loadTabs = async () => {
+      try {
+        const res = await fetch(`/api/terminal/tabs/${sessionId}`);
+        const data = await res.json();
+        if (data.tabs && data.tabs.length > 0) {
+          const tabs: TerminalTab[] = data.tabs.map((t: any) => ({
+            tabId: t.tab_id,
+            name: t.name,
+            index: t.tab_index,
+            worktreePath: t.worktree_path,
+            branchName: t.branch_name,
+            baseBranch: t.base_branch,
+          }));
+          setTerminalTabs(tabs);
+          if (!activeTabId && tabs.length > 0) {
+            setActiveTab(tabs[0].tabId);
+          }
+        }
+      } catch (e) {
+        console.error('Failed to load terminal tabs:', e);
+      }
+    };
+
+    loadTabs();
+  }, [sessionId, setTerminalTabs, setActiveTab, activeTabId]);
 
   const handleConnected = useCallback(() => {
     ideEvents.emit('terminal:connected', { sessionId: sessionId || '' });
@@ -65,7 +144,6 @@ export function TerminalPane() {
     if (code !== 1000) {
       setError(`Disconnected (code: ${code})`);
     }
-    // Reset server status on disconnect
     setServerStatus('stopped');
     setServerPort(null);
   }, [setServerStatus, setServerPort]);
@@ -78,20 +156,19 @@ export function TerminalPane() {
     });
   }, []);
 
-  // Server detection handlers
-  const handleServerDetected = useCallback((port: number) => {
-    setServerPort(port);
+  // Server detection handlers - now uses multi-port store
+  const handleServerDetected = useCallback((port: number, label?: string) => {
+    addPort(port, 'terminal', label, currentTabId);
     setServerStatus('running');
     ideEvents.emit('toast:show', {
       message: `Dev server detected on port ${port}`,
       type: 'success',
     });
-  }, [setServerPort, setServerStatus]);
+  }, [addPort, setServerStatus, currentTabId]);
 
   const handleServerStopped = useCallback(() => {
     setServerStatus('stopped');
-    setServerPort(null);
-  }, [setServerStatus, setServerPort]);
+  }, [setServerStatus]);
 
   const {
     containerRef,
@@ -100,6 +177,7 @@ export function TerminalPane() {
     isReconnecting,
     reconnectAttempt,
     branchName,
+    tabId: connectedTabId,
     connect,
     disconnect,
     restart,
@@ -108,6 +186,7 @@ export function TerminalPane() {
     fit,
     cancelReconnect,
   } = useTerminal({
+    tabId: currentTabId,
     onConnected: handleConnected,
     onDisconnected: handleDisconnected,
     onError: handleError,
@@ -117,10 +196,80 @@ export function TerminalPane() {
     persistOutput: true,
   });
 
+  // Create new tab
+  const handleCreateNewTab = useCallback(async (baseBranch: string) => {
+    if (!sessionId || isCreatingTab) return;
+
+    setIsCreatingTab(true);
+    try {
+      const tabId = `tab_${Date.now()}`;
+      const response = await fetch('/api/terminal/tabs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId,
+          tabId,
+          name: `${baseBranch.split('/').pop()} (${terminalTabs.length + 1})`,
+          baseBranch,
+        }),
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        addTerminalTab({
+          tabId: data.tabId,
+          name: data.name,
+          index: data.index,
+          worktreePath: data.worktreePath,
+          branchName: data.branchName,
+          baseBranch: data.baseBranch,
+        });
+        setActiveTab(data.tabId);
+        setShowNewTabDialog(false);
+        ideEvents.emit('toast:show', {
+          message: `Created new terminal on branch ${baseBranch}`,
+          type: 'success',
+        });
+      } else {
+        throw new Error(data.error || 'Failed to create tab');
+      }
+    } catch (e: any) {
+      console.error('Failed to create terminal tab:', e);
+      ideEvents.emit('toast:show', {
+        message: e.message || 'Failed to create terminal tab',
+        type: 'error',
+      });
+    } finally {
+      setIsCreatingTab(false);
+    }
+  }, [sessionId, terminalTabs.length, addTerminalTab, setActiveTab, isCreatingTab]);
+
+  // Close tab
+  const handleCloseTab = useCallback(async (tabId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (terminalTabs.length <= 1) return;
+
+    try {
+      await fetch(`/api/terminal/tabs/${sessionId}/${tabId}`, { method: 'DELETE' });
+      removeTerminalTab(tabId);
+      ideEvents.emit('toast:show', {
+        message: 'Terminal tab closed',
+        type: 'info',
+      });
+    } catch (e) {
+      console.error('Failed to close tab:', e);
+    }
+  }, [sessionId, terminalTabs.length, removeTerminalTab]);
+
+  // Open new tab dialog
+  const handleNewTab = useCallback(() => {
+    fetchBranches();
+    setShowNewTabDialog(true);
+  }, [fetchBranches]);
+
   // Refit when pane becomes visible
   useEffect(() => {
     const handlePaneFocus = ({ paneId }: { paneId: number }) => {
-      // Terminal pane ID is 7
       if (paneId === 7 && isInitialized) {
         setTimeout(() => fit(), 100);
       }
@@ -194,6 +343,68 @@ export function TerminalPane() {
 
   return (
     <div className="terminal-pane">
+      {/* Tab bar */}
+      <div className="terminal-tabs-bar">
+        {terminalTabs.map((tab) => (
+          <div
+            key={tab.tabId}
+            className={`terminal-tab ${activeTabId === tab.tabId ? 'active' : ''}`}
+            onClick={() => setActiveTab(tab.tabId)}
+            title={`Branch: ${tab.branchName}\nWorktree: ${tab.worktreePath}`}
+          >
+            <GitBranchIcon />
+            <span className="tab-name">{tab.name}</span>
+            <span className="tab-branch">{tab.branchName.split('/').pop()}</span>
+            {terminalTabs.length > 1 && (
+              <button
+                className="tab-close"
+                onClick={(e) => handleCloseTab(tab.tabId, e)}
+                title="Close tab"
+              >
+                <CloseIcon />
+              </button>
+            )}
+          </div>
+        ))}
+        <button
+          className="new-tab-btn"
+          onClick={handleNewTab}
+          title="New terminal with isolated worktree"
+        >
+          <PlusIcon />
+        </button>
+      </div>
+
+      {/* New tab dialog */}
+      {showNewTabDialog && (
+        <div className="new-tab-dialog-overlay" onClick={() => setShowNewTabDialog(false)}>
+          <div className="new-tab-dialog" onClick={(e) => e.stopPropagation()}>
+            <h4>Create New Terminal</h4>
+            <p>Select base branch for isolated worktree:</p>
+            {isLoadingBranches ? (
+              <div className="loading-branches">Loading branches...</div>
+            ) : (
+              <div className="branch-list">
+                {branches.map((branch) => (
+                  <button
+                    key={branch}
+                    onClick={() => handleCreateNewTab(branch)}
+                    disabled={isCreatingTab}
+                    className="branch-option"
+                  >
+                    <GitBranchIcon />
+                    {branch}
+                  </button>
+                ))}
+              </div>
+            )}
+            <button className="cancel-btn" onClick={() => setShowNewTabDialog(false)}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Terminal header */}
       <div className="terminal-header">
         <div className="terminal-header-left">
@@ -201,10 +412,10 @@ export function TerminalPane() {
             <span className="status-dot" />
             {isConnected ? 'Connected' : isReconnecting ? `Reconnecting (${reconnectAttempt}/10)` : 'Disconnected'}
           </span>
-          {branchName && (
+          {(branchName || currentTab?.branchName) && (
             <span className="branch-badge">
               <GitBranchIcon />
-              {branchName}
+              {branchName || currentTab?.branchName}
             </span>
           )}
         </div>
@@ -292,6 +503,205 @@ export function TerminalPane() {
           flex-direction: column;
           background: #0d0d0f;
           overflow: hidden;
+        }
+
+        .terminal-tabs-bar {
+          display: flex;
+          align-items: center;
+          gap: 2px;
+          padding: 4px 4px 0;
+          background: #0a0a0c;
+          border-bottom: 1px solid #1a1a1f;
+          flex-shrink: 0;
+          overflow-x: auto;
+        }
+
+        .terminal-tab {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          padding: 6px 8px;
+          background: #0d0d0f;
+          border: 1px solid #1a1a1f;
+          border-bottom: none;
+          border-radius: 6px 6px 0 0;
+          color: #666;
+          font-size: 0.7rem;
+          cursor: pointer;
+          transition: all 0.15s;
+          white-space: nowrap;
+        }
+
+        .terminal-tab:hover {
+          background: #1a1a1f;
+          color: #888;
+        }
+
+        .terminal-tab.active {
+          background: #0d0d0f;
+          border-color: #2a2a2f;
+          color: #c9d1d9;
+          position: relative;
+        }
+
+        .terminal-tab.active::after {
+          content: '';
+          position: absolute;
+          bottom: -1px;
+          left: 0;
+          right: 0;
+          height: 1px;
+          background: #0d0d0f;
+        }
+
+        .tab-name {
+          max-width: 100px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        .tab-branch {
+          font-size: 0.65rem;
+          color: #7c3aed;
+          opacity: 0.7;
+        }
+
+        .tab-close {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 16px;
+          height: 16px;
+          padding: 0;
+          margin-left: 2px;
+          background: transparent;
+          border: none;
+          border-radius: 4px;
+          color: #666;
+          cursor: pointer;
+          opacity: 0;
+          transition: all 0.15s;
+        }
+
+        .terminal-tab:hover .tab-close {
+          opacity: 1;
+        }
+
+        .tab-close:hover {
+          background: rgba(248, 81, 73, 0.2);
+          color: #f85149;
+        }
+
+        .new-tab-btn {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 24px;
+          height: 24px;
+          padding: 0;
+          background: transparent;
+          border: 1px dashed #2a2a2f;
+          border-radius: 4px;
+          color: #666;
+          cursor: pointer;
+          transition: all 0.15s;
+          margin-left: 4px;
+        }
+
+        .new-tab-btn:hover {
+          background: #1a1a1f;
+          border-style: solid;
+          color: #888;
+        }
+
+        .new-tab-dialog-overlay {
+          position: fixed;
+          inset: 0;
+          background: rgba(0, 0, 0, 0.6);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 1000;
+        }
+
+        .new-tab-dialog {
+          background: #161b22;
+          border: 1px solid #30363d;
+          border-radius: 12px;
+          padding: 1.5rem;
+          max-width: 320px;
+          width: 90%;
+        }
+
+        .new-tab-dialog h4 {
+          margin: 0 0 0.5rem;
+          font-size: 1rem;
+          font-weight: 600;
+          color: #c9d1d9;
+        }
+
+        .new-tab-dialog p {
+          margin: 0 0 1rem;
+          font-size: 0.875rem;
+          color: #8b949e;
+        }
+
+        .loading-branches {
+          padding: 1rem;
+          text-align: center;
+          color: #8b949e;
+          font-size: 0.875rem;
+        }
+
+        .branch-list {
+          display: flex;
+          flex-direction: column;
+          gap: 0.5rem;
+          max-height: 240px;
+          overflow-y: auto;
+        }
+
+        .branch-option {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 0.625rem 0.75rem;
+          background: #21262d;
+          border: 1px solid #30363d;
+          border-radius: 8px;
+          color: #c9d1d9;
+          font-size: 0.875rem;
+          cursor: pointer;
+          transition: all 0.15s;
+          text-align: left;
+        }
+
+        .branch-option:hover:not(:disabled) {
+          background: #30363d;
+          border-color: #8b949e;
+        }
+
+        .branch-option:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+        }
+
+        .cancel-btn {
+          width: 100%;
+          margin-top: 1rem;
+          padding: 0.5rem;
+          background: transparent;
+          border: 1px solid #30363d;
+          border-radius: 6px;
+          color: #8b949e;
+          font-size: 0.875rem;
+          cursor: pointer;
+          transition: all 0.15s;
+        }
+
+        .cancel-btn:hover {
+          background: #21262d;
+          color: #c9d1d9;
         }
 
         .terminal-header {

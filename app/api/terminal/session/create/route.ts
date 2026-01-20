@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const backendUrl = process.env.BACKEND_URL || 'http://localhost:3001';
+    const backendUrl = process.env.BACKEND_URL || 'http://localhost:4000';
     const apiKey = process.env.BACKEND_API_KEY;
 
     const response = await fetch(`${backendUrl}/api/terminal/session/create`, {

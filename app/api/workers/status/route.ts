@@ -15,7 +15,7 @@ const WORKERS: WorkerConfig[] = [
     id: 'oracle-primary',
     name: 'Oracle Primary',
     type: 'oracle',
-    url: process.env.BACKEND_URL || 'http://147.224.217.154:3001',
+    url: process.env.BACKEND_URL || 'http://localhost:4000',
     region: 'US Chicago',
     features: ['Claude CLI', 'Workspace', 'Terminal', 'WebSocket'],
   },

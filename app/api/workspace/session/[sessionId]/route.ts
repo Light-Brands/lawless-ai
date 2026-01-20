@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:3001';
+const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:4000';
 const BACKEND_API_KEY = process.env.BACKEND_API_KEY;
 
 // Get a specific workspace session
