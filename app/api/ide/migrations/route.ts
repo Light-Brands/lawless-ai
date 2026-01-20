@@ -44,6 +44,20 @@ function parseMigrationName(filename: string): { version: string; timestamp: str
   return { version, timestamp, name };
 }
 
+// Helper to extract results from Supabase API response (handles different formats)
+function extractResults(data: unknown): Record<string, unknown>[] {
+  if (Array.isArray(data)) {
+    return data;
+  }
+  if (typeof data === 'object' && data !== null) {
+    const obj = data as Record<string, unknown>;
+    if (Array.isArray(obj.result)) return obj.result;
+    if (Array.isArray(obj.rows)) return obj.rows;
+    if (Array.isArray(obj.data)) return obj.data;
+  }
+  return [];
+}
+
 export async function GET(request: NextRequest) {
   const token = await getGitHubToken();
 
@@ -101,15 +115,13 @@ export async function GET(request: NextRequest) {
     }
 
     // 2. If we have a Supabase project ref, check which migrations are applied
-    let appliedMigrations: Set<string> = new Set();
-
     if (projectRef) {
       const supabaseToken = await getIntegrationToken('supabase_pat');
 
       if (supabaseToken) {
         try {
           // Query the schema_migrations table
-          const sqlQuery = `SELECT version, inserted_at FROM supabase_migrations.schema_migrations ORDER BY version`;
+          const sqlQuery = `SELECT version, name, inserted_at FROM supabase_migrations.schema_migrations ORDER BY version`;
 
           const sqlResponse = await fetch(
             `https://api.supabase.com/v1/projects/${projectRef}/database/query`,
@@ -125,18 +137,22 @@ export async function GET(request: NextRequest) {
 
           if (sqlResponse.ok) {
             const sqlData = await sqlResponse.json();
+            const results = extractResults(sqlData);
 
             // Build a map of applied versions with their timestamps
             const appliedMap = new Map<string, string>();
-            for (const row of sqlData || []) {
-              appliedMap.set(row.version, row.inserted_at);
+            for (const row of results) {
+              const version = String(row.version || '');
+              const insertedAt = String(row.inserted_at || '');
+              if (version) {
+                appliedMap.set(version, insertedAt);
+              }
             }
 
             // Update migration statuses
             migrationFiles = migrationFiles.map((file) => {
               const appliedAt = appliedMap.get(file.version);
               if (appliedAt) {
-                appliedMigrations.add(file.version);
                 return {
                   ...file,
                   status: 'applied' as const,
@@ -145,6 +161,9 @@ export async function GET(request: NextRequest) {
               }
               return file;
             });
+          } else {
+            const errorText = await sqlResponse.text();
+            console.error('Failed to query schema_migrations:', sqlResponse.status, errorText);
           }
         } catch (err) {
           console.error('Failed to fetch applied migrations:', err);
