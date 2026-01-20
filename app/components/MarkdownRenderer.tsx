@@ -5,8 +5,12 @@ import { marked } from 'marked';
 import hljs from 'highlight.js';
 import mermaid from 'mermaid';
 
-// Initialize mermaid with dark theme
-if (typeof window !== 'undefined') {
+// Initialize mermaid with dark theme (lazy initialization)
+let mermaidInitialized = false;
+function initMermaid() {
+  if (mermaidInitialized || typeof window === 'undefined') return;
+  mermaidInitialized = true;
+  console.log('[Mermaid] Initializing...');
   mermaid.initialize({
     startOnLoad: false,
     theme: 'dark',
@@ -30,6 +34,7 @@ if (typeof window !== 'undefined') {
     },
     securityLevel: 'loose',
   });
+  console.log('[Mermaid] Initialized');
 }
 
 // Simple hash function for stable IDs
@@ -90,6 +95,9 @@ export function MarkdownRenderer({ content, className = '', onDiagramClick }: Ma
     const placeholders = containerRef.current.querySelectorAll('.mermaid-placeholder');
     if (placeholders.length === 0) return;
 
+    // Initialize mermaid if needed
+    initMermaid();
+
     const renderDiagrams = async () => {
       for (const placeholder of Array.from(placeholders)) {
         const id = placeholder.getAttribute('data-mermaid-id');
@@ -126,7 +134,7 @@ export function MarkdownRenderer({ content, className = '', onDiagramClick }: Ma
 
           placeholder.replaceWith(wrapper);
         } catch (error) {
-          console.error('Mermaid render error:', error);
+          console.error('[Mermaid] Render error:', error);
           if (!placeholder.parentNode) continue;
 
           const errorDiv = document.createElement('div');
@@ -137,7 +145,9 @@ export function MarkdownRenderer({ content, className = '', onDiagramClick }: Ma
       }
     };
 
-    renderDiagrams();
+    // Small delay to ensure DOM is ready
+    const timeoutId = setTimeout(renderDiagrams, 100);
+    return () => clearTimeout(timeoutId);
   }, [html, onDiagramClick]);
 
   return (
