@@ -2103,96 +2103,270 @@ In addition to the 33 tools above, Claude has access to the full **ai-coding-con
 - Drawer component tree-shaken from prod builds
 - Users never see Claude interface
 
-### The Browser-First Layout
+### The Tabbed Drawer - Complete Development Hub
+
+Everything you need in one collapsible drawer with 6 tabs:
 
 ```
-EXPANDED (Claude drawer open):
-┌─────────────────────────────────────────────────────────────────┐
-│                                                                  │
-│                    YOUR WEBSITE (FULL WIDTH)                     │
-│                                                                  │
-│    ┌──────────────────────────────────────────────────────┐     │
-│    │                                                      │     │
-│    │   Click any element to select it                     │     │
-│    │   Blue highlight shows selection                     │     │
-│    │                                                      │     │
-│    └──────────────────────────────────────────────────────┘     │
-│                                                                  │
-│ ════════════════════════════════════════════════════════════════│
-│  ▲ Claude                                            ● ● ● ● ⚙  │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                  │
-│  📍 Selected: <PricingCard> - src/components/Pricing.tsx:45      │
-│                                                                  │
-│  ┌─────────────────────────────────────────────────────────────┐│
-│  │ Make this card stand out more - add a "Popular" badge       ││
-│  └─────────────────────────────────────────────────────────────┘│
-│                                                         [Send ➤]│
-│                                                                  │
-│  Claude: "I'll add a 'Popular' badge to this pricing card and   │
-│  make it visually distinct. Updating the file now..."           │
-│                                                                  │
-│  [████████████████░░░░] Editing src/components/Pricing.tsx...   │
-│                                                                  │
-└─────────────────────────────────────────────────────────────────┘
-
-COLLAPSED (just your website):
 ┌─────────────────────────────────────────────────────────────────┐
 │                                                                  │
 │                    YOUR WEBSITE (FULL SCREEN)                    │
 │                                                                  │
-│                                                                  │
-│                    Exactly as your users see it                  │
-│                                                                  │
+│         ┌─────────────────────────────────────────┐              │
+│         │   Click any element to select it        │              │
+│         └─────────────────────────────────────────┘              │
 │                                                                  │
 │ ════════════════════════════════════════════════════════════════│
-│  ▲ Claude                  Click or drag to expand     ● ● ● ●  │
+│  ▲  💬 Chat │ 🧩 Components │ 📁 Files │ 🗄️ Data │ 🔀 Git │ ⚙️  │
+│     ═══════                                              ●●●● ▼ │
+├─────────────────────────────────────────────────────────────────┤
+│  [Active tab content - see tab details below]                    │
+└─────────────────────────────────────────────────────────────────┘
+
+COLLAPSED (just tab bar):
+┌─────────────────────────────────────────────────────────────────┐
+│                    YOUR WEBSITE (FULL SCREEN)                    │
+│ ════════════════════════════════════════════════════════════════│
+│  ▲  💬 │ 🧩 │ 📁 │ 🗄️ │ 🔀³│ ⚙️     Click to expand    ●●●● ▼ │
+└─────────────────────────────────────────────────────────────────┘
+      │                    │
+      └─ Active tab        └─ Badge: 3 uncommitted files
+```
+
+---
+
+### Tab 1: 💬 Chat (Default)
+
+Claude conversation with selected component context.
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  ▲  [💬 Chat] │ 🧩 │ 📁 │ 🗄️ │ 🔀 │ ⚙️                 ●●●● ▼ │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  📍 <PricingCard> - src/components/Pricing.tsx:45                │
+│                                                                  │
+│  You: Make this card stand out more - add a "Popular" badge      │
+│                                                                  │
+│  Claude: I'll add a 'Popular' badge. Updating now...             │
+│  ┌────────────────────────────────────────────┐                  │
+│  │ ✓ Modified: src/components/Pricing.tsx     │                  │
+│  └────────────────────────────────────────────┘                  │
+│                                                                  │
+│  ┌─────────────────────────────────────────────────────────────┐│
+│  │ Type a message...                                    [Send] ││
+│  └─────────────────────────────────────────────────────────────┘│
 └─────────────────────────────────────────────────────────────────┘
 ```
+
+---
+
+### Tab 2: 🧩 Components
+
+Browse all project components, click to select and edit.
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  ▲  💬 │ [🧩 Components] │ 📁 │ 🗄️ │ 🔀 │ ⚙️             ●●●● ▼ │
+├─────────────────────────────────────────────────────────────────┤
+│  🔍 Search components...                          [↻ Refresh]   │
+│  ─────────────────────────────────────────────────────────────  │
+│  📦 Layout                                                       │
+│    ├─ Header.tsx                              [Edit] [Locate]    │
+│    ├─ Footer.tsx                              [Edit] [Locate]    │
+│    └─ Sidebar.tsx                             [Edit] [Locate]    │
+│  📦 UI                                                           │
+│    ├─ Button.tsx (12 uses)                    [Edit] [Locate]    │
+│    ├─ Card.tsx (8 uses)                       [Edit] [Locate]    │
+│    └─ PricingCard.tsx ← selected              [Edit] [Locate]    │
+│  📦 Pages                                                        │
+│    ├─ HomePage.tsx                            [Edit] [Locate]    │
+│    └─ PricingPage.tsx                         [Edit] [Locate]    │
+│  ─────────────────────────────────────────────────────────────  │
+│  [Edit] = Chat with context    [Locate] = Highlight on page      │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### Tab 3: 📁 Files
+
+File explorer with inline editing when needed.
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  ▲  💬 │ 🧩 │ [📁 Files] │ 🗄️ │ 🔀 │ ⚙️                 ●●●● ▼ │
+├─────────────────────────────────────────────────────────────────┤
+│  🔍 Search...                              [+ New] [↻ Refresh]   │
+│  ┌────────────────────┬────────────────────────────────────────┐│
+│  │ 📁 src/            │ // Pricing.tsx                         ││
+│  │   📁 components/   │ export function PricingCard({          ││
+│  │     📄 Button.tsx  │   title, price, popular               ││
+│  │     📄 Card.tsx    │ }) {                                   ││
+│  │     📄 Pricing.tsx │   return (                             ││
+│  │   📁 pages/        │     <div className={...}>              ││
+│  │ 📄 package.json    │       {popular && <Badge />}           ││
+│  └────────────────────┴────────────────────────────────────────┘│
+│  [Save] [Discard] [Ask Claude to edit]                          │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### Tab 4: 🗄️ Data
+
+Database tables, queries, and schema explorer.
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  ▲  💬 │ 🧩 │ 📁 │ [🗄️ Data] │ 🔀 │ ⚙️                  ●●●● ▼ │
+├─────────────────────────────────────────────────────────────────┤
+│  [Tables] [Query] [Schema] [Migrations]                          │
+│  ┌─────────────────┬───────────────────────────────────────────┐│
+│  │ TABLES          │ users (1,247 rows)                        ││
+│  │ 👤 users  1,247 │ ─────────────────────────────────────     ││
+│  │ 📦 products 156 │ id │ email        │ name    │ created    ││
+│  │ 🛒 orders   892 │  1 │ john@ex.com  │ John    │ 2024-01-15 ││
+│  │ 💳 payments 743 │  2 │ jane@ex.com  │ Jane    │ 2024-01-16 ││
+│  └─────────────────┴───────────────────────────────────────────┘│
+│  ┌─────────────────────────────────────────────────────────────┐│
+│  │ SELECT * FROM users WHERE created_at > now() - interval '7d'││
+│  └─────────────────────────────────────────────────────────────┘│
+│  [Run] [Ask Claude] [Export]                                     │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### Tab 5: 🔀 Git
+
+Version control - status, commits, deploy.
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  ▲  💬 │ 🧩 │ 📁 │ 🗄️ │ [🔀 Git] │ ⚙️                   ●●●● ▼ │
+├─────────────────────────────────────────────────────────────────┤
+│  Branch: main ▼                        ✓ Deployed 5 min ago     │
+│  ─────────────────────────────────────────────────────────────  │
+│  CHANGES (3 files)                                               │
+│  ☑ M src/components/Pricing.tsx    +12 -3                        │
+│  ☑ M src/styles/globals.css        +5 -0                         │
+│  ☐ ? src/components/NewFeature.tsx +45 (untracked)               │
+│  ─────────────────────────────────────────────────────────────  │
+│  ┌─────────────────────────────────────────────────────────────┐│
+│  │ Add popular badge to pricing cards                          ││
+│  └─────────────────────────────────────────────────────────────┘│
+│  [Commit] [Commit & Push] [Ask Claude for message]               │
+│  ─────────────────────────────────────────────────────────────  │
+│  RECENT: • 5m "Fix header styles" ✓ • 2h "Add pricing page" ✓   │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### Tab 6: ⚙️ Settings
+
+Service connections and preferences.
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  ▲  💬 │ 🧩 │ 📁 │ 🗄️ │ 🔀 │ [⚙️ Settings]              ●●●● ▼ │
+├─────────────────────────────────────────────────────────────────┤
+│  CONNECTIONS                                                     │
+│  🤖 Claude      ● Connected    claude-sonnet-4          [Edit]   │
+│  🐙 GitHub      ● Connected    owner/repo               [Edit]   │
+│  🗄️ Supabase    ● Connected    my-project               [Edit]   │
+│  ▲ Vercel       ● Connected    my-app.vercel            [Edit]   │
+│  ─────────────────────────────────────────────────────────────  │
+│  PREFERENCES                                                     │
+│  Theme [Light ▼]   Default tab [Chat ▼]   Drawer height [40%]   │
+│  Auto-expand: [☑ Element click] [☑ Errors] [☐ Deploy status]    │
+│  ─────────────────────────────────────────────────────────────  │
+│  PROJECT                                                         │
+│  [📋 Project Plan] [🎨 Brand Guidelines] [🔄 Re-run Onboarding]  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
 
 ### Drawer Behavior
 
 ```typescript
-// Drawer states and interactions
-const drawerBehavior = {
+const drawerConfig = {
+  tabs: [
+    { id: 'chat', icon: '💬', label: 'Chat', shortcut: '⌘1' },
+    { id: 'components', icon: '🧩', label: 'Components', shortcut: '⌘2' },
+    { id: 'files', icon: '📁', label: 'Files', shortcut: '⌘3' },
+    { id: 'data', icon: '🗄️', label: 'Data', shortcut: '⌘4' },
+    { id: 'git', icon: '🔀', label: 'Git', shortcut: '⌘5' },
+    { id: 'settings', icon: '⚙️', label: 'Settings', shortcut: '⌘,' },
+  ],
+
   collapsed: {
-    height: '40px',           // Just the handle bar
-    shows: 'Claude label + status indicators',
-    expandTrigger: 'Click handle OR click any element on page',
+    height: '44px',           // Tab bar with icons only
+    shows: 'Tab icons (no labels) + status dots + collapse button',
+    expandTrigger: 'Click any tab OR click element on page',
   },
+
   expanded: {
-    height: '40%',            // Default expanded height
-    minHeight: '200px',
-    maxHeight: '70%',         // Never cover more than 70% of screen
+    height: '40%',
+    minHeight: '250px',
+    maxHeight: '70%',
     resizable: true,          // Drag handle to resize
   },
-  autoExpand: {
-    onElementClick: true,     // Clicking page element expands drawer
-    onError: true,            // Errors auto-expand to show details
-    onDeployComplete: false,  // Just update status indicator
+
+  behavior: {
+    defaultTab: 'chat',
+    persistLastTab: true,     // Remember which tab was open
+
+    autoSwitch: {
+      onElementClick: 'chat', // Click element → Chat tab with context
+      onGitChange: null,      // Don't switch, just show badge on 🔀
+      onError: 'chat',        // Errors show in Chat tab
+    },
+
+    badges: {
+      git: 'uncommittedCount',  // Show "3" on 🔀 if uncommitted changes
+      chat: 'unreadCount',      // If Claude responded on another tab
+    },
   },
+
+  shortcuts: {
+    '⌘1': 'chat',
+    '⌘2': 'components',
+    '⌘3': 'files',
+    '⌘4': 'data',
+    '⌘5': 'git',
+    '⌘,': 'settings',
+    'Escape': 'collapse',
+    '⌘K': 'focusChatInput',
+  },
+
   persist: {
-    height: 'localStorage',   // Remember user's preferred height
-    collapsed: 'session',     // Reset collapsed state per session
+    height: 'localStorage',
+    lastTab: 'localStorage',
+    collapsed: 'session',
   },
 };
 ```
 
-### Status Indicators (in drawer handle)
+### Status Indicators
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│  ▲ Claude    [message]                              ● ● ● ● ⚙  │
+│  ▲  💬 │ 🧩 │ 📁 │ 🗄️ │ 🔀³│ ⚙️              ●●●●  ▼            │
 └─────────────────────────────────────────────────────────────────┘
-                                                      │ │ │ │ │
-                                                      │ │ │ │ └─ Settings
-                                                      │ │ │ └─── Vercel (deploy)
-                                                      │ │ └───── Supabase
-                                                      │ └─────── GitHub
-                                                      └───────── Claude
+      │              │                          ││││  │
+      │              └─ Badge: 3 uncommitted    ││││  └─ Collapse
+      └─ Active tab (underlined)               ││││
+                                               │││└─ Vercel
+                                               ││└── Supabase
+                                               │└─── GitHub
+                                               └──── Claude
 
-● Green = Connected
-● Yellow = Connecting/Building
+● Green = Connected    ● Yellow = Building/Syncing
+● Red = Error          ○ Gray = Not configured
+```
 ● Red = Error/Disconnected
 ● Gray = Not configured
 ```
@@ -2925,9 +3099,11 @@ export async function readEnvVariable(key: string): Promise<string | null> {
 
 ### Deliverables
 - [ ] **Browser-first layout: full-screen website preview**
-- [ ] **Collapsible Claude drawer at bottom (like DevTools)**
-- [ ] **Drawer resize/collapse with drag handle**
-- [ ] **Status indicators in drawer handle (Claude, GitHub, Supabase, Vercel)**
+- [ ] **Tabbed drawer with 6 tabs: Chat, Components, Files, Data, Git, Settings**
+- [ ] **Drawer collapse/expand with resize handle**
+- [ ] **Tab badges (uncommitted count, unread messages)**
+- [ ] **Keyboard shortcuts for tabs (⌘1-5, ⌘,)**
+- [ ] **Status indicators in tab bar (Claude, GitHub, Supabase, Vercel)**
 - [ ] **Production safety: drawer stripped from prod builds**
 - [ ] First-run setup wizard with 4-step flow
 - [ ] Claude connection setup with model selection
@@ -2938,7 +3114,6 @@ export async function readEnvVariable(key: string): Promise<string | null> {
 - [ ] **Project Onboarding: Brand Guidelines interview & generation**
 - [ ] **docs/ folder with PROJECT_PLAN.md and BRAND_GUIDELINES.md**
 - [ ] **Context loading for onboarding docs in all Claude interactions**
-- [ ] Settings accessible from drawer
 - [ ] Full Claude tool suite (files, git, db, deploy)
 - [ ] **Git push = auto-deploy workflow**
 - [ ] Secure token storage in .env.local
@@ -5304,7 +5479,7 @@ The Local IDE Agent is the **development environment** users get when they creat
 
 ---
 
-*Document Version: 1.5*
+*Document Version: 1.6*
 *Created: January 2026*
 *Last Updated: January 2026*
 *Parallel to: IDE_IMPLEMENTATION_PLAN.md v2.3*
@@ -5313,24 +5488,32 @@ The Local IDE Agent is the **development environment** users get when they creat
 
 ## Changelog
 
+### v1.6 (Tabbed Drawer - Complete Development Hub)
+- **6-Tab Interface**: Everything accessible from the drawer
+  - 💬 **Chat**: Claude conversation with component context
+  - 🧩 **Components**: Browse/search all components, click to edit or locate
+  - 📁 **Files**: File explorer with inline editing
+  - 🗄️ **Data**: Database tables, queries, schema, migrations
+  - 🔀 **Git**: Status, commits, branches, deploy status
+  - ⚙️ **Settings**: Connections, preferences, project docs
+- **Tab Features**:
+  - Keyboard shortcuts (⌘1-5, ⌘,)
+  - Badges on tabs (uncommitted file count, unread messages)
+  - Context-aware auto-switching (element click → Chat tab)
+  - Persisted last-used tab
+- **Compact Design**: All development needs in one collapsible drawer
+  - Collapsed shows just tab icons + status indicators
+  - Expanded shows full tab content
+  - Everything accessible without opening separate windows
+
 ### v1.5 (Browser-First with Collapsible Drawer)
 - **Complete Layout Redesign**: Website fills the entire screen
   - No side panels or IDE chrome
   - Claude lives in a collapsible drawer at the bottom
   - Like browser DevTools - pull up when needed, collapse to focus
-- **Drawer Behavior**:
-  - 40px collapsed (just handle bar with status indicators)
-  - Expandable to 40% of screen (resizable via drag)
-  - Auto-expands when clicking elements or on errors
-  - Status indicators: Claude, GitHub, Supabase, Vercel connection state
-- **Click-to-Edit Integration**:
-  - Click any element on page → drawer auto-expands
-  - Selected component context loads in chat
-  - Describe changes → see them instantly via HMR
 - **Production Security**:
   - All AI features disabled when `NODE_ENV === 'production'`
   - Drawer component tree-shaken from production builds
-  - Inspector scripts never shipped to users
   - Only works on localhost
 - **Simplified Mental Model**: "It's just your website, with Claude available when you need it"
 
