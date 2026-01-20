@@ -1,6 +1,6 @@
 # Local IDE Agent - Implementation Plan
 
-> **Agent-First Development.** A minimal, user-friendly AI development environment that lets you talk to Claude and see changes in real-time. Focus on the conversation, not the complexity.
+> **Your website with AI built in.** Full-screen preview of your app with Claude in a collapsible drawer at the bottom. Click any element to edit it. Local only - disabled in production.
 
 ## Table of Contents
 
@@ -23,79 +23,161 @@
 
 ### What Is the Local IDE Agent?
 
-A **minimal, agent-first development environment** designed for maximum usability and adoption. Talk to Claude, see your app update in real-time. That's it.
+**Your live website with Claude built in.** The entire screen is your app running locally. Claude lives in a collapsible drawer at the bottom - pull it up to chat, collapse it to see your site full-screen. Click any element to load it into chat and ask Claude to change it.
 
-**Design Philosophy: Simplicity Drives Adoption**
-- Two panes: Chat + Browser. Nothing else visible by default.
-- File editor is there when you need it, hidden when you don't.
-- Deployments happen automatically when you push to GitHub.
-- User-friendly interface that anyone can use, not just developers.
+**Design Philosophy: Browser-First**
+- Full-screen live preview - your website IS the interface
+- Claude chat in a bottom drawer (like browser DevTools)
+- Pull up to chat, collapse to see just your site
+- Click any element → loads in chat → describe changes → see them instantly
+- **Local only** - all AI features disabled in production for security
 
 **Core Connections:**
-- **One GitHub repo** - Your code lives here, push to deploy
+- **One GitHub repo** - Push to deploy
 - **One Supabase database** - Your data
 - **One Vercel project** - Auto-deploys from GitHub
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                    Local IDE Agent                               │
-│                    http://localhost:3001                         │
+│  🔒 LOCAL ONLY                              http://localhost:3000│
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                  │
-│   ┌─────────────────────┐  ┌─────────────────────────────────┐  │
-│   │                     │  │                                 │  │
-│   │    💬 AI Chat       │  │      🌐 Live Browser            │  │
-│   │                     │  │                                 │  │
-│   │  "Make the header   │  │  ┌─────────────────────────┐   │  │
-│   │   blue and add a    │  │  │                         │   │  │
-│   │   login button"     │  │  │    Your App Preview     │   │  │
-│   │                     │  │  │                         │   │  │
-│   │  ┌───────────────┐  │  │  │   [Click any element    │   │  │
-│   │  │ Claude is     │  │  │  │    to edit with AI]    │   │  │
-│   │  │ making changes│  │  │  │                         │   │  │
-│   │  │ ████████░░ 80%│  │  │  └─────────────────────────┘   │  │
-│   │  └───────────────┘  │  │                                 │  │
-│   │                     │  │  ● Services: ✓ ✓ ✓ ✓           │  │
-│   │  [Type here...]     │  │  ● Last deploy: 2 min ago       │  │
-│   │                     │  │                                 │  │
-│   └─────────────────────┘  └─────────────────────────────────┘  │
 │                                                                  │
-│   📁 [Show Files]  ─────────────────────────────  [⚙️ Settings]  │
+│                    YOUR LIVE WEBSITE                             │
+│                    (Full Screen Preview)                         │
 │                                                                  │
+│         ┌─────────────────────────────────────────┐              │
+│         │                                         │              │
+│         │            TaskFlow                     │              │
+│         │     ┌─────────────────────────┐         │              │
+│         │     │ ┌─────────────────────┐ │         │              │
+│         │     │ │   Hero Section      │◄┼─────────┼── Click to   │
+│         │     │ │   ══════════════    │ │         │   select     │
+│         │     │ │   [Get Started]     │ │         │              │
+│         │     │ └─────────────────────┘ │         │              │
+│         │     │                         │         │              │
+│         │     │  ┌────┐ ┌────┐ ┌────┐   │         │              │
+│         │     │  │Card│ │Card│ │Card│   │         │              │
+│         │     │  └────┘ └────┘ └────┘   │         │              │
+│         │     └─────────────────────────┘         │              │
+│         │                                         │              │
+│         └─────────────────────────────────────────┘              │
+│                                                                  │
+│ ═══════════════════════════════════════════════════════════════ │
+│  ▲ Claude  [━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━]  ● ● ● ●  │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  📍 Selected: <HeroSection> - src/components/Hero.tsx:12         │
+│                                                                  │
+│  Claude: "I see you've selected the Hero section. What would     │
+│  you like me to change?"                                         │
+│                                                                  │
+│  ┌─────────────────────────────────────────────────────────────┐ │
+│  │ Make the background gradient blue to purple                  │ │
+│  └─────────────────────────────────────────────────────────────┘ │
+│                                                         [Send ➤] │
 └─────────────────────────────────────────────────────────────────┘
 
-Hidden by default (accessible via "Show Files"):
+COLLAPSED STATE (drag handle down - just your website):
 ┌─────────────────────────────────────────────────────────────────┐
-│   ┌─────────────────────┐  ┌─────────────────┐  ┌───────────┐  │
-│   │ 💬 Chat             │  │ 📝 File Editor  │  │ 🌐 Browser│  │
-│   └─────────────────────┘  └─────────────────┘  └───────────┘  │
+│                                                                  │
+│                    YOUR LIVE WEBSITE                             │
+│                    (Full Screen - No Distractions)               │
+│                                                                  │
+│                         ...                                      │
+│                                                                  │
+│ ═══════════════════════════════════════════════════════════════ │
+│  ▲ Claude  [━━━━━━━━━━━━━━━━━━━━━━]  Click to expand   ● ● ● ●  │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-### Deployment Philosophy: Git Push = Auto Deploy
+### The Experience
 
-**No deploy buttons.** When you push to GitHub, Vercel automatically deploys.
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    HOW IT WORKS                                  │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│   1. RUN YOUR APP LOCALLY                                        │
+│      └─ npm run dev → opens localhost:3000                       │
+│      └─ Your website fills the screen                            │
+│      └─ Claude drawer at the bottom (collapsed by default)       │
+│                                                                  │
+│   2. CLICK ANY ELEMENT                                           │
+│      └─ Blue highlight shows what's selected                     │
+│      └─ Drawer auto-expands with component info                  │
+│      └─ "Selected: <Button> - src/components/Button.tsx:24"      │
+│                                                                  │
+│   3. DESCRIBE WHAT YOU WANT                                      │
+│      └─ "Make it bigger and change the color to green"           │
+│      └─ Claude edits the file                                    │
+│      └─ HMR updates - you see it change instantly                │
+│                                                                  │
+│   4. COLLAPSE TO REVIEW                                          │
+│      └─ Drag drawer down to see full website                     │
+│      └─ No distractions - just your app                          │
+│                                                                  │
+│   5. SHIP IT                                                     │
+│      └─ Pull drawer up: "Looks good, deploy it"                  │
+│      └─ Claude commits and pushes                                │
+│      └─ Vercel auto-deploys from GitHub                          │
+│      └─ Status: "Deployed ✓"                                     │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Security: Local Only Mode
+
+**All AI features are DISABLED in production.** The Claude drawer, click-to-edit, and all tools only work on localhost.
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    SECURITY MODEL                                │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│   LOCAL (localhost:3000)          PRODUCTION (your-app.vercel)   │
+│   ═══════════════════════         ════════════════════════════   │
+│                                                                  │
+│   ✓ Claude drawer visible         ✗ Drawer completely removed    │
+│   ✓ Click-to-edit enabled         ✗ No click-to-edit             │
+│   ✓ Component inspection          ✗ No inspection scripts        │
+│   ✓ File editing tools            ✗ No file access               │
+│   ✓ Git operations                ✗ No git access                │
+│   ✓ Database tools                ✗ Standard app DB access only  │
+│                                                                  │
+│   HOW IT WORKS:                                                  │
+│   ─────────────                                                  │
+│   // In your app's layout or _app.tsx                            │
+│   {process.env.NODE_ENV === 'development' && <ClaudeDrawer />}   │
+│                                                                  │
+│   The drawer component and all inspector scripts are:            │
+│   • Only imported in development                                 │
+│   • Tree-shaken out of production builds                         │
+│   • Never shipped to users                                       │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Deployment: Git Push = Auto Deploy
+
+**No deploy buttons.** Push to GitHub → Vercel auto-deploys.
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
 │                    Deployment Flow                              │
 ├────────────────────────────────────────────────────────────────┤
 │                                                                 │
-│   1. You: "Add a contact form to the homepage"                  │
-│                      ↓                                          │
-│   2. Claude makes the changes                                   │
-│                      ↓                                          │
-│   3. You see it live in the browser (HMR)                       │
-│                      ↓                                          │
-│   4. You: "Looks good, let's ship it"                           │
-│                      ↓                                          │
-│   5. Claude: git commit && git push                             │
-│                      ↓                                          │
-│   6. Vercel auto-deploys (GitHub integration)                   │
-│                      ↓                                          │
-│   7. Status shows: "Deployed ✓"                                 │
-│                                                                 │
-│   That's it. No buttons. No complexity.                         │
+│   You: "Add a contact form to the homepage"                     │
+│          ↓                                                      │
+│   Claude edits files → HMR updates preview                      │
+│          ↓                                                      │
+│   You: "Looks good, ship it"                                    │
+│          ↓                                                      │
+│   Claude: git add . && git commit && git push                   │
+│          ↓                                                      │
+│   Vercel auto-deploys                                           │
+│          ↓                                                      │
+│   Drawer status: "✓ Deployed 30s ago"                           │
 │                                                                 │
 └────────────────────────────────────────────────────────────────┘
 ```
@@ -104,32 +186,39 @@ Hidden by default (accessible via "Show Files"):
 
 | Aspect | Hosted IDE | Local IDE Agent |
 |--------|-----------|-----------------|
-| **Complexity** | 6 panes, full IDE | 2 panes, minimal UI |
+| **Interface** | Multi-pane IDE | Just your website + drawer |
 | **Focus** | Power users | Everyone |
+| **Security** | Cloud-hosted | Local only, nothing in prod |
 | **Deployment** | Click to deploy | Git push auto-deploys |
-| **Ownership** | We manage | User owns everything |
-| **Data** | Through our servers | Stays on user machine |
-| **Learning Curve** | Higher | Near zero |
+| **Learning Curve** | Medium | Near zero |
 
 ### User Journey
 
 ```
 1. User creates project on Lawless AI platform
-   └── Gets a project with Local IDE Agent included
+   └── Gets a project with Claude drawer built in
 
-2. User runs: npm install && npm run dev
-   └── App starts on :3000, IDE starts on :3001
+2. User runs: npm run dev
+   └── Opens localhost:3000 - their website fills the screen
+   └── Claude drawer visible at bottom (collapsed)
 
-3. User opens http://localhost:3001
-   └── Sees: Chat on left, their app on right. That's it.
+3. User clicks on any element
+   └── Element highlights, drawer expands
+   └── "Selected: <Header> - src/components/Header.tsx"
 
-4. User talks to Claude
-   └── "Make the header blue" → sees it change instantly
+4. User types in drawer
+   └── "Make this blue with a gradient"
+   └── Claude edits the file, HMR updates instantly
 
-5. User says "Ship it"
-   └── Claude commits and pushes → Vercel auto-deploys
+5. User collapses drawer to review
+   └── Full-screen view of their website
 
-No complexity. No learning curve. Just conversation and results.
+6. User says "Ship it"
+   └── Claude commits and pushes
+   └── Vercel auto-deploys
+   └── Drawer shows: "✓ Deployed"
+
+It's just your website. With Claude available when you need it.
 ```
 
 ---
@@ -1980,98 +2069,132 @@ In addition to the 33 tools above, Claude has access to the full **ai-coding-con
 
 ## Core Differentiators (vs Hosted IDE)
 
-### Agent-First, Not IDE-First
+### Browser-First, Not IDE-First
 
 | Feature | Hosted IDE | Local IDE Agent |
 |---------|-----------|-----------------|
-| **Default View** | 6 collapsible panes | 2 panes (Chat + Browser) |
-| **File Editor** | Always visible | Hidden by default |
+| **Default View** | Multi-pane IDE | Full-screen website |
+| **Claude Location** | Side panel | Bottom drawer (collapsible) |
+| **File Editor** | Always visible | None - Claude edits files |
 | **Deployment** | Deploy button | Git push auto-deploys |
-| **Target User** | Power users | Everyone |
-| **Complexity** | Full IDE | Minimal, conversational |
+| **Production** | Cloud-hosted | Local only (disabled in prod) |
 | **Learning Curve** | Medium | Near zero |
 
 ### Design Principles
 
-**1. Conversation is the Interface**
-- Users talk to Claude, not to an IDE
-- The chat pane is the primary interaction point
-- Everything else supports the conversation
+**1. Your Website IS the Interface**
+- Full-screen preview of your running app
+- No IDE chrome, no distractions
+- Collapse drawer to see exactly what users see
 
-**2. Browser Shows Results**
-- See your app live, updated in real-time
-- Click on any component to edit it with Claude
-- Visual feedback is immediate
+**2. Claude Lives at the Bottom**
+- Collapsible drawer like browser DevTools
+- Pull up when you need help
+- Collapse when you want to focus
 
-**3. Files are Implementation Details**
-- Most users don't need to see files
-- Claude handles file operations
-- Power users can reveal the file editor
+**3. Click-to-Edit is the Interaction Model**
+- Click any element on screen
+- Context loads in drawer
+- Describe what you want
+- See it change in real-time
 
-**4. Deployment is Invisible**
-- No deploy buttons
-- Git push triggers Vercel auto-deploy
-- Status bar shows deployment state
+**4. Local Only for Security**
+- All AI features disabled in production
+- Drawer component tree-shaken from prod builds
+- Users never see Claude interface
 
-### The 2-Pane Default Layout
+### The Browser-First Layout
 
 ```
+EXPANDED (Claude drawer open):
 ┌─────────────────────────────────────────────────────────────────┐
-│  Local IDE Agent - Agent-First Design                            │
-├─────────────────────────────┬───────────────────────────────────┤
-│                             │                                   │
-│        💬 Chat Pane         │        🌐 Browser Pane            │
-│        (Primary)            │        (Visual Feedback)          │
-│                             │                                   │
-│  ┌───────────────────────┐  │  ┌─────────────────────────────┐  │
-│  │                       │  │  │                             │  │
-│  │  Conversation with    │  │  │    Live App Preview         │  │
-│  │  Claude               │  │  │                             │  │
-│  │                       │  │  │    [Click any element       │  │
-│  │  • Ask questions      │  │  │     to edit with AI]        │  │
-│  │  • Request changes    │  │  │                             │  │
-│  │  • See what Claude    │  │  │                             │  │
-│  │    is doing           │  │  │                             │  │
-│  │                       │  │  │                             │  │
-│  └───────────────────────┘  │  └─────────────────────────────┘  │
-│                             │                                   │
-│  ┌───────────────────────┐  │  ┌─────────────────────────────┐  │
-│  │ Type a message...     │  │  │ Services: ● ● ● ●           │  │
-│  └───────────────────────┘  │  │ Deploy: ✓ Live (2m ago)     │  │
-│                             │  └─────────────────────────────┘  │
-│                             │                                   │
-├─────────────────────────────┴───────────────────────────────────┤
-│  [📁 Show Files]                              [⚙️ Settings]      │
+│                                                                  │
+│                    YOUR WEBSITE (FULL WIDTH)                     │
+│                                                                  │
+│    ┌──────────────────────────────────────────────────────┐     │
+│    │                                                      │     │
+│    │   Click any element to select it                     │     │
+│    │   Blue highlight shows selection                     │     │
+│    │                                                      │     │
+│    └──────────────────────────────────────────────────────┘     │
+│                                                                  │
+│ ════════════════════════════════════════════════════════════════│
+│  ▲ Claude                                            ● ● ● ● ⚙  │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  📍 Selected: <PricingCard> - src/components/Pricing.tsx:45      │
+│                                                                  │
+│  ┌─────────────────────────────────────────────────────────────┐│
+│  │ Make this card stand out more - add a "Popular" badge       ││
+│  └─────────────────────────────────────────────────────────────┘│
+│                                                         [Send ➤]│
+│                                                                  │
+│  Claude: "I'll add a 'Popular' badge to this pricing card and   │
+│  make it visually distinct. Updating the file now..."           │
+│                                                                  │
+│  [████████████████░░░░] Editing src/components/Pricing.tsx...   │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+
+COLLAPSED (just your website):
+┌─────────────────────────────────────────────────────────────────┐
+│                                                                  │
+│                    YOUR WEBSITE (FULL SCREEN)                    │
+│                                                                  │
+│                                                                  │
+│                    Exactly as your users see it                  │
+│                                                                  │
+│                                                                  │
+│ ════════════════════════════════════════════════════════════════│
+│  ▲ Claude                  Click or drag to expand     ● ● ● ●  │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-### Expanded 3-Pane Layout (Optional)
+### Drawer Behavior
 
-When user clicks "Show Files":
+```typescript
+// Drawer states and interactions
+const drawerBehavior = {
+  collapsed: {
+    height: '40px',           // Just the handle bar
+    shows: 'Claude label + status indicators',
+    expandTrigger: 'Click handle OR click any element on page',
+  },
+  expanded: {
+    height: '40%',            // Default expanded height
+    minHeight: '200px',
+    maxHeight: '70%',         // Never cover more than 70% of screen
+    resizable: true,          // Drag handle to resize
+  },
+  autoExpand: {
+    onElementClick: true,     // Clicking page element expands drawer
+    onError: true,            // Errors auto-expand to show details
+    onDeployComplete: false,  // Just update status indicator
+  },
+  persist: {
+    height: 'localStorage',   // Remember user's preferred height
+    collapsed: 'session',     // Reset collapsed state per session
+  },
+};
+```
+
+### Status Indicators (in drawer handle)
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│  Local IDE Agent - Files Visible                                 │
-├───────────────┬─────────────────────────┬───────────────────────┤
-│               │                         │                       │
-│  💬 Chat      │    📝 File Editor       │    🌐 Browser         │
-│               │                         │                       │
-│  [Narrower]   │  ┌───────────────────┐  │  ┌─────────────────┐  │
-│               │  │ // page.tsx       │  │  │                 │  │
-│  ┌─────────┐  │  │                   │  │  │  Live Preview   │  │
-│  │ Chat    │  │  │ export default    │  │  │                 │  │
-│  │ history │  │  │ function Page() { │  │  │                 │  │
-│  │         │  │  │   return (        │  │  │                 │  │
-│  └─────────┘  │  │     <div>...</div>│  │  │                 │  │
-│               │  │   )               │  │  │                 │  │
-│  ┌─────────┐  │  │ }                 │  │  └─────────────────┘  │
-│  │ Input   │  │  └───────────────────┘  │                       │
-│  └─────────┘  │  ┌───────────────────┐  │  ┌─────────────────┐  │
-│               │  │ 📁 File Tree      │  │  │ Services Status │  │
-│               │  └───────────────────┘  │  └─────────────────┘  │
-├───────────────┴─────────────────────────┴───────────────────────┤
-│  [📁 Hide Files]                              [⚙️ Settings]      │
+│  ▲ Claude    [message]                              ● ● ● ● ⚙  │
 └─────────────────────────────────────────────────────────────────┘
+                                                      │ │ │ │ │
+                                                      │ │ │ │ └─ Settings
+                                                      │ │ │ └─── Vercel (deploy)
+                                                      │ │ └───── Supabase
+                                                      │ └─────── GitHub
+                                                      └───────── Claude
+
+● Green = Connected
+● Yellow = Connecting/Building
+● Red = Error/Disconnected
+● Gray = Not configured
 ```
 
 ---
@@ -2079,11 +2202,12 @@ When user clicks "Show Files":
 ## Phase 1: Foundation & Agent Core
 
 ### Goals
-- Create the minimal, agent-first Local IDE Agent
-- 2-pane layout (Chat + Browser) with optional file editor
+- Browser-first layout with collapsible Claude drawer at bottom
+- Inspector script for click-to-edit (injected in dev only)
 - First-run setup wizard connecting all services
 - Claude integration with full tool suite
 - Git push = auto-deploy workflow
+- Production safety: all AI features disabled when deployed
 
 ### Tasks
 
@@ -2800,10 +2924,11 @@ export async function readEnvVariable(key: string): Promise<string | null> {
 ```
 
 ### Deliverables
-- [ ] IDE agent package template
-- [ ] **2-pane agent-first layout (Chat + Browser)**
-- [ ] **Optional 3-pane with file editor toggle**
-- [ ] **Minimal status bar with service/deploy status**
+- [ ] **Browser-first layout: full-screen website preview**
+- [ ] **Collapsible Claude drawer at bottom (like DevTools)**
+- [ ] **Drawer resize/collapse with drag handle**
+- [ ] **Status indicators in drawer handle (Claude, GitHub, Supabase, Vercel)**
+- [ ] **Production safety: drawer stripped from prod builds**
 - [ ] First-run setup wizard with 4-step flow
 - [ ] Claude connection setup with model selection
 - [ ] GitHub connection setup with token verification
@@ -2813,18 +2938,18 @@ export async function readEnvVariable(key: string): Promise<string | null> {
 - [ ] **Project Onboarding: Brand Guidelines interview & generation**
 - [ ] **docs/ folder with PROJECT_PLAN.md and BRAND_GUIDELINES.md**
 - [ ] **Context loading for onboarding docs in all Claude interactions**
-- [ ] Settings page for managing connections
+- [ ] Settings accessible from drawer
 - [ ] Full Claude tool suite (files, git, db, deploy)
 - [ ] **Git push = auto-deploy workflow**
 - [ ] Secure token storage in .env.local
 
 ---
 
-## Phase 2: Browser Integration & Click-to-Edit
+## Phase 2: Click-to-Edit Integration
 
 ### Goals
-- Interactive browser preview with component inspection
-- Click any element to load its context into Claude
+- Inspector overlay for element selection
+- Click any element → drawer expands with context
 - Real-time HMR updates for instant visual feedback
 - The "magic" moment: click, describe, see it change
 
@@ -5179,7 +5304,7 @@ The Local IDE Agent is the **development environment** users get when they creat
 
 ---
 
-*Document Version: 1.4*
+*Document Version: 1.5*
 *Created: January 2026*
 *Last Updated: January 2026*
 *Parallel to: IDE_IMPLEMENTATION_PLAN.md v2.3*
@@ -5187,6 +5312,27 @@ The Local IDE Agent is the **development environment** users get when they creat
 ---
 
 ## Changelog
+
+### v1.5 (Browser-First with Collapsible Drawer)
+- **Complete Layout Redesign**: Website fills the entire screen
+  - No side panels or IDE chrome
+  - Claude lives in a collapsible drawer at the bottom
+  - Like browser DevTools - pull up when needed, collapse to focus
+- **Drawer Behavior**:
+  - 40px collapsed (just handle bar with status indicators)
+  - Expandable to 40% of screen (resizable via drag)
+  - Auto-expands when clicking elements or on errors
+  - Status indicators: Claude, GitHub, Supabase, Vercel connection state
+- **Click-to-Edit Integration**:
+  - Click any element on page → drawer auto-expands
+  - Selected component context loads in chat
+  - Describe changes → see them instantly via HMR
+- **Production Security**:
+  - All AI features disabled when `NODE_ENV === 'production'`
+  - Drawer component tree-shaken from production builds
+  - Inspector scripts never shipped to users
+  - Only works on localhost
+- **Simplified Mental Model**: "It's just your website, with Claude available when you need it"
 
 ### v1.4 (Project Onboarding Sequence)
 - **Project Plan Interview**: Claude guides users through defining their project before coding
