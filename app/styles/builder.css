@@ -513,6 +513,21 @@
   margin: var(--space-4) 0;
 }
 
+/* Raw Content (existing document that couldn't be parsed) */
+.builder-raw-content {
+  margin-top: var(--space-4);
+}
+
+.builder-raw-notice {
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface-glass);
+  border: 1px solid var(--color-primary);
+  border-radius: var(--radius-md);
+  color: var(--color-text-secondary);
+  font-size: 0.875rem;
+  margin-bottom: var(--space-4);
+}
+
 /* Save Options */
 .builder-save-section {
   padding: var(--space-4);

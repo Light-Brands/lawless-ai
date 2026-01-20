@@ -85,18 +85,28 @@ export function DocumentPreview({
           <h1>{title}</h1>
           <blockquote>Generated with Lawless AI Builder</blockquote>
 
-          {sectionConfig.map((section) => (
-            <div key={section.id} id={`section-${section.id}`}>
-              <h2>{section.title}</h2>
-              {sections[section.id] ? (
-                <MarkdownContent content={sections[section.id]} />
-              ) : (
-                <div className="builder-section-placeholder">
-                  {section.description}
-                </div>
-              )}
+          {/* If we have raw content that couldn't be parsed, show it as-is */}
+          {sections['_raw_content'] ? (
+            <div className="builder-raw-content">
+              <div className="builder-raw-notice">
+                This is an existing document. Continue the conversation to refine it into structured sections.
+              </div>
+              <MarkdownContent content={sections['_raw_content']} />
             </div>
-          ))}
+          ) : (
+            sectionConfig.map((section) => (
+              <div key={section.id} id={`section-${section.id}`}>
+                <h2>{section.title}</h2>
+                {sections[section.id] ? (
+                  <MarkdownContent content={sections[section.id]} />
+                ) : (
+                  <div className="builder-section-placeholder">
+                    {section.description}
+                  </div>
+                )}
+              </div>
+            ))
+          )}
         </div>
       </div>
 

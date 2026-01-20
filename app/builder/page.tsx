@@ -317,36 +317,46 @@ export default function BuilderPage() {
 function parseExistingDocument(content: string, builderType: BuilderType): Record<string, string> {
   const sections: Record<string, string> = {};
 
-  const sectionNames =
+  // Multiple heading variants for flexible parsing
+  const sectionMappings =
     builderType === 'plan'
-      ? {
-          'Overview': 'overview',
-          'Goals': 'goals',
-          'Target Users': 'target_users',
-          'Key Features': 'key_features',
-          'Technical Stack': 'technical_stack',
-          'Success Metrics': 'success_metrics',
-          'Timeline': 'timeline',
-        }
-      : {
-          'Brand Overview': 'brand_overview',
-          'Mission Statement': 'mission_statement',
-          'Voice & Tone': 'voice_and_tone',
-          'Visual Identity': 'visual_identity',
-          'Target Audience': 'target_audience',
-          'Brand Personality': 'brand_personality',
-        };
+      ? [
+          { patterns: ['Overview', 'Project Overview', 'Executive Summary', 'Summary'], id: 'overview' },
+          { patterns: ['Goals', 'Objectives', 'Project Goals'], id: 'goals' },
+          { patterns: ['Target Users', 'Target Audience', 'Users', 'Audience'], id: 'target_users' },
+          { patterns: ['Key Features', 'Features', 'Core Features', 'Functionality'], id: 'key_features' },
+          { patterns: ['Technical Stack', 'Tech Stack', 'Technology', 'Architecture', 'Technical'], id: 'technical_stack' },
+          { patterns: ['Success Metrics', 'Metrics', 'KPIs', 'Success Criteria'], id: 'success_metrics' },
+          { patterns: ['Timeline', 'Roadmap', 'Schedule', 'Milestones', 'Phases'], id: 'timeline' },
+        ]
+      : [
+          { patterns: ['Brand Overview', 'Overview', 'About'], id: 'brand_overview' },
+          { patterns: ['Mission Statement', 'Mission', 'Purpose'], id: 'mission_statement' },
+          { patterns: ['Voice & Tone', 'Voice and Tone', 'Brand Voice', 'Tone'], id: 'voice_and_tone' },
+          { patterns: ['Visual Identity', 'Visual', 'Design', 'Colors', 'Typography'], id: 'visual_identity' },
+          { patterns: ['Target Audience', 'Audience', 'Target Market'], id: 'target_audience' },
+          { patterns: ['Brand Personality', 'Personality', 'Character'], id: 'brand_personality' },
+        ];
 
-  // Find each section by heading
-  for (const [heading, id] of Object.entries(sectionNames)) {
-    const regex = new RegExp(`## ${heading}\\n([\\s\\S]*?)(?=## |$)`, 'i');
-    const match = content.match(regex);
-    if (match && match[1]) {
-      const sectionContent = match[1].trim();
-      if (sectionContent && !sectionContent.startsWith('*[Not yet defined]*')) {
-        sections[id] = sectionContent;
+  // Try each section mapping
+  for (const { patterns, id } of sectionMappings) {
+    for (const heading of patterns) {
+      // Match ## Heading or # Heading (case insensitive)
+      const regex = new RegExp(`##?\\s*${heading}[:\\s]*\\n([\\s\\S]*?)(?=\\n##?\\s|$)`, 'i');
+      const match = content.match(regex);
+      if (match && match[1]) {
+        const sectionContent = match[1].trim();
+        if (sectionContent && !sectionContent.startsWith('*[Not yet defined]*')) {
+          sections[id] = sectionContent;
+          break; // Found this section, move to next
+        }
       }
     }
+  }
+
+  // If no sections were parsed, store the full content as raw
+  if (Object.keys(sections).length === 0 && content.trim()) {
+    sections['_raw_content'] = content;
   }
 
   return sections;
