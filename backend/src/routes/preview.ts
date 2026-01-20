@@ -33,14 +33,20 @@ router.get('/api/preview/proxy', authenticateApiKey, async (req: Request, res: R
       method: 'GET',
       headers: {
         'Accept': (req.headers.accept as string) || '*/*',
-        'Accept-Encoding': (req.headers['accept-encoding'] as string) || '',
+        // Request uncompressed content for easier processing
+        'Accept-Encoding': (req.headers['accept-encoding'] as string) || 'identity',
         'User-Agent': (req.headers['user-agent'] as string) || 'LawlessAI-Preview',
       },
     });
 
-    // Forward response headers
-    const contentType = proxyRes.headers.get('content-type') || 'text/html';
+    // Forward response headers with explicit content-type
+    const contentType = proxyRes.headers.get('content-type') || 'text/html; charset=utf-8';
     res.setHeader('Content-Type', contentType);
+
+    // Allow iframe embedding
+    res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+    // Remove any restrictive CSP
+    res.removeHeader('Content-Security-Policy');
 
     const cacheControl = proxyRes.headers.get('cache-control');
     if (cacheControl) {
@@ -52,11 +58,18 @@ router.get('/api/preview/proxy', authenticateApiKey, async (req: Request, res: R
     res.status(proxyRes.status).send(Buffer.from(buffer));
   } catch (error: any) {
     console.error('Preview proxy error:', error);
-    if (error.code === 'ECONNREFUSED') {
-      res.status(502).json({ error: 'Dev server not running on port ' + port });
-    } else {
-      res.status(502).json({ error: 'Failed to proxy: ' + error.message });
-    }
+    // Return HTML error page that renders properly in iframe
+    const errorHtml = `<!DOCTYPE html>
+<html>
+<head><title>Preview Error</title></head>
+<body style="font-family: system-ui; padding: 2rem; background: #1a1a1a; color: #fff;">
+  <h1>Failed to connect to dev server</h1>
+  <p>Port: ${port}</p>
+  <p>${error.code === 'ECONNREFUSED' ? 'Dev server not running' : error.message}</p>
+</body>
+</html>`;
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.status(502).send(errorHtml);
   }
 });
 
