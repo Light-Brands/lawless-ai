@@ -1000,15 +1000,32 @@
 }
 
 .resize-handle {
-  width: 4px;
+  width: 6px;
   cursor: col-resize;
-  background: transparent;
+  background: #2d2d44;
   flex-shrink: 0;
   transition: background 0.15s;
+  position: relative;
+}
+
+.resize-handle::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 2px;
+  height: 40px;
+  background: #444;
+  border-radius: 1px;
 }
 
 .resize-handle:hover {
-  background: #4f46e5;
+  background: #3d3d5c;
+}
+
+.resize-handle:hover::before {
+  background: #7c3aed;
 }
 
 .editor-layout.resizing {
@@ -2289,4 +2306,307 @@
   color: #666;
   font-size: 11px;
   margin-top: 2px;
+}
+
+/* View Mode Toggle */
+.view-mode-toggle {
+  display: flex;
+  background: #1a1a2e;
+  border-radius: 4px;
+  padding: 2px;
+  gap: 2px;
+}
+
+.view-mode-toggle .editor-action-btn {
+  padding: 4px 12px;
+  font-size: 12px;
+}
+
+.view-mode-toggle .editor-action-btn.active {
+  background: #7c3aed;
+  color: white;
+}
+
+/* File Preview Container */
+.file-preview-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: #0f0f1a;
+}
+
+.file-preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: #1a1a2e;
+  border-bottom: 1px solid #2d2d44;
+  flex-shrink: 0;
+}
+
+.file-preview-name {
+  font-weight: 500;
+  color: #e0e0e0;
+}
+
+.file-preview-size,
+.file-preview-meta {
+  font-size: 12px;
+  color: #888;
+}
+
+/* Image Preview */
+.file-preview-image {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  overflow: auto;
+  background: repeating-conic-gradient(#1a1a2e 0% 25%, #0f0f1a 0% 50%) 50% / 20px 20px;
+}
+
+.file-preview-image img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* Binary File */
+.file-preview-binary {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: #888;
+}
+
+.file-preview-binary p {
+  margin: 0;
+}
+
+.file-preview-binary .binary-size {
+  font-size: 14px;
+  color: #666;
+}
+
+/* Code Preview */
+.file-preview-code {
+  flex: 1;
+  display: flex;
+  overflow: auto;
+  font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', monospace;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.file-preview-code .line-numbers {
+  display: flex;
+  flex-direction: column;
+  padding: 16px 0;
+  background: #0f0f1a;
+  border-right: 1px solid #2d2d44;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.file-preview-code .line-number {
+  padding: 0 16px;
+  color: #444;
+  text-align: right;
+  min-width: 40px;
+}
+
+.file-preview-code .code-content {
+  flex: 1;
+  margin: 0;
+  padding: 16px;
+  overflow: auto;
+  background: #0f0f1a;
+}
+
+.file-preview-code .code-content code {
+  font-family: inherit;
+  white-space: pre;
+}
+
+/* Markdown Preview */
+.file-preview-markdown {
+  flex: 1;
+  overflow: auto;
+  padding: 24px;
+  background: #0f0f1a;
+}
+
+.file-preview-markdown .markdown-body {
+  max-width: 800px;
+  margin: 0 auto;
+  color: #e0e0e0;
+}
+
+.file-preview-markdown .markdown-body h1,
+.file-preview-markdown .markdown-body h2,
+.file-preview-markdown .markdown-body h3,
+.file-preview-markdown .markdown-body h4,
+.file-preview-markdown .markdown-body h5,
+.file-preview-markdown .markdown-body h6 {
+  color: #fff;
+  margin-top: 24px;
+  margin-bottom: 16px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.file-preview-markdown .markdown-body h1 {
+  font-size: 2em;
+  border-bottom: 1px solid #2d2d44;
+  padding-bottom: 0.3em;
+}
+
+.file-preview-markdown .markdown-body h2 {
+  font-size: 1.5em;
+  border-bottom: 1px solid #2d2d44;
+  padding-bottom: 0.3em;
+}
+
+.file-preview-markdown .markdown-body h3 {
+  font-size: 1.25em;
+}
+
+.file-preview-markdown .markdown-body p {
+  margin-bottom: 16px;
+  line-height: 1.6;
+}
+
+.file-preview-markdown .markdown-body a {
+  color: #a78bfa;
+  text-decoration: none;
+}
+
+.file-preview-markdown .markdown-body a:hover {
+  text-decoration: underline;
+}
+
+.file-preview-markdown .markdown-body code {
+  background: #1a1a2e;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', monospace;
+  font-size: 0.9em;
+}
+
+.file-preview-markdown .markdown-body pre {
+  background: #1a1a2e;
+  padding: 16px;
+  border-radius: 8px;
+  overflow-x: auto;
+  margin-bottom: 16px;
+}
+
+.file-preview-markdown .markdown-body pre code {
+  background: transparent;
+  padding: 0;
+}
+
+.file-preview-markdown .markdown-body ul,
+.file-preview-markdown .markdown-body ol {
+  padding-left: 24px;
+  margin-bottom: 16px;
+}
+
+.file-preview-markdown .markdown-body li {
+  margin-bottom: 4px;
+}
+
+.file-preview-markdown .markdown-body blockquote {
+  border-left: 4px solid #7c3aed;
+  margin: 0 0 16px 0;
+  padding: 0 16px;
+  color: #888;
+}
+
+.file-preview-markdown .markdown-body table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 16px;
+}
+
+.file-preview-markdown .markdown-body th,
+.file-preview-markdown .markdown-body td {
+  border: 1px solid #2d2d44;
+  padding: 8px 12px;
+  text-align: left;
+}
+
+.file-preview-markdown .markdown-body th {
+  background: #1a1a2e;
+  font-weight: 600;
+}
+
+.file-preview-markdown .markdown-body img {
+  max-width: 100%;
+  border-radius: 8px;
+}
+
+.file-preview-markdown .markdown-body hr {
+  border: none;
+  border-top: 1px solid #2d2d44;
+  margin: 24px 0;
+}
+
+/* Highlight.js Theme Override */
+.hljs {
+  background: transparent !important;
+  color: #e0e0e0;
+}
+
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-title,
+.hljs-section,
+.hljs-doctag,
+.hljs-name,
+.hljs-strong {
+  color: #c792ea;
+}
+
+.hljs-string,
+.hljs-title.class_,
+.hljs-attr,
+.hljs-symbol,
+.hljs-bullet,
+.hljs-addition,
+.hljs-template-tag,
+.hljs-template-variable {
+  color: #c3e88d;
+}
+
+.hljs-number,
+.hljs-literal,
+.hljs-variable,
+.hljs-meta,
+.hljs-regexp,
+.hljs-link {
+  color: #f78c6c;
+}
+
+.hljs-comment,
+.hljs-quote,
+.hljs-deletion {
+  color: #546e7a;
+}
+
+.hljs-built_in,
+.hljs-type,
+.hljs-class {
+  color: #82aaff;
+}
+
+.hljs-attribute {
+  color: #ffcb6b;
 }

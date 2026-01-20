@@ -1,11 +1,67 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import hljs from 'highlight.js';
+import { marked } from 'marked';
 import { useIDEStore } from '../../../stores/ideStore';
 import { useIDEContext } from '../../../contexts/IDEContext';
 import { useGitHubConnection } from '../../../contexts/ServiceContext';
 import { CodeEditor } from '../../CodeEditor';
 import { ideEvents } from '../../../lib/eventBus';
+
+// File type detection helpers
+function isImageFile(filename: string): boolean {
+  const ext = filename.split('.').pop()?.toLowerCase() || '';
+  return ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'ico', 'bmp'].includes(ext);
+}
+
+function isBinaryFile(filename: string): boolean {
+  const ext = filename.split('.').pop()?.toLowerCase() || '';
+  const binaryExtensions = [
+    'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx',
+    'zip', 'tar', 'gz', 'rar', '7z',
+    'exe', 'dll', 'so', 'dylib',
+    'mp3', 'mp4', 'wav', 'avi', 'mov', 'mkv',
+    'ttf', 'otf', 'woff', 'woff2', 'eot',
+  ];
+  return binaryExtensions.includes(ext);
+}
+
+function isMarkdownFile(filename: string): boolean {
+  const ext = filename.split('.').pop()?.toLowerCase() || '';
+  return ['md', 'mdx', 'markdown'].includes(ext);
+}
+
+function getHighlightLanguage(filename: string): string {
+  const ext = filename.split('.').pop()?.toLowerCase() || '';
+  const languageMap: Record<string, string> = {
+    ts: 'typescript', tsx: 'typescript',
+    js: 'javascript', jsx: 'javascript',
+    py: 'python', rb: 'ruby', rs: 'rust', go: 'go',
+    java: 'java', kt: 'kotlin', swift: 'swift',
+    c: 'c', cpp: 'cpp', h: 'c', hpp: 'cpp', cs: 'csharp',
+    php: 'php', html: 'html', htm: 'html',
+    css: 'css', scss: 'scss', less: 'less',
+    json: 'json', jsonc: 'json', xml: 'xml',
+    yaml: 'yaml', yml: 'yaml', toml: 'toml',
+    md: 'markdown', mdx: 'markdown',
+    sql: 'sql', sh: 'bash', bash: 'bash', zsh: 'bash',
+    dockerfile: 'dockerfile', vue: 'html', svelte: 'html',
+  };
+  return languageMap[ext] || 'plaintext';
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes === 0) return '0 B';
+  const units = ['B', 'KB', 'MB', 'GB'];
+  let unitIndex = 0;
+  let size = bytes;
+  while (size >= 1024 && unitIndex < units.length - 1) {
+    size /= 1024;
+    unitIndex++;
+  }
+  return `${size.toFixed(unitIndex > 0 ? 1 : 0)} ${units[unitIndex]}`;
+}
 
 interface FileTreeItem {
   name: string;
@@ -39,31 +95,46 @@ export function EditorPane() {
   const [fileTree, setFileTree] = useState<FileTreeItem[]>([]);
   const [fileContents, setFileContents] = useState<Record<string, string>>({});
   const [originalContents, setOriginalContents] = useState<Record<string, string>>({});
+  const [rawBase64Contents, setRawBase64Contents] = useState<Record<string, string>>({});
+  const [fileSizes, setFileSizes] = useState<Record<string, number>>({});
+  const [viewMode, setViewMode] = useState<'edit' | 'preview'>('edit');
+  const [renderedMarkdown, setRenderedMarkdown] = useState<string>('');
+  const previewCodeRef = useRef<HTMLElement>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [cursorPosition, setCursorPosition] = useState({ line: 1, col: 1 });
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
   const [loadingFile, setLoadingFile] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [sidebarWidth, setSidebarWidth] = useState(250);
+  const [sidebarPercent, setSidebarPercent] = useState(30); // 30% default for 30/70 split
   const [isResizing, setIsResizing] = useState(false);
-  const resizeRef = useRef<{ startX: number; startWidth: number } | null>(null);
+  const layoutRef = useRef<HTMLDivElement>(null);
+  const resizeRef = useRef<{ startX: number; startPercent: number; containerWidth: number } | null>(null);
 
   // Handle sidebar resize
   const handleResizeStart = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
+    const container = layoutRef.current;
+    if (!container) return;
+
     setIsResizing(true);
-    resizeRef.current = { startX: e.clientX, startWidth: sidebarWidth };
-  }, [sidebarWidth]);
+    resizeRef.current = {
+      startX: e.clientX,
+      startPercent: sidebarPercent,
+      containerWidth: container.getBoundingClientRect().width
+    };
+  }, [sidebarPercent]);
 
   useEffect(() => {
     if (!isResizing) return;
 
     const handleMouseMove = (e: MouseEvent) => {
       if (!resizeRef.current) return;
-      const delta = e.clientX - resizeRef.current.startX;
-      const newWidth = Math.max(150, Math.min(500, resizeRef.current.startWidth + delta));
-      setSidebarWidth(newWidth);
+      const { startX, startPercent, containerWidth } = resizeRef.current;
+      const deltaX = e.clientX - startX;
+      const deltaPercent = (deltaX / containerWidth) * 100;
+      const newPercent = Math.max(15, Math.min(50, startPercent + deltaPercent));
+      setSidebarPercent(newPercent);
     };
 
     const handleMouseUp = () => {
@@ -98,9 +169,8 @@ export function EditorPane() {
         if (data.tree) {
           const tree = convertApiTree(data.tree);
           setFileTree(tree);
-          // Auto-expand first level folders
-          const firstLevelFolders = tree.filter(item => item.type === 'folder').map(item => item.path);
-          setExpandedFolders(new Set(firstLevelFolders));
+          // Start with all folders collapsed
+          setExpandedFolders(new Set());
         }
       } catch (err) {
         console.error('Failed to fetch tree:', err);
@@ -133,13 +203,22 @@ export function EditorPane() {
         return;
       }
 
-      // API returns { type: 'file', file: { content } } structure
+      // API returns { type: 'file', file: { content, size } } structure
       const base64Content = data.file?.content || data.content;
+      const fileSize = data.file?.size || data.size || 0;
+
       if (base64Content) {
-        // GitHub returns base64 encoded content
-        const content = atob(base64Content);
-        setFileContents(prev => ({ ...prev, [path]: content }));
-        setOriginalContents(prev => ({ ...prev, [path]: content }));
+        // Store raw base64 for images
+        setRawBase64Contents(prev => ({ ...prev, [path]: base64Content }));
+        setFileSizes(prev => ({ ...prev, [path]: fileSize }));
+
+        // Decode for text files (not images or binary)
+        const fileName = path.split('/').pop() || '';
+        if (!isImageFile(fileName) && !isBinaryFile(fileName)) {
+          const content = atob(base64Content);
+          setFileContents(prev => ({ ...prev, [path]: content }));
+          setOriginalContents(prev => ({ ...prev, [path]: content }));
+        }
       }
     } catch (err) {
       console.error('Failed to fetch file:', err);
@@ -185,6 +264,33 @@ export function EditorPane() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleSave]);
+
+  // Syntax highlighting for preview mode
+  useEffect(() => {
+    if (viewMode === 'preview' && activeFile && previewCodeRef.current && fileContents[activeFile]) {
+      const fileName = activeFile.split('/').pop() || '';
+      if (!isMarkdownFile(fileName) && !isImageFile(fileName) && !isBinaryFile(fileName)) {
+        hljs.highlightElement(previewCodeRef.current);
+      }
+    }
+  }, [viewMode, activeFile, fileContents]);
+
+  // Markdown rendering for preview mode
+  useEffect(() => {
+    if (viewMode === 'preview' && activeFile) {
+      const fileName = activeFile.split('/').pop() || '';
+      const content = fileContents[activeFile];
+      if (isMarkdownFile(fileName) && content) {
+        marked.setOptions({ gfm: true, breaks: true });
+        const rendered = marked(content);
+        if (typeof rendered === 'string') {
+          setRenderedMarkdown(rendered);
+        } else {
+          rendered.then(setRenderedMarkdown);
+        }
+      }
+    }
+  }, [viewMode, activeFile, fileContents]);
 
   const handleFileClick = useCallback((path: string) => {
     openFile(path);
@@ -307,6 +413,22 @@ export function EditorPane() {
           ))}
         </div>
         <div className="editor-actions">
+          <div className="view-mode-toggle">
+            <button
+              className={`editor-action-btn ${viewMode === 'edit' ? 'active' : ''}`}
+              onClick={() => setViewMode('edit')}
+              title="Edit Mode"
+            >
+              Edit
+            </button>
+            <button
+              className={`editor-action-btn ${viewMode === 'preview' ? 'active' : ''}`}
+              onClick={() => setViewMode('preview')}
+              title="Preview Mode"
+            >
+              Preview
+            </button>
+          </div>
           <button
             className={`editor-action-btn ${splitView ? 'active' : ''}`}
             onClick={() => setSplitView(!splitView)}
@@ -321,8 +443,8 @@ export function EditorPane() {
       </div>
 
       {/* File tree sidebar */}
-      <div className={`editor-layout ${isResizing ? 'resizing' : ''}`}>
-        <div className="file-tree" style={{ width: sidebarWidth, minWidth: sidebarWidth }}>
+      <div ref={layoutRef} className={`editor-layout ${isResizing ? 'resizing' : ''}`}>
+        <div className="file-tree" style={{ width: `${sidebarPercent}%`, minWidth: '150px', maxWidth: '50%' }}>
           <div className="file-tree-header">
             <input
               type="text"
@@ -360,14 +482,101 @@ export function EditorPane() {
                 <div className="loading-spinner" />
                 <p>Loading {activeFile.split('/').pop()}...</p>
               </div>
-            ) : (
-              <CodeEditor
-                value={fileContents[activeFile] || '// Loading...'}
-                onChange={handleFileChange}
-                language={activeFile}
-                className="editor-main"
-              />
-            )
+            ) : (() => {
+              const fileName = activeFile.split('/').pop() || '';
+              const isImage = isImageFile(fileName);
+              const isBinary = isBinaryFile(fileName);
+              const isMarkdown = isMarkdownFile(fileName);
+              const content = fileContents[activeFile];
+              const rawBase64 = rawBase64Contents[activeFile];
+              const fileSize = fileSizes[activeFile] || 0;
+
+              // Image preview (always show image, no edit mode for images)
+              if (isImage && rawBase64) {
+                const ext = fileName.split('.').pop()?.toLowerCase();
+                const mimeType = ext === 'svg' ? 'svg+xml' : ext;
+                return (
+                  <div className="file-preview-container">
+                    <div className="file-preview-header">
+                      <span className="file-preview-name">{fileName}</span>
+                      <span className="file-preview-size">{formatFileSize(fileSize)}</span>
+                    </div>
+                    <div className="file-preview-image">
+                      <img src={`data:image/${mimeType};base64,${rawBase64}`} alt={fileName} />
+                    </div>
+                  </div>
+                );
+              }
+
+              // Binary file (no preview or edit)
+              if (isBinary) {
+                return (
+                  <div className="file-preview-container">
+                    <div className="file-preview-header">
+                      <span className="file-preview-name">{fileName}</span>
+                      <span className="file-preview-size">{formatFileSize(fileSize)}</span>
+                    </div>
+                    <div className="file-preview-binary">
+                      <p>Binary file - preview not available</p>
+                      <p className="binary-size">{formatFileSize(fileSize)}</p>
+                    </div>
+                  </div>
+                );
+              }
+
+              // Preview mode for text files
+              if (viewMode === 'preview') {
+                const lines = (content || '').split('\n');
+                const language = getHighlightLanguage(fileName);
+
+                // Markdown preview
+                if (isMarkdown) {
+                  return (
+                    <div className="file-preview-container">
+                      <div className="file-preview-header">
+                        <span className="file-preview-name">{fileName}</span>
+                        <span className="file-preview-meta">{lines.length} lines · {formatFileSize(fileSize)}</span>
+                      </div>
+                      <div className="file-preview-markdown">
+                        <div className="markdown-body" dangerouslySetInnerHTML={{ __html: renderedMarkdown }} />
+                      </div>
+                    </div>
+                  );
+                }
+
+                // Syntax-highlighted code preview
+                return (
+                  <div className="file-preview-container">
+                    <div className="file-preview-header">
+                      <span className="file-preview-name">{fileName}</span>
+                      <span className="file-preview-meta">{lines.length} lines · {formatFileSize(fileSize)}</span>
+                    </div>
+                    <div className="file-preview-code">
+                      <div className="line-numbers">
+                        {lines.map((_, i) => (
+                          <span key={i} className="line-number">{i + 1}</span>
+                        ))}
+                      </div>
+                      <pre className="code-content">
+                        <code ref={previewCodeRef} className={`language-${language}`}>
+                          {content || ''}
+                        </code>
+                      </pre>
+                    </div>
+                  </div>
+                );
+              }
+
+              // Edit mode (default)
+              return (
+                <CodeEditor
+                  value={content || '// Loading...'}
+                  onChange={handleFileChange}
+                  language={activeFile}
+                  className="editor-main"
+                />
+              );
+            })()
           ) : (
             <div className="editor-empty-state">
               <p>Select a file to edit</p>
