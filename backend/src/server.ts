@@ -1405,14 +1405,14 @@ User request: ${message}`;
 });
 
 // Builder Chat - AI-driven plan and identity creation
-const PLAN_BUILDER_PROMPT = `You are a project plan builder assistant for Lawless AI. Your role is to guide users through creating comprehensive project plans through natural conversation.
+const PLAN_BUILDER_PROMPT = `You are a project plan builder assistant for Lawless AI. Your role is to help users create and edit comprehensive project plans through natural conversation.
 
 ## Your Approach
-1. Ask focused questions one topic at a time
-2. Extract information and confirm understanding
-3. Build the document progressively as you gather information
+1. If there's an existing document, help the user refine and improve it
+2. If starting fresh, guide them through each section progressively
+3. Make changes quickly and show them immediately
 
-## Sections to Cover (in order)
+## Standard Sections
 1. **Project Overview** - What is this project? What problem does it solve?
 2. **Goals** - What are the 3-5 main objectives?
 3. **Target Users** - Who will use this? What are their needs?
@@ -1421,33 +1421,42 @@ const PLAN_BUILDER_PROMPT = `You are a project plan builder assistant for Lawles
 6. **Success Metrics** - How will we measure success?
 7. **Timeline** - What are the phases and milestones?
 
-## Document Update Format
-When you have gathered enough information for a section, emit an update using this exact format:
+## Document Update Formats
 
+### For editing existing documents:
+When the user has a document open and wants changes, output the COMPLETE updated document:
+
+<document_replace>
+# Project Plan: [Brand Name]
+
+[Complete updated markdown document here...]
+</document_replace>
+
+### For building new documents section by section:
 <plan_update section="section_name">
 Content for that section in markdown...
 </plan_update>
 
-Section names must be one of: overview, goals, target_users, key_features, technical_stack, success_metrics, timeline
+Section names: overview, goals, target_users, key_features, technical_stack, success_metrics, timeline
 
 ## Guidelines
+- When editing: Make the requested changes and output the full updated document
+- When creating: Build progressively, one section at a time
 - Be conversational but efficient
-- Ask clarifying questions when needed
-- Summarize what you've captured before moving on
-- If the user provides info for multiple sections, emit multiple updates
-- Keep section content focused and well-formatted
-- Use bullet points and tables where appropriate
+- Use mermaid diagrams for architecture, flows, and timelines when appropriate
+- Use tables for structured data
+- Keep formatting clean and consistent
 
-Start by greeting the user and asking about their project's purpose.`;
+If there's an existing document, acknowledge it and ask what they'd like to change or improve.`;
 
-const IDENTITY_BUILDER_PROMPT = `You are a brand identity builder assistant for Lawless AI. Your role is to guide users through creating comprehensive brand identity documents through natural conversation.
+const IDENTITY_BUILDER_PROMPT = `You are a brand identity builder assistant for Lawless AI. Your role is to help users create and edit comprehensive brand identity documents through natural conversation.
 
 ## Your Approach
-1. Ask thoughtful questions to understand the brand
-2. Help users articulate their vision and values
-3. Build the identity document progressively
+1. If there's an existing document, help the user refine and improve it
+2. If starting fresh, guide them through each section progressively
+3. Help users articulate their vision and values clearly
 
-## Sections to Cover (in order)
+## Standard Sections
 1. **Brand Overview** - What does this brand represent? What makes it unique?
 2. **Mission Statement** - What is the brand's purpose in one sentence?
 3. **Voice & Tone** - How should the brand communicate? What words to use/avoid?
@@ -1455,16 +1464,27 @@ const IDENTITY_BUILDER_PROMPT = `You are a brand identity builder assistant for 
 5. **Target Audience** - Demographics, psychographics, ideal customer?
 6. **Brand Personality** - If the brand were a person, how would they be described?
 
-## Document Update Format
-When you have gathered enough information for a section, emit an update using this exact format:
+## Document Update Formats
 
+### For editing existing documents:
+When the user has a document open and wants changes, output the COMPLETE updated document:
+
+<document_replace>
+# Brand Identity: [Brand Name]
+
+[Complete updated markdown document here...]
+</document_replace>
+
+### For building new documents section by section:
 <identity_update section="section_name">
 Content for that section in markdown...
 </identity_update>
 
-Section names must be one of: brand_overview, mission_statement, voice_and_tone, visual_identity, target_audience, brand_personality
+Section names: brand_overview, mission_statement, voice_and_tone, visual_identity, target_audience, brand_personality
 
 ## Guidelines
+- When editing: Make the requested changes and output the full updated document
+- When creating: Build progressively, one section at a time
 - Be empathetic and help users express their vision
 - Ask probing questions to uncover deeper brand values
 - Offer examples and suggestions when helpful
@@ -1474,7 +1494,7 @@ Section names must be one of: brand_overview, mission_statement, voice_and_tone,
 Start by greeting the user and asking what their brand stands for.`;
 
 app.post('/api/builder/chat', authenticateApiKey, async (req: Request, res: Response) => {
-  const { message, brandName, builderType, history, userId } = req.body;
+  const { message, brandName, builderType, history, userId, currentDocument, brandContext } = req.body;
 
   if (!message || !brandName || !builderType) {
     res.status(400).json({ error: 'Message, brandName, and builderType are required' });
@@ -1502,11 +1522,31 @@ app.post('/api/builder/chat', authenticateApiKey, async (req: Request, res: Resp
     }).join('\n\n');
   }
 
+  // Build context section
+  let contextSection = '';
+  if (brandContext) {
+    const contextParts = [];
+    if (brandContext.websiteSummary) contextParts.push(`Website Analysis: ${brandContext.websiteSummary}`);
+    if (brandContext.tagline) contextParts.push(`Tagline: ${brandContext.tagline}`);
+    if (brandContext.description) contextParts.push(`Description: ${brandContext.description}`);
+    if (brandContext.brandColors?.length) contextParts.push(`Brand Colors: ${brandContext.brandColors.join(', ')}`);
+    if (brandContext.additionalNotes) contextParts.push(`Additional Notes: ${brandContext.additionalNotes}`);
+    if (contextParts.length > 0) {
+      contextSection = `\n\n## Brand Context\n${contextParts.join('\n')}`;
+    }
+  }
+
+  // Build current document section
+  let documentSection = '';
+  if (currentDocument) {
+    documentSection = `\n\n## Current Document\nThe user has the following document open. When they ask for changes, update the ENTIRE document using <document_replace> tags:\n\n\`\`\`markdown\n${currentDocument}\n\`\`\``;
+  }
+
   // Build prompt with context
   const fullPrompt = conversationHistory
     ? `${systemPrompt}
 
-Brand: ${brandName}
+Brand: ${brandName}${contextSection}${documentSection}
 
 Previous conversation:
 ${conversationHistory}
@@ -1514,7 +1554,7 @@ ${conversationHistory}
 User: ${message}`
     : `${systemPrompt}
 
-Brand: ${brandName}
+Brand: ${brandName}${contextSection}${documentSection}
 
 User: ${message}`;
 

@@ -72,6 +72,12 @@ const DownloadIcon = () => (
   </svg>
 );
 
+const CloudIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z" />
+  </svg>
+);
+
 interface DocumentPreviewProps {
   brandName: string;
   builderType: BuilderType;
@@ -79,6 +85,7 @@ interface DocumentPreviewProps {
   onSave: () => void;
   onCopy: () => void;
   saving?: boolean;
+  hasUnsavedChanges?: boolean;
 }
 
 export function DocumentPreview({
@@ -88,6 +95,7 @@ export function DocumentPreview({
   onSave,
   onCopy,
   saving,
+  hasUnsavedChanges = false,
 }: DocumentPreviewProps) {
   const sectionConfig = getSections(builderType);
   const title = builderType === 'plan' ? `Project Plan: ${brandName}` : `Brand Identity: ${brandName}`;
@@ -95,6 +103,8 @@ export function DocumentPreview({
   const completedCount = useMemo(() => {
     return sectionConfig.filter((s) => sections[s.id]).length;
   }, [sections, sectionConfig]);
+
+  const hasContent = sections['_raw_content'] || completedCount > 0;
 
   const handleDownload = () => {
     const markdown = generateDocument(brandName, builderType, sections);
@@ -112,9 +122,14 @@ export function DocumentPreview({
   return (
     <div className="builder-preview-panel">
       <div className="builder-preview-header">
-        <span className="builder-preview-title">
-          {sections['_raw_content'] ? 'Document Preview' : `Document Preview (${completedCount}/${sectionConfig.length} sections)`}
-        </span>
+        <div className="builder-preview-title-row">
+          <span className="builder-preview-title">
+            {sections['_raw_content'] ? 'Document Preview' : `Document Preview (${completedCount}/${sectionConfig.length} sections)`}
+          </span>
+          {hasUnsavedChanges && hasContent && (
+            <span className="builder-draft-badge">Draft</span>
+          )}
+        </div>
         <div className="builder-preview-actions">
           <button
             className="builder-vault-btn"
@@ -162,12 +177,16 @@ export function DocumentPreview({
       </div>
 
       <div className="builder-save-section">
+        {hasUnsavedChanges && hasContent && (
+          <p className="builder-save-hint">Changes saved locally. Commit to save permanently.</p>
+        )}
         <button
           className="builder-save-btn"
           onClick={onSave}
-          disabled={saving || (completedCount === 0 && !sections['_raw_content'])}
+          disabled={saving || !hasContent}
         >
-          {saving ? 'Saving...' : 'Save to Brand Factory'}
+          <CloudIcon />
+          {saving ? 'Committing...' : 'Commit to Brand Factory'}
         </button>
       </div>
     </div>

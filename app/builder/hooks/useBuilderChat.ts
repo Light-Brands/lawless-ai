@@ -37,6 +37,36 @@ interface UseBuilderChatOptions {
   onDocumentUpdate?: (section: string, content: string) => void;
 }
 
+// Local storage key for document drafts
+const getStorageKey = (brandName: string, builderType: BuilderType) =>
+  `builder_draft_${brandName}_${builderType}`;
+
+// Parse document updates from response text
+function parseDocumentUpdates(text: string, builderType: BuilderType): { rawContent?: string; sections: Record<string, string> } {
+  const sections: Record<string, string> = {};
+
+  // Check for full document replacement
+  const docReplaceMatch = text.match(/<document_replace>([\s\S]*?)<\/document_replace>/);
+  if (docReplaceMatch) {
+    return { rawContent: docReplaceMatch[1].trim(), sections: {} };
+  }
+
+  // Check for section updates based on builder type
+  const tagName = builderType === 'plan' ? 'plan_update' : 'identity_update';
+  const sectionRegex = new RegExp(`<${tagName}\\s+section="([^"]+)"[^>]*>([\\s\\S]*?)<\\/${tagName}>`, 'g');
+
+  let match;
+  while ((match = sectionRegex.exec(text)) !== null) {
+    const sectionName = match[1];
+    const content = match[2].trim();
+    if (sectionName && content) {
+      sections[sectionName] = content;
+    }
+  }
+
+  return { sections };
+}
+
 // Initial greeting messages
 const PLAN_GREETING = `Hello! I'm here to help you build a comprehensive project plan for your brand.
 
@@ -71,6 +101,36 @@ export function useBuilderChat(options: UseBuilderChatOptions): UseBuilderChatRe
   const [error, setError] = useState<string | null>(null);
   const [documentSections, setDocumentSections] = useState<DocumentSections>({});
   const abortControllerRef = useRef<AbortController | null>(null);
+  const accumulatedTextRef = useRef<string>('');
+
+  // Load from local storage on mount
+  useEffect(() => {
+    if (brandName) {
+      const storageKey = getStorageKey(brandName, builderType);
+      const saved = localStorage.getItem(storageKey);
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (parsed.documentSections) {
+            setDocumentSections(parsed.documentSections);
+          }
+        } catch {
+          // Ignore parse errors
+        }
+      }
+    }
+  }, [brandName, builderType]);
+
+  // Save to local storage when document changes
+  useEffect(() => {
+    if (brandName && Object.keys(documentSections).length > 0) {
+      const storageKey = getStorageKey(brandName, builderType);
+      localStorage.setItem(storageKey, JSON.stringify({
+        documentSections,
+        updatedAt: new Date().toISOString(),
+      }));
+    }
+  }, [brandName, builderType, documentSections]);
 
   // Build conversation history from messages (matching workspace pattern)
   const buildConversationHistory = useCallback(() => {
@@ -138,9 +198,10 @@ export function useBuilderChat(options: UseBuilderChatOptions): UseBuilderChatRe
           throw new Error('No response body');
         }
 
-        // Handle streaming response (matching workspace pattern exactly)
+        // Handle streaming response
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
+        accumulatedTextRef.current = '';
 
         while (true) {
           const { done, value } = await reader.read();
@@ -164,6 +225,9 @@ export function useBuilderChat(options: UseBuilderChatOptions): UseBuilderChatRe
                   switch (data.type) {
                     case 'text':
                     case 'chunk': {
+                      // Track accumulated text for document parsing
+                      accumulatedTextRef.current += data.content;
+
                       // Append to last text block or create new one
                       const lastBlock = contentBlocks[contentBlocks.length - 1];
                       if (lastBlock && lastBlock.type === 'text') {
@@ -171,11 +235,19 @@ export function useBuilderChat(options: UseBuilderChatOptions): UseBuilderChatRe
                       } else {
                         contentBlocks.push({ type: 'text', content: data.content });
                       }
+
+                      // Check for document updates in real-time
+                      const updates = parseDocumentUpdates(accumulatedTextRef.current, builderType);
+                      if (updates.rawContent) {
+                        setDocumentSections({ _raw_content: updates.rawContent });
+                      } else if (Object.keys(updates.sections).length > 0) {
+                        setDocumentSections((prev) => ({ ...prev, ...updates.sections }));
+                      }
                       break;
                     }
 
                     case 'tool_use': {
-                      // Handle document updates
+                      // Handle document updates via tool calls
                       if (data.tool === 'document_update' && data.input) {
                         const { section, content: sectionContent } = data.input as { section: string; content: string };
                         if (section && sectionContent) {

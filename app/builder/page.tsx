@@ -40,6 +40,7 @@ export default function BuilderPage() {
   const [saving, setSaving] = useState(false);
   const [brandContext, setBrandContext] = useState<BrandContext>({});
   const [analyzingWebsite, setAnalyzingWebsite] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   // Hooks
   const { brands, loading: loadingBrands, createBrand, getBrand, refreshBrands } = useBrands();
@@ -56,6 +57,13 @@ export default function BuilderPage() {
     builderType: activeTab,
     brandContext,
   });
+
+  // Track unsaved changes when document sections change
+  useEffect(() => {
+    if (selectedBrand && Object.keys(documentSections).length > 0) {
+      setHasUnsavedChanges(true);
+    }
+  }, [documentSections, selectedBrand]);
 
   // Handle website analysis
   const handleAnalyzeWebsite = useCallback(async () => {
@@ -200,7 +208,13 @@ export default function BuilderPage() {
 
       // Refresh brands to update status
       await refreshBrands();
-      alert('Document saved successfully!');
+
+      // Clear local storage draft
+      const storageKey = `builder_draft_${selectedBrand}_${activeTab}`;
+      localStorage.removeItem(storageKey);
+      setHasUnsavedChanges(false);
+
+      alert('Committed to Brand Factory!');
     } catch (error) {
       console.error('Save error:', error);
       alert('Failed to save document. Please try again.');
@@ -317,6 +331,7 @@ export default function BuilderPage() {
               onSave={handleSave}
               onCopy={handleCopy}
               saving={saving}
+              hasUnsavedChanges={hasUnsavedChanges}
             />
           </>
         ) : (

@@ -598,10 +598,30 @@
   background: rgba(10, 10, 15, 0.5);
 }
 
+.builder-preview-title-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
 .builder-preview-title {
   font-size: 0.875rem;
   font-weight: var(--font-weight-semibold);
   color: var(--color-text-secondary);
+}
+
+.builder-draft-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  background: rgba(251, 191, 36, 0.15);
+  border: 1px solid rgba(251, 191, 36, 0.3);
+  border-radius: var(--radius-full);
+  font-size: 0.7rem;
+  font-weight: var(--font-weight-medium);
+  color: #fbbf24;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 .builder-preview-actions {
@@ -1122,6 +1142,13 @@
 .builder-save-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.builder-save-hint {
+  font-size: 0.75rem;
+  color: var(--color-text-tertiary);
+  text-align: center;
+  margin-bottom: var(--space-2);
 }
 
 /* Brand Vault Drawer */
