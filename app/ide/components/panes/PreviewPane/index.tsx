@@ -308,7 +308,7 @@ export function PreviewPane() {
       {/* Preview iframe */}
       <div className="preview-content">
         {previewMode === 'local' ? (
-          hasActivePorts && selectedPort ? (
+          hasActivePorts && selectedPort && terminal.sessionId ? (
             <iframe
               ref={iframeRef}
               src={getLocalPreviewUrl()}
@@ -319,7 +319,7 @@ export function PreviewPane() {
             <div className="preview-placeholder">
               <div className="server-status scanning">
                 <div className="scanning-animation" />
-                <span>Scanning for dev servers</span>
+                <span>{terminal.sessionId ? 'Scanning for dev servers' : 'Connecting to session...'}</span>
               </div>
               <p className="preview-hint">Start a dev server in the terminal</p>
               <p className="preview-ports-hint">Monitoring ports 3000-3999</p>
