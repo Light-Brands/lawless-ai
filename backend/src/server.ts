@@ -1404,6 +1404,239 @@ User request: ${message}`;
   });
 });
 
+// Builder Chat - AI-driven plan and identity creation
+const PLAN_BUILDER_PROMPT = `You are a project plan builder assistant for Lawless AI. Your role is to guide users through creating comprehensive project plans through natural conversation.
+
+## Your Approach
+1. Ask focused questions one topic at a time
+2. Extract information and confirm understanding
+3. Build the document progressively as you gather information
+
+## Sections to Cover (in order)
+1. **Project Overview** - What is this project? What problem does it solve?
+2. **Goals** - What are the 3-5 main objectives?
+3. **Target Users** - Who will use this? What are their needs?
+4. **Key Features** - What functionality is required?
+5. **Technical Stack** - Languages, frameworks, integrations?
+6. **Success Metrics** - How will we measure success?
+7. **Timeline** - What are the phases and milestones?
+
+## Document Update Format
+When you have gathered enough information for a section, emit an update using this exact format:
+
+<plan_update section="section_name">
+Content for that section in markdown...
+</plan_update>
+
+Section names must be one of: overview, goals, target_users, key_features, technical_stack, success_metrics, timeline
+
+## Guidelines
+- Be conversational but efficient
+- Ask clarifying questions when needed
+- Summarize what you've captured before moving on
+- If the user provides info for multiple sections, emit multiple updates
+- Keep section content focused and well-formatted
+- Use bullet points and tables where appropriate
+
+Start by greeting the user and asking about their project's purpose.`;
+
+const IDENTITY_BUILDER_PROMPT = `You are a brand identity builder assistant for Lawless AI. Your role is to guide users through creating comprehensive brand identity documents through natural conversation.
+
+## Your Approach
+1. Ask thoughtful questions to understand the brand
+2. Help users articulate their vision and values
+3. Build the identity document progressively
+
+## Sections to Cover (in order)
+1. **Brand Overview** - What does this brand represent? What makes it unique?
+2. **Mission Statement** - What is the brand's purpose in one sentence?
+3. **Voice & Tone** - How should the brand communicate? What words to use/avoid?
+4. **Visual Identity** - Colors, typography, logo guidelines?
+5. **Target Audience** - Demographics, psychographics, ideal customer?
+6. **Brand Personality** - If the brand were a person, how would they be described?
+
+## Document Update Format
+When you have gathered enough information for a section, emit an update using this exact format:
+
+<identity_update section="section_name">
+Content for that section in markdown...
+</identity_update>
+
+Section names must be one of: brand_overview, mission_statement, voice_and_tone, visual_identity, target_audience, brand_personality
+
+## Guidelines
+- Be empathetic and help users express their vision
+- Ask probing questions to uncover deeper brand values
+- Offer examples and suggestions when helpful
+- Use tables for visual identity specs (colors, fonts)
+- Help users think about their brand from their customer's perspective
+
+Start by greeting the user and asking what their brand stands for.`;
+
+app.post('/api/builder/chat', authenticateApiKey, async (req: Request, res: Response) => {
+  const { message, brandName, builderType, history, userId } = req.body;
+
+  if (!message || !brandName || !builderType) {
+    res.status(400).json({ error: 'Message, brandName, and builderType are required' });
+    return;
+  }
+
+  // Set SSE headers
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+
+  res.write(': connected\n\n');
+  res.flushHeaders();
+
+  // Select system prompt based on builder type
+  const systemPrompt = builderType === 'plan' ? PLAN_BUILDER_PROMPT : IDENTITY_BUILDER_PROMPT;
+
+  // Build conversation history
+  let conversationHistory = '';
+  if (history && Array.isArray(history) && history.length > 0) {
+    conversationHistory = history.map((msg: { role: string; content: string }) => {
+      const prefix = msg.role === 'user' ? 'User' : 'Assistant';
+      return `${prefix}: ${msg.content}`;
+    }).join('\n\n');
+  }
+
+  // Build prompt with context
+  const fullPrompt = conversationHistory
+    ? `${systemPrompt}
+
+Brand: ${brandName}
+
+Previous conversation:
+${conversationHistory}
+
+User: ${message}`
+    : `${systemPrompt}
+
+Brand: ${brandName}
+
+User: ${message}`;
+
+  // Spawn Claude CLI
+  const spawnEnv = {
+    ...process.env,
+    NO_COLOR: '1',
+    HOME: '/home/ubuntu',
+    PATH: '/usr/local/bin:/usr/bin:/bin:/home/ubuntu/.local/bin'
+  };
+
+  const claude: ChildProcessWithoutNullStreams = spawn('claude', [
+    '--print',
+    '--output-format', 'stream-json',
+    '--verbose'
+  ], {
+    env: spawnEnv,
+    cwd: '/home/ubuntu'
+  });
+
+  claude.stdin.write(fullPrompt);
+  claude.stdin.end();
+
+  let responseContent = '';
+  let buffer = '';
+
+  claude.stdout.on('data', (chunk: Buffer) => {
+    buffer += chunk.toString();
+    const lines = buffer.split('\n');
+    buffer = lines.pop() || '';
+
+    for (const line of lines) {
+      if (!line.trim()) continue;
+
+      try {
+        const data = JSON.parse(line);
+
+        // Handle assistant message with content
+        if (data.type === 'assistant' && data.message?.content) {
+          for (const content of data.message.content) {
+            if (content.type === 'text' && content.text) {
+              // Deduplication logic
+              if (content.text.startsWith(responseContent) && responseContent.length > 0) {
+                const newContent = content.text.slice(responseContent.length);
+                if (newContent) {
+                  responseContent = content.text;
+                  res.write(`data: ${JSON.stringify({
+                    type: 'chunk',
+                    content: newContent
+                  })}\n\n`);
+                }
+              } else if (!responseContent.includes(content.text)) {
+                responseContent += content.text;
+                res.write(`data: ${JSON.stringify({
+                  type: 'chunk',
+                  content: content.text
+                })}\n\n`);
+              }
+            }
+          }
+        }
+
+        // Handle result/completion
+        if (data.type === 'result' && data.result) {
+          if (!responseContent) {
+            responseContent = data.result;
+            res.write(`data: ${JSON.stringify({
+              type: 'chunk',
+              content: data.result
+            })}\n\n`);
+          }
+        }
+
+        // Handle errors
+        if (data.type === 'error' || data.is_error) {
+          res.write(`data: ${JSON.stringify({
+            type: 'error',
+            message: data.message || data.error || 'Unknown error'
+          })}\n\n`);
+        }
+      } catch (e) {
+        // Ignore JSON parse errors
+      }
+    }
+  });
+
+  claude.stderr.on('data', (data: Buffer) => {
+    console.error('[Builder Chat] stderr:', data.toString());
+  });
+
+  claude.on('close', (code: number) => {
+    // Parse document updates from response
+    const tagName = builderType === 'plan' ? 'plan_update' : 'identity_update';
+    const regex = new RegExp(`<${tagName}\\s+section="([^"]+)">([\\s\\S]*?)<\\/${tagName}>`, 'g');
+
+    let match;
+    while ((match = regex.exec(responseContent)) !== null) {
+      res.write(`data: ${JSON.stringify({
+        type: 'tool_use',
+        id: `doc_${match[1]}_${Date.now()}`,
+        tool: 'document_update',
+        input: { section: match[1], content: match[2].trim() }
+      })}\n\n`);
+    }
+
+    res.write(`data: ${JSON.stringify({
+      type: 'done',
+      content: responseContent.trim()
+    })}\n\n`);
+    res.end();
+  });
+
+  claude.on('error', (err: Error) => {
+    console.error('Failed to spawn Claude for builder:', err);
+    res.write(`data: ${JSON.stringify({
+      type: 'error',
+      message: 'Failed to start Claude CLI'
+    })}\n\n`);
+    res.end();
+  });
+});
+
 // Demo chat endpoint for testing tools (no auth required, uses demo workspace)
 app.post('/api/demo/chat', (req: Request, res: Response) => {
   const { message } = req.body;
