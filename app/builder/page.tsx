@@ -12,6 +12,7 @@ import { TabNavigation } from './components/TabNavigation';
 import { BuilderChat } from './components/BuilderChat';
 import { DocumentPreview } from './components/DocumentPreview';
 import { BrandVault } from './components/BrandVault';
+import { ContextPanel, type BrandContext } from './components/ContextPanel';
 
 const LightningIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -37,6 +38,8 @@ export default function BuilderPage() {
   const [showVault, setShowVault] = useState(false);
   const [creatingBrand, setCreatingBrand] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [brandContext, setBrandContext] = useState<BrandContext>({});
+  const [analyzingWebsite, setAnalyzingWebsite] = useState(false);
 
   // Hooks
   const { brands, loading: loadingBrands, createBrand, getBrand, refreshBrands } = useBrands();
@@ -51,7 +54,41 @@ export default function BuilderPage() {
   } = useBuilderChat({
     brandName: selectedBrand || '',
     builderType: activeTab,
+    brandContext,
   });
+
+  // Handle website analysis
+  const handleAnalyzeWebsite = useCallback(async () => {
+    if (!brandContext.websiteUrl || analyzingWebsite) return;
+
+    setAnalyzingWebsite(true);
+    try {
+      const res = await fetch('/api/builder/analyze-website', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: brandContext.websiteUrl }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Analysis failed');
+      }
+
+      setBrandContext(prev => ({
+        ...prev,
+        websiteSummary: data.analysis.summary,
+        tagline: data.analysis.tagline,
+        description: data.analysis.description,
+        brandColors: data.analysis.brandColors,
+      }));
+    } catch (error) {
+      console.error('Website analysis error:', error);
+      alert(`Failed to analyze website: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setAnalyzingWebsite(false);
+    }
+  }, [brandContext.websiteUrl, analyzingWebsite]);
 
   // Check auth on mount
   useEffect(() => {
@@ -257,14 +294,22 @@ export default function BuilderPage() {
       <main className="builder-main">
         {selectedBrand ? (
           <>
-            <BuilderChat
-              messages={messages}
-              isLoading={chatLoading}
-              builderType={activeTab}
-              completedSections={completedSections}
-              onSendMessage={sendMessage}
-              onJumpToSection={handleJumpToSection}
-            />
+            <div className="builder-chat-panel">
+              <ContextPanel
+                context={brandContext}
+                onContextChange={setBrandContext}
+                onAnalyze={handleAnalyzeWebsite}
+                analyzing={analyzingWebsite}
+              />
+              <BuilderChat
+                messages={messages}
+                isLoading={chatLoading}
+                builderType={activeTab}
+                completedSections={completedSections}
+                onSendMessage={sendMessage}
+                onJumpToSection={handleJumpToSection}
+              />
+            </div>
             <DocumentPreview
               brandName={brands.find((b) => b.name === selectedBrand)?.displayName || selectedBrand}
               builderType={activeTab}

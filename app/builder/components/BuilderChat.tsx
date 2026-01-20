@@ -130,7 +130,7 @@ export function BuilderChat({
   };
 
   return (
-    <div className="builder-chat-panel">
+    <div className="builder-chat-content">
       {/* Messages */}
       <div className="builder-chat-messages">
         {messages.length === 0 && (

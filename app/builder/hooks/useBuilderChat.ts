@@ -20,9 +20,20 @@ interface UseBuilderChatReturn {
   startConversation: () => void;
 }
 
+interface BrandContext {
+  websiteUrl?: string;
+  websiteSummary?: string;
+  brandColors?: string[];
+  brandFonts?: string[];
+  tagline?: string;
+  description?: string;
+  additionalNotes?: string;
+}
+
 interface UseBuilderChatOptions {
   brandName: string;
   builderType: BuilderType;
+  brandContext?: BrandContext;
   onDocumentUpdate?: (section: string, content: string) => void;
 }
 
@@ -53,7 +64,7 @@ I'll guide you through defining what makes your brand unique. We'll cover:
 Let's start with the **Brand Overview**. What does your brand stand for? What makes it unique?`;
 
 export function useBuilderChat(options: UseBuilderChatOptions): UseBuilderChatReturn {
-  const { brandName, builderType, onDocumentUpdate } = options;
+  const { brandName, builderType, brandContext, onDocumentUpdate } = options;
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const hasInitialized = useRef(false);
@@ -112,6 +123,8 @@ export function useBuilderChat(options: UseBuilderChatOptions): UseBuilderChatRe
             builderType,
             message: content,
             history: conversationHistory,
+            currentDocument: documentSections['_raw_content'] || null,
+            brandContext: brandContext || null,
           }),
           signal: abortControllerRef.current.signal,
         });
