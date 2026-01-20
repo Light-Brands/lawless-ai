@@ -89,7 +89,7 @@ function sendEvent(controller: ReadableStreamDefaultController, event: string, d
 function parseDocumentUpdates(text: string, builderType: BuilderType): Array<{ section: string; content: string }> {
   const updates: Array<{ section: string; content: string }> = [];
   const tagName = builderType === 'plan' ? 'plan_update' : 'identity_update';
-  const regex = new RegExp(`<${tagName}\\s+section="([^"]+)">([\s\S]*?)<\\/${tagName}>`, 'g');
+  const regex = new RegExp(`<${tagName}\\s+section="([^"]+)">([\\s\\S]*?)<\\/${tagName}>`, 'g');
 
   let match;
   while ((match = regex.exec(text)) !== null) {
@@ -105,7 +105,7 @@ function parseDocumentUpdates(text: string, builderType: BuilderType): Array<{ s
 // Remove document update tags from text for display
 function cleanTextForDisplay(text: string, builderType: BuilderType): string {
   const tagName = builderType === 'plan' ? 'plan_update' : 'identity_update';
-  const regex = new RegExp(`<${tagName}\\s+section="[^"]+">[\s\S]*?<\\/${tagName}>`, 'g');
+  const regex = new RegExp(`<${tagName}\\s+section="[^"]+">([\\s\\S]*?)<\\/${tagName}>`, 'g');
   return text.replace(regex, '').trim();
 }
 

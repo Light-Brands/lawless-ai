@@ -102,6 +102,7 @@ export function useBuilderChat(options: UseBuilderChatOptions): UseBuilderChatRe
         const decoder = new TextDecoder();
         let assistantContent = '';
         let buffer = '';
+        let currentEventType = '';
 
         while (true) {
           const { done, value } = await reader.read();
@@ -113,7 +114,7 @@ export function useBuilderChat(options: UseBuilderChatOptions): UseBuilderChatRe
 
           for (const line of lines) {
             if (line.startsWith('event: ')) {
-              const eventType = line.slice(7);
+              currentEventType = line.slice(7).trim();
               continue;
             }
 
@@ -121,8 +122,8 @@ export function useBuilderChat(options: UseBuilderChatOptions): UseBuilderChatRe
               try {
                 const data = JSON.parse(line.slice(6));
 
-                if (data.content !== undefined) {
-                  // Text chunk
+                if (currentEventType === 'text' && data.content !== undefined) {
+                  // Text chunk - accumulate for display
                   assistantContent += data.content;
                   setMessages((prev) => {
                     const newMessages = [...prev];
@@ -134,15 +135,26 @@ export function useBuilderChat(options: UseBuilderChatOptions): UseBuilderChatRe
                     }
                     return newMessages;
                   });
-                }
-
-                if (data.section !== undefined) {
-                  // Document update
+                } else if (currentEventType === 'document_update' && data.section !== undefined) {
+                  // Document update - update sections
                   setDocumentSections((prev) => ({
                     ...prev,
                     [data.section]: data.content,
                   }));
                   onDocumentUpdate?.(data.section, data.content);
+                } else if (currentEventType === 'clean_text' && data.content !== undefined) {
+                  // Clean text replaces the accumulated content (without tags)
+                  assistantContent = data.content;
+                  setMessages((prev) => {
+                    const newMessages = [...prev];
+                    const lastMessage = newMessages[newMessages.length - 1];
+                    if (lastMessage?.role === 'assistant') {
+                      lastMessage.content = assistantContent;
+                    }
+                    return newMessages;
+                  });
+                } else if (currentEventType === 'error' && data.message) {
+                  setError(data.message);
                 }
               } catch {
                 // Ignore parse errors for partial chunks
