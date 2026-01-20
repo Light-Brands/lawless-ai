@@ -1,8 +1,8 @@
 'use client';
 
 interface Table {
-  name: string;
-  schema: string;
+  table_name: string;
+  table_schema: string;
 }
 
 interface TableTreeProps {
@@ -43,13 +43,13 @@ export default function TableTree({ tables, selectedTable, loading, onSelectTabl
     <div className="table-tree">
       <ul className="table-tree-list">
         {tables.map((table) => (
-          <li key={table.name}>
+          <li key={table.table_name}>
             <button
-              className={`table-tree-item ${selectedTable?.name === table.name ? 'selected' : ''}`}
+              className={`table-tree-item ${selectedTable?.table_name === table.table_name ? 'selected' : ''}`}
               onClick={() => onSelectTable(table)}
             >
               <TableIcon />
-              <span className="table-tree-item-name">{table.name}</span>
+              <span className="table-tree-item-name">{table.table_name}</span>
             </button>
           </li>
         ))}

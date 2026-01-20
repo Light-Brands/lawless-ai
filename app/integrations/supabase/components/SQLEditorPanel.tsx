@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 
 interface SQLEditorPanelProps {
   projectRef: string;
-  tables: { name: string; schema: string }[];
+  tables: { table_name: string; table_schema: string }[];
 }
 
 interface QueryHistoryItem {
@@ -345,13 +345,13 @@ export default function SQLEditorPanel({ projectRef, tables }: SQLEditorPanelPro
             <div className="sql-tables-list">
               {tables.map(table => (
                 <button
-                  key={table.name}
+                  key={table.table_name}
                   className="sql-table-item"
-                  onClick={() => insertTableName(table.name)}
-                  title={`Insert "${table.name}"`}
+                  onClick={() => insertTableName(table.table_name)}
+                  title={`Insert "${table.table_name}"`}
                 >
                   <TableIcon />
-                  <span>{table.name}</span>
+                  <span>{table.table_name}</span>
                 </button>
               ))}
             </div>

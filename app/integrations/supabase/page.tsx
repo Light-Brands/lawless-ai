@@ -25,8 +25,8 @@ interface Project {
 }
 
 interface Table {
-  name: string;
-  schema: string;
+  table_name: string;
+  table_schema: string;
 }
 
 interface Column {
@@ -220,7 +220,7 @@ function SupabasePageContent() {
 
   const handleSelectTable = useCallback(async (table: Table) => {
     setSelectedTable(table);
-    await loadTableData(table.name);
+    await loadTableData(table.table_name);
   }, [selectedProject]);
 
   const handleInsertRow = useCallback(async (row: Record<string, any>) => {
@@ -228,7 +228,7 @@ function SupabasePageContent() {
 
     try {
       const res = await fetch(
-        `/api/integrations/supabase/projects/${selectedProject.ref}/tables/${selectedTable.name}/rows`,
+        `/api/integrations/supabase/projects/${selectedProject.ref}/tables/${selectedTable.table_name}/rows`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -243,7 +243,7 @@ function SupabasePageContent() {
       }
 
       setShowRowEditor(false);
-      await loadTableData(selectedTable.name);
+      await loadTableData(selectedTable.table_name);
     } catch (err) {
       throw err;
     }
@@ -254,7 +254,7 @@ function SupabasePageContent() {
 
     try {
       const res = await fetch(
-        `/api/integrations/supabase/projects/${selectedProject.ref}/tables/${selectedTable.name}/rows`,
+        `/api/integrations/supabase/projects/${selectedProject.ref}/tables/${selectedTable.table_name}/rows`,
         {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
@@ -270,7 +270,7 @@ function SupabasePageContent() {
 
       setShowRowEditor(false);
       setEditingRow(null);
-      await loadTableData(selectedTable.name);
+      await loadTableData(selectedTable.table_name);
     } catch (err) {
       throw err;
     }
@@ -283,7 +283,7 @@ function SupabasePageContent() {
 
     try {
       const res = await fetch(
-        `/api/integrations/supabase/projects/${selectedProject.ref}/tables/${selectedTable.name}/rows`,
+        `/api/integrations/supabase/projects/${selectedProject.ref}/tables/${selectedTable.table_name}/rows`,
         {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },
@@ -298,7 +298,7 @@ function SupabasePageContent() {
         return;
       }
 
-      await loadTableData(selectedTable.name);
+      await loadTableData(selectedTable.table_name);
     } catch (err) {
       alert('Failed to delete row');
     }
@@ -311,7 +311,7 @@ function SupabasePageContent() {
 
   const handleRefresh = useCallback(async () => {
     if (selectedTable) {
-      await loadTableData(selectedTable.name);
+      await loadTableData(selectedTable.table_name);
     }
   }, [selectedTable, selectedProject]);
 
@@ -320,7 +320,7 @@ function SupabasePageContent() {
 
     try {
       // Build the ALTER TABLE ADD COLUMN SQL statement
-      let sql = `ALTER TABLE "${selectedTable.schema}"."${selectedTable.name}" ADD COLUMN "${column.name}" ${column.type}`;
+      let sql = `ALTER TABLE "${selectedTable.table_schema}"."${selectedTable.table_name}" ADD COLUMN "${column.name}" ${column.type}`;
 
       if (!column.nullable) {
         sql += ' NOT NULL';
@@ -348,7 +348,7 @@ function SupabasePageContent() {
 
       setShowAddColumnModal(false);
       // Reload table data to show new column
-      await loadTableData(selectedTable.name);
+      await loadTableData(selectedTable.table_name);
       // Also reload tables list to update column info
       await loadTables(selectedProject.ref);
     } catch (err) {
@@ -454,7 +454,7 @@ function SupabasePageContent() {
               <>
                 <span className="supabase-project-name">{selectedProject.name}</span>
                 {selectedTable && (
-                  <span className="supabase-table-name">/ {selectedTable.name}</span>
+                  <span className="supabase-table-name">/ {selectedTable.table_name}</span>
                 )}
               </>
             )}
@@ -554,7 +554,7 @@ function SupabasePageContent() {
                   setShowRowEditor(true);
                 }}
                 onAddColumn={() => setShowAddColumnModal(true)}
-                onPageChange={(offset) => loadTableData(selectedTable?.name || '', offset)}
+                onPageChange={(offset) => loadTableData(selectedTable?.table_name || '', offset)}
               />
             </div>
           </div>
@@ -608,7 +608,7 @@ function SupabasePageContent() {
       {selectedTable && (
         <AddColumnModal
           isOpen={showAddColumnModal}
-          tableName={selectedTable.name}
+          tableName={selectedTable.table_name}
           onClose={() => setShowAddColumnModal(false)}
           onAdd={handleAddColumn}
         />

@@ -20,8 +20,8 @@ interface TableData {
 }
 
 interface Table {
-  name: string;
-  schema: string;
+  table_name: string;
+  table_schema: string;
 }
 
 interface TableBrowserProps {
@@ -119,7 +119,7 @@ export default function TableBrowser({
   if (!tableData || !tableData.rows.length) {
     return (
       <div className="table-browser-empty">
-        <span>No data in {selectedTable.name}</span>
+        <span>No data in {selectedTable.table_name}</span>
         <button onClick={onAddRow} className="table-browser-add-btn">
           <PlusIcon />
           <span>Add Row</span>
