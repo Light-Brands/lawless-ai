@@ -3085,7 +3085,8 @@ app.post('/api/terminal/tabs', authenticateApiKey, async (req: Request, res: Res
   // Create unique worktree for this tab
   const worktreeName = `ws_${sessionId}_tab_${tabId}`;
   const worktreePath = path.join(mainRepoPath, 'worktrees', worktreeName);
-  const targetBranch = branchName || `workspace/${sessionId}/${tabId}`;
+  // Use flat naming (underscores) to avoid Git ref conflicts with hierarchical branch names
+  const targetBranch = branchName || `ws_${sessionId}_${tabId}`;
 
   try {
     // Ensure worktrees directory exists
@@ -3183,8 +3184,8 @@ app.delete('/api/terminal/tabs/:sessionId/:tabId', authenticateApiKey, async (re
       // Remove worktree (git worktree remove)
       execSync(`cd "${mainRepoPath}" && git worktree remove "${tab.worktree_path}" --force 2>/dev/null`);
 
-      // Optionally delete the branch if it was auto-created
-      if (tab.branch_name?.startsWith('workspace/')) {
+      // Optionally delete the branch if it was auto-created (ws_ prefix)
+      if (tab.branch_name?.startsWith('ws_')) {
         execSync(`cd "${mainRepoPath}" && git branch -D "${tab.branch_name}" 2>/dev/null`);
       }
     } catch (e) {
