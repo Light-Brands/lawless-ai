@@ -1608,7 +1608,13 @@ app.post('/api/builder/analyze-website', authenticateApiKey, async (req: Request
       signal: AbortSignal.timeout(60000), // 60s timeout for scraping
     });
 
-    const scrapeData = await scrapeResponse.json();
+    const scrapeData = await scrapeResponse.json() as {
+      success: boolean;
+      content?: string;
+      metadata?: Record<string, string>;
+      colors?: string[];
+      error?: string;
+    };
 
     if (!scrapeResponse.ok || !scrapeData.success) {
       throw new Error(scrapeData.error || `Scraping failed: ${scrapeResponse.status}`);
