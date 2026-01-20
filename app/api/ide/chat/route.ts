@@ -35,7 +35,7 @@ function simplifyMessages(messages: ChatMessage[]): StoredMessage[] {
     const toolNames = toolBlocks.map((c) => (c as { tool: string }).tool);
 
     return {
-      id: msg.id,
+      id: msg.id || crypto.randomUUID(),
       role: msg.role,
       content: textContent,
       timestamp: msg.timestamp.toISOString(),
