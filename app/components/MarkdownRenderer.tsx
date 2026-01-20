@@ -88,7 +88,10 @@ export function MarkdownRenderer({ content, className = '', onDiagramClick }: Ma
     return marked.parse(content, { async: false }) as string;
   }, [content]);
 
-  // Render mermaid diagrams after mount
+  // Track pending render to avoid duplicate calls
+  const renderingRef = useRef(false);
+
+  // Render mermaid diagrams after mount and on content changes
   useEffect(() => {
     if (!containerRef.current) return;
 
@@ -96,68 +99,72 @@ export function MarkdownRenderer({ content, className = '', onDiagramClick }: Ma
     initMermaid();
 
     const renderDiagrams = async () => {
-      // Query for placeholders INSIDE the timeout to get current DOM elements
       const container = containerRef.current;
-      if (!container) {
-        console.log('[Mermaid] Container gone during render');
-        return;
-      }
+      if (!container) return;
 
+      // Find only unprocessed placeholders
       const placeholders = container.querySelectorAll('.mermaid-placeholder');
-      console.log('[Mermaid] Found placeholders to render:', placeholders.length);
-
       if (placeholders.length === 0) return;
 
-      for (const placeholder of Array.from(placeholders)) {
-        const id = placeholder.getAttribute('data-mermaid-id');
-        const code = decodeURIComponent(placeholder.getAttribute('data-mermaid-code') || '');
+      // Prevent concurrent render calls
+      if (renderingRef.current) return;
+      renderingRef.current = true;
 
-        if (!id || !code) continue;
-        if (!placeholder.parentNode) continue;
+      try {
+        for (const placeholder of Array.from(placeholders)) {
+          const id = placeholder.getAttribute('data-mermaid-id');
+          const code = decodeURIComponent(placeholder.getAttribute('data-mermaid-code') || '');
 
-        try {
-          let svg: string;
-
-          if (mermaidCache.has(id)) {
-            svg = mermaidCache.get(id)!;
-          } else {
-            console.log('[Mermaid] Rendering:', id);
-            const result = await mermaid.render(id, code);
-            svg = result.svg;
-            mermaidCache.set(id, svg);
-          }
-
+          if (!id || !code) continue;
           if (!placeholder.parentNode) continue;
 
-          const wrapper = document.createElement('div');
-          wrapper.className = 'mermaid-diagram';
-          wrapper.innerHTML = svg;
-          wrapper.title = 'Click to zoom';
-          wrapper.style.cursor = 'pointer';
-          wrapper.onclick = () => {
-            if (onDiagramClick) {
-              onDiagramClick(svg);
+          try {
+            let svg: string;
+
+            if (mermaidCache.has(id)) {
+              svg = mermaidCache.get(id)!;
             } else {
-              setZoomDiagram(svg);
+              const result = await mermaid.render(id, code);
+              svg = result.svg;
+              mermaidCache.set(id, svg);
             }
-          };
 
-          placeholder.replaceWith(wrapper);
-        } catch (error) {
-          console.error('[Mermaid] Render error:', error);
-          if (!placeholder.parentNode) continue;
+            if (!placeholder.parentNode) continue;
 
-          const errorDiv = document.createElement('div');
-          errorDiv.className = 'mermaid-error';
-          errorDiv.textContent = `Diagram error: ${error instanceof Error ? error.message : 'Failed to render'}`;
-          placeholder.replaceWith(errorDiv);
+            const wrapper = document.createElement('div');
+            wrapper.className = 'mermaid-diagram';
+            wrapper.innerHTML = svg;
+            wrapper.title = 'Click to zoom';
+            wrapper.style.cursor = 'pointer';
+            wrapper.onclick = () => {
+              if (onDiagramClick) {
+                onDiagramClick(svg);
+              } else {
+                setZoomDiagram(svg);
+              }
+            };
+
+            placeholder.replaceWith(wrapper);
+          } catch (error) {
+            console.error('[Mermaid] Render error:', error);
+            if (!placeholder.parentNode) continue;
+
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'mermaid-error';
+            errorDiv.textContent = `Diagram error: ${error instanceof Error ? error.message : 'Failed to render'}`;
+            placeholder.replaceWith(errorDiv);
+          }
         }
+      } finally {
+        renderingRef.current = false;
       }
     };
 
-    // Small delay to ensure DOM is stable after React's strict mode double-render
-    const timeoutId = setTimeout(renderDiagrams, 150);
-    return () => clearTimeout(timeoutId);
+    // Use requestAnimationFrame + small delay for stability
+    // Don't cancel on cleanup - let renders complete even if content updates
+    requestAnimationFrame(() => {
+      setTimeout(renderDiagrams, 50);
+    });
   }, [html, onDiagramClick]);
 
   return (
