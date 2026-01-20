@@ -111,22 +111,38 @@ export async function listSupabaseWorkspaceSessions(
 ): Promise<WorkspaceSessionRow[]> {
   const supabase = getSupabaseClient();
   if (!supabase) {
+    console.log('[WorkspaceSessionService] Supabase not available');
     return [];
   }
 
   try {
+    // Normalize inputs
+    const normalizedRepo = repoFullName.trim();
+    const normalizedUserId = userId?.trim();
+
+    console.log(`[WorkspaceSessionService] Listing sessions for repo="${normalizedRepo}" user="${normalizedUserId}"`);
+
     let query = supabase
       .from('workspace_sessions')
       .select('*')
-      .eq('repo_full_name', repoFullName)
+      .eq('repo_full_name', normalizedRepo)
       .order('last_accessed_at', { ascending: false });
 
     // If userId is provided, filter by user
-    if (userId) {
-      query = query.eq('user_id', userId);
+    if (normalizedUserId) {
+      query = query.eq('user_id', normalizedUserId);
     }
 
     const { data, error } = await query;
+
+    console.log(`[WorkspaceSessionService] Query returned ${data?.length || 0} sessions, error: ${error?.message || 'none'}`);
+
+    // Log session details for debugging
+    if (data && data.length > 0) {
+      data.forEach((s: any) => {
+        console.log(`[WorkspaceSessionService]   - ${s.session_id}: repo="${s.repo_full_name}" user="${s.user_id}" name="${s.name}"`);
+      });
+    }
 
     if (error) {
       console.error('[WorkspaceSessionService] Error listing sessions:', error);
