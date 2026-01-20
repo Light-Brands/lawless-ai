@@ -86,8 +86,8 @@ export async function GET(
           const tables = Object.keys(swagger.definitions || {})
             .filter(name => !name.startsWith('_'))
             .map(name => ({
-              name,
-              schema: 'public',
+              table_name: name,
+              table_schema: 'public',
             }));
 
           return NextResponse.json({ tables });
@@ -105,8 +105,8 @@ export async function GET(
     const tables = Object.keys(swagger.definitions || {})
       .filter(name => !name.startsWith('_'))
       .map(name => ({
-        name,
-        schema: 'public',
+        table_name: name,
+        table_schema: 'public',
       }));
 
     return NextResponse.json({ tables });

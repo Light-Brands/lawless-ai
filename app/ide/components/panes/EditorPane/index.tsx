@@ -121,9 +121,11 @@ export function EditorPane() {
         throw new Error('Failed to fetch file');
       }
       const data = await response.json();
-      if (data.content) {
+      // API returns { type: 'file', file: { content } } structure
+      const base64Content = data.file?.content || data.content;
+      if (base64Content) {
         // GitHub returns base64 encoded content
-        const content = atob(data.content);
+        const content = atob(base64Content);
         setFileContents(prev => ({ ...prev, [path]: content }));
         setOriginalContents(prev => ({ ...prev, [path]: content }));
       }
