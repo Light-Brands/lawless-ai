@@ -24,7 +24,7 @@ import { QuickCommands } from '../../QuickCommands';
 
 export function ChatPane() {
   const { repoFullName, sessionId } = useIDEContext();
-  const { chatMode, setChatMode, activeSession } = useIDEStore();
+  const { activeSession } = useIDEStore();
 
   const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -75,7 +75,7 @@ export function ChatPane() {
     clearMessages,
   } = useWorkspaceChat({
     repoFullName: repoFullName || '',
-    sessionId: chatMode === 'workspace' ? sessionId : null,
+    sessionId: sessionId || null,
     persistMessages: true,
     onMessageStart: () => {
       ideEvents.emit('chat:message', { type: 'start' });
@@ -180,22 +180,9 @@ export function ChatPane() {
 
   return (
     <div className="chat-pane">
-      {/* Mode tabs with dictionary button */}
+      {/* Header with title and dictionary button */}
       <div className="chat-header">
-        <div className="chat-mode-tabs">
-          <button
-            className={`chat-mode-tab ${chatMode === 'workspace' ? 'active' : ''}`}
-            onClick={() => setChatMode('workspace')}
-          >
-            Workspace
-          </button>
-          <button
-            className={`chat-mode-tab ${chatMode === 'terminal' ? 'active' : ''}`}
-            onClick={() => setChatMode('terminal')}
-          >
-            Terminal
-          </button>
-        </div>
+        <h3 className="chat-title">AI Chat</h3>
         <button
           className="dictionary-btn"
           onClick={() => setShowDictionary(true)}
@@ -298,11 +285,7 @@ export function ChatPane() {
           <div className="chat-empty-state">
             <div className="empty-icon"><ChatIcon size={32} /></div>
             <h3>Start a conversation</h3>
-            <p>
-              {chatMode === 'workspace'
-                ? 'Workspace mode - Claude has full context of your project and can make changes'
-                : 'Terminal mode - execute commands directly'}
-            </p>
+            <p>Claude has full context of your project and can make changes</p>
             <div className="empty-tips">
               <span>Type <code>/</code> for commands</span>
               <span>Type <code>@</code> for agents</span>
@@ -368,11 +351,7 @@ export function ChatPane() {
             value={input}
             onChange={handleInputChange}
             onKeyDown={handleKeyDown}
-            placeholder={
-              chatMode === 'workspace'
-                ? 'Ask Claude anything... (/ for commands, @ for agents)'
-                : 'Enter terminal command...'
-            }
+            placeholder="Ask Claude anything... (/ for commands, @ for agents)"
             disabled={isLoading}
             className="chat-input"
           />
@@ -426,31 +405,10 @@ export function ChatPane() {
           flex-shrink: 0;
         }
 
-        .chat-mode-tabs {
-          display: flex;
-          gap: 0.25rem;
-          background: var(--bg-secondary, #141417);
-          padding: 2px;
-          border-radius: 6px;
-        }
-
-        .chat-mode-tab {
-          padding: 0.375rem 0.75rem;
-          background: transparent;
-          border: none;
-          border-radius: 4px;
-          color: var(--text-secondary, #888);
-          font-size: 0.8rem;
-          cursor: pointer;
-          transition: all 0.15s;
-        }
-
-        .chat-mode-tab:hover {
-          color: var(--text-primary, #fff);
-        }
-
-        .chat-mode-tab.active {
-          background: var(--bg-tertiary, #1a1a1f);
+        .chat-title {
+          margin: 0;
+          font-size: 0.875rem;
+          font-weight: 600;
           color: var(--text-primary, #fff);
         }
 
