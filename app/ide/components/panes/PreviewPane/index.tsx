@@ -135,10 +135,11 @@ export function PreviewPane() {
     setConsoleLogs([]);
   }, []);
 
-  // Get deployed URL
+  // Get deployed URL - use proxy to bypass X-Frame-Options
   const getDeployedUrl = useCallback(() => {
     if (latestDeployment?.url) {
-      return `https://${latestDeployment.url}`;
+      // Proxy through our API to strip X-Frame-Options header
+      return `/api/preview/vercel?url=${encodeURIComponent(latestDeployment.url)}`;
     }
     return null;
   }, [latestDeployment]);
