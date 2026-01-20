@@ -1493,7 +1493,7 @@ Section names: brand_overview, mission_statement, voice_and_tone, visual_identit
 
 Start by greeting the user and asking what their brand stands for.`;
 
-// Website analysis endpoint
+// Website analysis endpoint - uses Supabase edge function with Firecrawl for JS-rendered sites
 app.post('/api/builder/analyze-website', authenticateApiKey, async (req: Request, res: Response) => {
   const { url } = req.body;
 
@@ -1515,39 +1515,41 @@ app.post('/api/builder/analyze-website', authenticateApiKey, async (req: Request
   }
 
   try {
-    // Fetch the website content
-    const response = await fetch(parsedUrl.toString(), {
+    // Call Supabase edge function to scrape the website (handles JS rendering)
+    const supabaseUrl = process.env.SUPABASE_URL || 'https://jnxfynvgkguaghhorsov.supabase.co';
+    const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || '';
+
+    const scrapeResponse = await fetch(`${supabaseUrl}/functions/v1/scrape-url`, {
+      method: 'POST',
       headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; LawlessAI/1.0; +https://lawless.ai)',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${supabaseAnonKey}`,
       },
-      signal: AbortSignal.timeout(15000),
+      body: JSON.stringify({ url: parsedUrl.toString() }),
+      signal: AbortSignal.timeout(60000), // 60s timeout for scraping
     });
 
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
+    const scrapeData = await scrapeResponse.json();
+
+    if (!scrapeResponse.ok || !scrapeData.success) {
+      throw new Error(scrapeData.error || `Scraping failed: ${scrapeResponse.status}`);
     }
 
-    const htmlContent = await response.text();
+    const { content, metadata, colors } = scrapeData;
 
-    // Extract text content and metadata from HTML
-    const textContent = extractTextFromHtml(htmlContent);
-    const metadata = extractMetadataFromHtml(htmlContent);
-    const colors = extractColorsFromHtml(htmlContent);
-
-    // Build prompt for Claude
+    // Build prompt for Claude with the scraped content
     const analysisPrompt = `Analyze this website content and extract brand/project information.
 
 Website URL: ${url}
-${metadata.title ? `Page Title: ${metadata.title}` : ''}
-${metadata.description ? `Meta Description: ${metadata.description}` : ''}
-${metadata.ogTitle ? `OG Title: ${metadata.ogTitle}` : ''}
-${metadata.ogDescription ? `OG Description: ${metadata.ogDescription}` : ''}
+${metadata?.title ? `Page Title: ${metadata.title}` : ''}
+${metadata?.description ? `Meta Description: ${metadata.description}` : ''}
+${metadata?.ogTitle ? `OG Title: ${metadata.ogTitle}` : ''}
+${metadata?.ogDescription ? `OG Description: ${metadata.ogDescription}` : ''}
 
-Extracted Colors: ${colors.length > 0 ? colors.join(', ') : 'None found'}
+Extracted Colors: ${colors?.length > 0 ? colors.join(', ') : 'None found'}
 
-Page Content:
-${textContent.slice(0, 8000)}
+Page Content (Markdown):
+${content?.slice(0, 12000) || 'No content extracted'}
 
 Based on this content, provide a JSON analysis with these fields:
 - summary: A 2-3 sentence overview of what this brand/company does
@@ -1607,15 +1609,15 @@ Respond with ONLY valid JSON, no markdown or explanation.`;
         analysis = { summary: responseContent.slice(0, 500) };
       }
 
-      // Add extracted colors
-      if (colors.length > 0) {
+      // Add extracted colors from scraping
+      if (colors?.length > 0) {
         analysis.brandColors = colors.slice(0, 6);
       }
 
       res.json({
         success: true,
         analysis,
-        metadata,
+        metadata: metadata || {},
       });
     });
 
@@ -1625,9 +1627,9 @@ Respond with ONLY valid JSON, no markdown or explanation.`;
     });
 
   } catch (error) {
-    console.error('Website fetch error:', error);
+    console.error('Website analysis error:', error);
     res.status(400).json({
-      error: `Failed to fetch website: ${error instanceof Error ? error.message : 'Unknown error'}`
+      error: `Failed to analyze website: ${error instanceof Error ? error.message : 'Unknown error'}`
     });
   }
 });
