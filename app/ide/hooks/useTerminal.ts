@@ -421,12 +421,14 @@ export function useTerminal(options: UseTerminalOptions = {}): UseTerminalReturn
         const FitAddon = fitModule.FitAddon;
         const WebLinksAddon = webLinksModule.WebLinksAddon;
 
-        // Create terminal
+        // Create terminal with fixed dimensions and scrollback
         const term = new Terminal({
           cursorBlink: true,
           cursorStyle: 'block',
           fontSize: 14,
           fontFamily: '"JetBrains Mono", "Fira Code", "SF Mono", Menlo, Monaco, monospace',
+          scrollback: 10000, // Keep 10k lines of scrollback
+          convertEol: true,
           theme: {
             background: '#0d1117',
             foreground: '#c9d1d9',

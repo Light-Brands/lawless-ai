@@ -399,6 +399,7 @@ export function TerminalPane() {
           position: relative;
           overflow: hidden;
           min-height: 0;
+          max-height: 100%;
         }
 
         .terminal-loading {
@@ -430,12 +431,15 @@ export function TerminalPane() {
         }
 
         .terminal-wrapper {
-          height: 100%;
+          position: absolute;
+          inset: 0;
           padding: 0.5rem;
+          overflow: hidden;
         }
 
         .terminal-wrapper :global(.xterm) {
           height: 100% !important;
+          overflow: hidden;
         }
 
         .terminal-wrapper :global(.xterm-screen) {
@@ -444,6 +448,25 @@ export function TerminalPane() {
 
         .terminal-wrapper :global(.xterm-viewport) {
           overflow-y: auto !important;
+          scrollbar-width: thin;
+          scrollbar-color: #30363d transparent;
+        }
+
+        .terminal-wrapper :global(.xterm-viewport::-webkit-scrollbar) {
+          width: 8px;
+        }
+
+        .terminal-wrapper :global(.xterm-viewport::-webkit-scrollbar-track) {
+          background: transparent;
+        }
+
+        .terminal-wrapper :global(.xterm-viewport::-webkit-scrollbar-thumb) {
+          background: #30363d;
+          border-radius: 4px;
+        }
+
+        .terminal-wrapper :global(.xterm-viewport::-webkit-scrollbar-thumb:hover) {
+          background: #484f58;
         }
 
         .terminal-mobile-toolbar {
