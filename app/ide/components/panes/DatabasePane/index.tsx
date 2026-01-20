@@ -1080,8 +1080,16 @@ function MigrationItem({
   // Determine if we should show result feedback
   const showResult = runResult && (Date.now() - runResult.timestamp < 30000); // Show for 30 seconds
 
+  // Determine result styling - alreadyApplied should show as success, not error
+  const getResultClass = () => {
+    if (!showResult) return '';
+    if (runResult.success) return 'result-success';
+    if (runResult.alreadyApplied) return 'result-success'; // Treat already-applied as success styling
+    return 'result-error';
+  };
+
   return (
-    <div className={`migration-item ${isApplied ? 'applied' : 'pending'} ${showResult ? (runResult.success ? 'result-success' : 'result-error') : ''}`}>
+    <div className={`migration-item ${isApplied ? 'applied' : 'pending'} ${getResultClass()}`}>
       <div className="migration-status">
         {isRunning ? (
           <span className="status-icon running">
@@ -1109,22 +1117,13 @@ function MigrationItem({
 
         {/* Inline result feedback */}
         {showResult && (
-          <div className={`migration-result ${runResult.success ? 'success' : 'error'}`}>
-            <span className="result-icon">{runResult.success ? '✓' : '✕'}</span>
+          <div className={`migration-result ${runResult.success || runResult.alreadyApplied ? 'success' : 'error'}`}>
+            <span className="result-icon">{runResult.success || runResult.alreadyApplied ? '✓' : '✕'}</span>
             <span className="result-message">{runResult.message}</span>
-            {runResult.error && !runResult.success && (
+            {runResult.error && !runResult.success && !runResult.alreadyApplied && (
               <span className="result-error">{runResult.error}</span>
             )}
             <button className="result-dismiss" onClick={onDismissResult} title="Dismiss">×</button>
-            {runResult.alreadyApplied && !isApplied && (
-              <button
-                className="mark-applied-btn"
-                onClick={() => onMarkApplied(migration)}
-                title="Mark this migration as applied in the database"
-              >
-                Mark as Applied
-              </button>
-            )}
           </div>
         )}
       </div>

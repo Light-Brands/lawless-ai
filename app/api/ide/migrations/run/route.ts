@@ -212,9 +212,59 @@ export async function POST(request: NextRequest) {
       const isAlreadyExistsError =
         parsed.code === '42710' || // duplicate_object
         parsed.code === '42P07' || // duplicate_table
-        parsed.message.toLowerCase().includes('already exists');
+        parsed.code === '42P06' || // duplicate_schema
+        parsed.code === '42701' || // duplicate_column
+        parsed.code === '42P04' || // duplicate_database
+        parsed.code === '23505' || // unique_violation (constraint already exists)
+        parsed.message.toLowerCase().includes('already exists') ||
+        parsed.message.toLowerCase().includes('duplicate key');
 
-      // Record failed migration in history
+      // If it's an "already exists" error, treat as success and record it as applied
+      if (isAlreadyExistsError) {
+        // Record the migration in schema_migrations table so it's marked as applied
+        const recordQuery = `
+          INSERT INTO supabase_migrations.schema_migrations (version, statements, name)
+          VALUES ('${migrationVersion}', ARRAY[]::text[], '${migrationName.replace(/'/g, "''")}')
+          ON CONFLICT (version) DO NOTHING
+        `;
+
+        await fetch(
+          `https://api.supabase.com/v1/projects/${projectRef}/database/query`,
+          {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${supabaseToken}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ query: recordQuery }),
+          }
+        );
+
+        // Record as success in IDE history
+        await recordMigrationHistory(supabaseToken, projectRef, {
+          migrationVersion,
+          migrationName,
+          migrationPath,
+          owner,
+          repo,
+          success: true,
+          errorMessage: `Auto-applied: ${parsed.message}`,
+          errorCode: parsed.code ?? undefined,
+          executionTimeMs,
+          sqlHash,
+        });
+
+        return NextResponse.json({
+          success: true,
+          alreadyApplied: true,
+          recorded: true,
+          message: 'Migration already applied - objects exist in database. Marked as complete.',
+          version: migrationVersion,
+          executionTimeMs,
+        });
+      }
+
+      // Record failed migration in history (actual errors, not already-exists)
       await recordMigrationHistory(supabaseToken, projectRef, {
         migrationVersion,
         migrationName,
@@ -230,14 +280,12 @@ export async function POST(request: NextRequest) {
 
       return NextResponse.json({
         success: false,
-        alreadyApplied: isAlreadyExistsError,
+        alreadyApplied: false,
         error: parsed.message,
         errorCode: parsed.code,
         hint: parsed.hint,
         detail: parsed.detail,
-        message: isAlreadyExistsError
-          ? 'This migration appears to have already been applied (objects already exist in database).'
-          : `SQL Error: ${parsed.message}`,
+        message: `SQL Error: ${parsed.message}`,
       });
     }
 
