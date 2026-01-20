@@ -4,21 +4,26 @@
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- Users table (extends Supabase auth.users)
+-- Users table (GitHub username as primary key)
+-- Note: id is TEXT (GitHub username), not UUID, to simplify application code
 CREATE TABLE IF NOT EXISTS public.users (
-  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  id TEXT PRIMARY KEY,
   github_username TEXT UNIQUE,
   github_id TEXT UNIQUE,
   avatar_url TEXT,
   display_name TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  last_conversation_id UUID,
+  last_root_conversation_id UUID,
+  preferences JSONB DEFAULT '{}'
 );
 
 -- Integration connections (GitHub, Vercel tokens)
+-- Note: user_id stores GitHub username (TEXT), not UUID, to match application code
 CREATE TABLE IF NOT EXISTS public.integration_connections (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL,
   provider TEXT NOT NULL, -- 'github', 'vercel', 'supabase_pat'
   access_token TEXT, -- encrypted
   refresh_token TEXT,
@@ -30,9 +35,10 @@ CREATE TABLE IF NOT EXISTS public.integration_connections (
 );
 
 -- User repos (cached repo data and preferences)
+-- Note: user_id stores GitHub username (TEXT), not UUID, to match application code
 CREATE TABLE IF NOT EXISTS public.user_repos (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL,
   repo_id BIGINT NOT NULL, -- GitHub repo ID
   repo_full_name TEXT NOT NULL,
   repo_name TEXT NOT NULL,
@@ -50,9 +56,10 @@ CREATE TABLE IF NOT EXISTS public.user_repos (
 );
 
 -- Repo integrations (Vercel/Supabase project mappings)
+-- Note: user_id stores GitHub username (TEXT), not UUID, to match application code
 CREATE TABLE IF NOT EXISTS public.repo_integrations (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL,
   repo_full_name TEXT NOT NULL,
   vercel_project_id TEXT,
   supabase_project_ref TEXT,
@@ -94,9 +101,10 @@ CREATE TABLE IF NOT EXISTS public.conversations (
 );
 
 -- Terminal sessions
+-- Note: user_id stores GitHub username (TEXT), not UUID, to match application code
 CREATE TABLE IF NOT EXISTS public.terminal_sessions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL,
   session_id TEXT NOT NULL,
   repo_full_name TEXT NOT NULL,
   name TEXT NOT NULL,
@@ -118,9 +126,10 @@ CREATE TABLE IF NOT EXISTS public.terminal_outputs (
 );
 
 -- SQL query history
+-- Note: user_id stores GitHub username (TEXT), not UUID, to match application code
 CREATE TABLE IF NOT EXISTS public.sql_query_history (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL,
   project_ref TEXT NOT NULL,
   query TEXT NOT NULL,
   success BOOLEAN NOT NULL,
@@ -159,32 +168,36 @@ ALTER TABLE public.terminal_outputs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.sql_query_history ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies for users
+-- Note: auth.uid() returns UUID, users.id is TEXT, so cast is required
 CREATE POLICY "Users can view own profile"
   ON public.users FOR SELECT
-  USING (auth.uid() = id);
+  USING (auth.uid()::text = id);
 
 CREATE POLICY "Users can update own profile"
   ON public.users FOR UPDATE
-  USING (auth.uid() = id);
+  USING (auth.uid()::text = id);
 
 CREATE POLICY "Users can insert own profile"
   ON public.users FOR INSERT
-  WITH CHECK (auth.uid() = id);
+  WITH CHECK (auth.uid()::text = id);
 
 -- RLS Policies for integration_connections
+-- user_id is GitHub username (TEXT), so we look it up from users table
 CREATE POLICY "Users can manage own integrations"
   ON public.integration_connections FOR ALL
-  USING (auth.uid() = user_id);
+  USING (user_id = (SELECT github_username FROM public.users WHERE id = auth.uid()::text));
 
 -- RLS Policies for user_repos
+-- user_id is GitHub username (TEXT), so we look it up from users table
 CREATE POLICY "Users can manage own repos"
   ON public.user_repos FOR ALL
-  USING (auth.uid() = user_id);
+  USING (user_id = (SELECT github_username FROM public.users WHERE id = auth.uid()::text));
 
 -- RLS Policies for repo_integrations
+-- user_id is GitHub username (TEXT), so we look it up from users table
 CREATE POLICY "Users can manage own repo integrations"
   ON public.repo_integrations FOR ALL
-  USING (auth.uid() = user_id);
+  USING (user_id = (SELECT github_username FROM public.users WHERE id = auth.uid()::text));
 
 -- RLS Policies for workspace_sessions
 CREATE POLICY "Users can manage own workspace sessions"
@@ -197,9 +210,10 @@ CREATE POLICY "Users can manage own conversations"
   USING (auth.uid() = user_id);
 
 -- RLS Policies for terminal_sessions
+-- user_id is GitHub username (TEXT), so we look it up from users table
 CREATE POLICY "Users can manage own terminal sessions"
   ON public.terminal_sessions FOR ALL
-  USING (auth.uid() = user_id);
+  USING (user_id = (SELECT github_username FROM public.users WHERE id = auth.uid()::text));
 
 -- RLS Policies for terminal_outputs (via terminal_sessions)
 CREATE POLICY "Users can manage own terminal outputs"
@@ -207,14 +221,16 @@ CREATE POLICY "Users can manage own terminal outputs"
   USING (
     EXISTS (
       SELECT 1 FROM public.terminal_sessions
-      WHERE id = terminal_session_id AND user_id = auth.uid()
+      WHERE id = terminal_session_id
+        AND user_id = (SELECT github_username FROM public.users WHERE id = auth.uid()::text)
     )
   );
 
 -- RLS Policies for sql_query_history
+-- user_id is GitHub username (TEXT), so we look it up from users table
 CREATE POLICY "Users can manage own SQL history"
   ON public.sql_query_history FOR ALL
-  USING (auth.uid() = user_id);
+  USING (user_id = (SELECT github_username FROM public.users WHERE id = auth.uid()::text));
 
 -- Function to update updated_at timestamp
 CREATE OR REPLACE FUNCTION update_updated_at_column()

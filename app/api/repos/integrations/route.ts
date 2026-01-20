@@ -38,15 +38,15 @@ export async function GET(request: NextRequest) {
     const repo = searchParams.get('repo');
 
     if (repo) {
-      // Return specific repo's integrations
+      // Return specific repo's integrations (use maybeSingle to handle no rows gracefully)
       const { data, error } = await serviceClient
         .from('repo_integrations')
         .select('vercel_project_id, supabase_project_ref')
         .eq('user_id', githubUsername)
         .eq('repo_full_name', repo)
-        .single();
+        .maybeSingle();
 
-      if (error && error.code !== 'PGRST116') { // PGRST116 = not found
+      if (error) {
         console.error('Error fetching repo integrations:', error);
         return NextResponse.json({ error: 'Failed to fetch integrations' }, { status: 500 });
       }
@@ -120,13 +120,13 @@ export async function POST(request: NextRequest) {
 
     const serviceClient = createServiceClient();
 
-    // Get existing integration
+    // Get existing integration (use maybeSingle to handle no rows gracefully)
     const { data: existingData } = await serviceClient
       .from('repo_integrations')
       .select('vercel_project_id, supabase_project_ref')
       .eq('user_id', githubUsername)
       .eq('repo_full_name', repo)
-      .single();
+      .maybeSingle();
 
     const existing = existingData as { vercel_project_id: string | null; supabase_project_ref: string | null } | null;
 
@@ -217,13 +217,13 @@ export async function DELETE(request: NextRequest) {
 
     const serviceClient = createServiceClient();
 
-    // Get existing integration
+    // Get existing integration (use maybeSingle to handle no rows gracefully)
     const { data: existingData } = await serviceClient
       .from('repo_integrations')
       .select('vercel_project_id, supabase_project_ref')
       .eq('user_id', githubUsername)
       .eq('repo_full_name', repo)
-      .single();
+      .maybeSingle();
 
     const existing = existingData as { vercel_project_id: string | null; supabase_project_ref: string | null } | null;
 
