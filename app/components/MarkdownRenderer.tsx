@@ -1,16 +1,15 @@
 'use client';
 
-import { useMemo, useEffect, useRef, useState } from 'react';
+import { useMemo, useEffect, useState } from 'react';
 import { marked } from 'marked';
 import hljs from 'highlight.js';
 import mermaid from 'mermaid';
 
-// Initialize mermaid with dark theme (lazy initialization)
+// Initialize mermaid with dark theme
 let mermaidInitialized = false;
 function initMermaid() {
   if (mermaidInitialized || typeof window === 'undefined') return;
   mermaidInitialized = true;
-  console.log('[Mermaid] Initializing...');
   mermaid.initialize({
     startOnLoad: false,
     theme: 'dark',
@@ -28,51 +27,98 @@ function initMermaid() {
       titleColor: '#f5f5f5',
       edgeLabelBackground: '#1a1a2e',
     },
-    flowchart: {
-      htmlLabels: true,
-      curve: 'basis',
-    },
+    flowchart: { htmlLabels: true, curve: 'basis' },
     securityLevel: 'loose',
   });
-  console.log('[Mermaid] Initialized');
 }
 
-// Simple hash function for stable IDs
-function simpleHash(str: string): string {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash;
-  }
-  return Math.abs(hash).toString(36);
-}
+// Configure marked for non-mermaid code blocks
+marked.setOptions({ gfm: true, breaks: true });
 
-// Configure marked with highlight.js
-marked.setOptions({
-  gfm: true,
-  breaks: true,
-});
-
-// Custom renderer
 const renderer = new marked.Renderer();
 renderer.code = function(code: string, infostring: string | undefined): string {
   const lang = (infostring || '').toLowerCase().trim();
-
-  if (lang === 'mermaid') {
-    const id = `mermaid-${simpleHash(code)}`;
-    return `<div class="mermaid-placeholder" data-mermaid-id="${id}" data-mermaid-code="${encodeURIComponent(code)}"></div>`;
-  }
-
+  // Skip mermaid - we handle it separately
+  if (lang === 'mermaid') return '';
   const language = hljs.getLanguage(lang) ? lang : 'plaintext';
   const highlighted = hljs.highlight(code, { language }).value;
   return `<pre><code class="hljs language-${language}">${highlighted}</code></pre>`;
 };
-
 marked.use({ renderer });
 
-// Cache for rendered mermaid SVGs
-const mermaidCache = new Map<string, string>();
+// Extract mermaid blocks and split content
+function parseContent(content: string): Array<{ type: 'markdown' | 'mermaid'; content: string }> {
+  const parts: Array<{ type: 'markdown' | 'mermaid'; content: string }> = [];
+  const mermaidRegex = /```mermaid\n([\s\S]*?)```/g;
+  let lastIndex = 0;
+  let match;
+
+  while ((match = mermaidRegex.exec(content)) !== null) {
+    // Add markdown before this mermaid block
+    if (match.index > lastIndex) {
+      parts.push({ type: 'markdown', content: content.slice(lastIndex, match.index) });
+    }
+    // Add the mermaid block
+    parts.push({ type: 'mermaid', content: match[1].trim() });
+    lastIndex = match.index + match[0].length;
+  }
+
+  // Add remaining markdown
+  if (lastIndex < content.length) {
+    parts.push({ type: 'markdown', content: content.slice(lastIndex) });
+  }
+
+  return parts;
+}
+
+// Mermaid diagram component - manages its own rendering
+function MermaidDiagram({ code, onDiagramClick }: { code: string; onDiagramClick?: (svg: string) => void }) {
+  const [svg, setSvg] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    initMermaid();
+    let cancelled = false;
+
+    const render = async () => {
+      try {
+        const id = `mermaid-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        const result = await mermaid.render(id, code);
+        if (!cancelled) setSvg(result.svg);
+      } catch (err) {
+        if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to render');
+      }
+    };
+
+    render();
+    return () => { cancelled = true; };
+  }, [code]);
+
+  const [zoomOpen, setZoomOpen] = useState(false);
+
+  if (error) {
+    return <div className="mermaid-error">Diagram error: {error}</div>;
+  }
+
+  if (!svg) {
+    return <div className="mermaid-loading">Loading diagram...</div>;
+  }
+
+  return (
+    <>
+      <div
+        className="mermaid-diagram"
+        dangerouslySetInnerHTML={{ __html: svg }}
+        onClick={() => onDiagramClick ? onDiagramClick(svg) : setZoomOpen(true)}
+        title="Click to zoom"
+        style={{ cursor: 'pointer' }}
+      />
+      {zoomOpen && !onDiagramClick && (
+        <DiagramZoomModal isOpen={zoomOpen} onClose={() => setZoomOpen(false)} svgContent={svg} />
+      )}
+    </>
+  );
+}
 
 interface MarkdownRendererProps {
   content: string;
@@ -81,107 +127,18 @@ interface MarkdownRendererProps {
 }
 
 export function MarkdownRenderer({ content, className = '', onDiagramClick }: MarkdownRendererProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [zoomDiagram, setZoomDiagram] = useState<string | null>(null);
-
-  const html = useMemo(() => {
-    return marked.parse(content, { async: false }) as string;
-  }, [content]);
-
-  // Track pending render to avoid duplicate calls
-  const renderingRef = useRef(false);
-
-  // Render mermaid diagrams after mount and on content changes
-  useEffect(() => {
-    if (!containerRef.current) return;
-
-    // Initialize mermaid if needed
-    initMermaid();
-
-    const renderDiagrams = async () => {
-      const container = containerRef.current;
-      if (!container) return;
-
-      // Find only unprocessed placeholders
-      const placeholders = container.querySelectorAll('.mermaid-placeholder');
-      if (placeholders.length === 0) return;
-
-      // Prevent concurrent render calls
-      if (renderingRef.current) return;
-      renderingRef.current = true;
-
-      try {
-        for (const placeholder of Array.from(placeholders)) {
-          const id = placeholder.getAttribute('data-mermaid-id');
-          const code = decodeURIComponent(placeholder.getAttribute('data-mermaid-code') || '');
-
-          if (!id || !code) continue;
-          if (!placeholder.parentNode) continue;
-
-          try {
-            let svg: string;
-
-            if (mermaidCache.has(id)) {
-              svg = mermaidCache.get(id)!;
-            } else {
-              const result = await mermaid.render(id, code);
-              svg = result.svg;
-              mermaidCache.set(id, svg);
-            }
-
-            if (!placeholder.parentNode) continue;
-
-            const wrapper = document.createElement('div');
-            wrapper.className = 'mermaid-diagram';
-            wrapper.innerHTML = svg;
-            wrapper.title = 'Click to zoom';
-            wrapper.style.cursor = 'pointer';
-            wrapper.onclick = () => {
-              if (onDiagramClick) {
-                onDiagramClick(svg);
-              } else {
-                setZoomDiagram(svg);
-              }
-            };
-
-            placeholder.replaceWith(wrapper);
-          } catch (error) {
-            console.error('[Mermaid] Render error:', error);
-            if (!placeholder.parentNode) continue;
-
-            const errorDiv = document.createElement('div');
-            errorDiv.className = 'mermaid-error';
-            errorDiv.textContent = `Diagram error: ${error instanceof Error ? error.message : 'Failed to render'}`;
-            placeholder.replaceWith(errorDiv);
-          }
-        }
-      } finally {
-        renderingRef.current = false;
-      }
-    };
-
-    // Use requestAnimationFrame + small delay for stability
-    // Don't cancel on cleanup - let renders complete even if content updates
-    requestAnimationFrame(() => {
-      setTimeout(renderDiagrams, 50);
-    });
-  }, [html, onDiagramClick]);
+  const parts = useMemo(() => parseContent(content), [content]);
 
   return (
-    <>
-      <div
-        ref={containerRef}
-        className={`markdown-body ${className}`}
-        dangerouslySetInnerHTML={{ __html: html }}
-      />
-      {zoomDiagram && !onDiagramClick && (
-        <DiagramZoomModal
-          isOpen={!!zoomDiagram}
-          onClose={() => setZoomDiagram(null)}
-          svgContent={zoomDiagram}
-        />
-      )}
-    </>
+    <div className={`markdown-body ${className}`}>
+      {parts.map((part, i) => {
+        if (part.type === 'mermaid') {
+          return <MermaidDiagram key={i} code={part.content} onDiagramClick={onDiagramClick} />;
+        }
+        const html = marked.parse(part.content, { async: false }) as string;
+        return <div key={i} dangerouslySetInnerHTML={{ __html: html }} />;
+      })}
+    </div>
   );
 }
 
