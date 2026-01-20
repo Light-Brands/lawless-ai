@@ -1012,6 +1012,7 @@
   align-items: center;
   justify-content: center;
   backdrop-filter: blur(4px);
+  cursor: pointer;
 }
 
 .diagram-zoom-container {
@@ -1023,6 +1024,7 @@
   border: 1px solid var(--color-surface-glass-border);
   border-radius: var(--radius-lg);
   overflow: hidden;
+  cursor: default;
 }
 
 .diagram-zoom-toolbar {
@@ -1064,6 +1066,15 @@
 
 .diagram-zoom-close {
   margin-left: auto;
+  background: rgba(239, 68, 68, 0.2) !important;
+  border-color: rgba(239, 68, 68, 0.5) !important;
+  color: #ef4444 !important;
+  font-weight: 600;
+}
+
+.diagram-zoom-close:hover {
+  background: rgba(239, 68, 68, 0.4) !important;
+  border-color: #ef4444 !important;
 }
 
 .diagram-zoom-viewport {
