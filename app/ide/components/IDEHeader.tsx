@@ -171,7 +171,7 @@ export function IDEHeader({
         <div className="ide-quick-links">
           <button
             className="ide-quick-link-btn github"
-            onClick={() => window.open('https://github.com', '_blank')}
+            onClick={() => window.open('https://github.com/orgs/Light-Brands/repositories', '_blank')}
             title="GitHub"
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
@@ -180,7 +180,7 @@ export function IDEHeader({
           </button>
           <button
             className="ide-quick-link-btn vercel"
-            onClick={() => window.open('https://vercel.com/dashboard', '_blank')}
+            onClick={() => window.open('https://vercel.com/autod3vs-projects/~/deployments', '_blank')}
             title="Vercel"
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
