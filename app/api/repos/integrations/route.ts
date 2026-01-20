@@ -15,6 +15,7 @@ interface RepoIntegrations {
 interface RepoIntegrationRow {
   repo_full_name: string;
   vercel_project_id: string | null;
+  vercel_project_name: string | null;
   supabase_project_ref: string | null;
 }
 
@@ -41,7 +42,7 @@ export async function GET(request: NextRequest) {
       // Return specific repo's integrations (use maybeSingle to handle no rows gracefully)
       const { data, error } = await serviceClient
         .from('repo_integrations')
-        .select('vercel_project_id, supabase_project_ref')
+        .select('vercel_project_id, vercel_project_name, supabase_project_ref')
         .eq('user_id', githubUsername)
         .eq('repo_full_name', repo)
         .maybeSingle();
@@ -51,10 +52,10 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: 'Failed to fetch integrations' }, { status: 500 });
       }
 
-      const row = data as { vercel_project_id: string | null; supabase_project_ref: string | null } | null;
+      const row = data as { vercel_project_id: string | null; vercel_project_name: string | null; supabase_project_ref: string | null } | null;
       const integration: RepoIntegration = {};
       if (row?.vercel_project_id) {
-        integration.vercel = { projectId: row.vercel_project_id, projectName: '' };
+        integration.vercel = { projectId: row.vercel_project_id, projectName: row.vercel_project_name || '' };
       }
       if (row?.supabase_project_ref) {
         integration.supabase = { projectRef: row.supabase_project_ref, projectName: '' };
@@ -66,7 +67,7 @@ export async function GET(request: NextRequest) {
     // Return all integrations
     const { data, error } = await serviceClient
       .from('repo_integrations')
-      .select('repo_full_name, vercel_project_id, supabase_project_ref')
+      .select('repo_full_name, vercel_project_id, vercel_project_name, supabase_project_ref')
       .eq('user_id', githubUsername);
 
     if (error) {
@@ -79,7 +80,7 @@ export async function GET(request: NextRequest) {
     for (const row of rows) {
       const integration: RepoIntegration = {};
       if (row.vercel_project_id) {
-        integration.vercel = { projectId: row.vercel_project_id, projectName: '' };
+        integration.vercel = { projectId: row.vercel_project_id, projectName: row.vercel_project_name || '' };
       }
       if (row.supabase_project_ref) {
         integration.supabase = { projectRef: row.supabase_project_ref, projectName: '' };
@@ -123,12 +124,12 @@ export async function POST(request: NextRequest) {
     // Get existing integration (use maybeSingle to handle no rows gracefully)
     const { data: existingData } = await serviceClient
       .from('repo_integrations')
-      .select('vercel_project_id, supabase_project_ref')
+      .select('vercel_project_id, vercel_project_name, supabase_project_ref')
       .eq('user_id', githubUsername)
       .eq('repo_full_name', repo)
       .maybeSingle();
 
-    const existing = existingData as { vercel_project_id: string | null; supabase_project_ref: string | null } | null;
+    const existing = existingData as { vercel_project_id: string | null; vercel_project_name: string | null; supabase_project_ref: string | null } | null;
 
     // Build update object
     const updates: Record<string, unknown> = {
@@ -140,8 +141,10 @@ export async function POST(request: NextRequest) {
     // Update vercel if provided
     if (vercel !== undefined) {
       updates.vercel_project_id = vercel === null ? null : vercel.projectId;
+      updates.vercel_project_name = vercel === null ? null : vercel.projectName;
     } else if (existing?.vercel_project_id) {
       updates.vercel_project_id = existing.vercel_project_id;
+      updates.vercel_project_name = existing.vercel_project_name;
     }
 
     // Update supabase if provided
@@ -176,7 +179,7 @@ export async function POST(request: NextRequest) {
     // Build response
     const integration: RepoIntegration = {};
     if (updates.vercel_project_id) {
-      integration.vercel = { projectId: updates.vercel_project_id as string, projectName: '' };
+      integration.vercel = { projectId: updates.vercel_project_id as string, projectName: (updates.vercel_project_name as string) || '' };
     }
     if (updates.supabase_project_ref) {
       integration.supabase = { projectRef: updates.supabase_project_ref as string, projectName: '' };
@@ -220,12 +223,12 @@ export async function DELETE(request: NextRequest) {
     // Get existing integration (use maybeSingle to handle no rows gracefully)
     const { data: existingData } = await serviceClient
       .from('repo_integrations')
-      .select('vercel_project_id, supabase_project_ref')
+      .select('vercel_project_id, vercel_project_name, supabase_project_ref')
       .eq('user_id', githubUsername)
       .eq('repo_full_name', repo)
       .maybeSingle();
 
-    const existing = existingData as { vercel_project_id: string | null; supabase_project_ref: string | null } | null;
+    const existing = existingData as { vercel_project_id: string | null; vercel_project_name: string | null; supabase_project_ref: string | null } | null;
 
     if (!existing) {
       return NextResponse.json({ success: true });
@@ -237,10 +240,12 @@ export async function DELETE(request: NextRequest) {
 
     if (service === 'vercel') {
       updates.vercel_project_id = null;
+      updates.vercel_project_name = null;
       updates.supabase_project_ref = existing.supabase_project_ref;
     } else {
       updates.supabase_project_ref = null;
       updates.vercel_project_id = existing.vercel_project_id;
+      updates.vercel_project_name = existing.vercel_project_name;
     }
 
     // If both are null, delete the row
