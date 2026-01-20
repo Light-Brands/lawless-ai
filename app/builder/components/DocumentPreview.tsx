@@ -273,11 +273,16 @@ function DiagramZoomModal({
   );
 }
 
+// Counter for unique mermaid IDs across renders
+let mermaidIdCounter = 0;
+
 // Markdown rendering with marked + highlight.js + mermaid
 function MarkdownContent({ content }: { content: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [zoomDiagram, setZoomDiagram] = useState<string | null>(null);
+  const renderIdRef = useRef(0);
 
+  // Parse markdown
   const html = useMemo(() => {
     return marked.parse(content, { async: false }) as string;
   }, [content]);
@@ -286,34 +291,66 @@ function MarkdownContent({ content }: { content: string }) {
   useEffect(() => {
     if (!containerRef.current) return;
 
+    const currentRenderId = ++renderIdRef.current;
     const placeholders = containerRef.current.querySelectorAll('.mermaid-placeholder');
 
-    placeholders.forEach(async (placeholder) => {
-      const id = placeholder.getAttribute('data-mermaid-id');
-      const code = decodeURIComponent(placeholder.getAttribute('data-mermaid-code') || '');
+    if (placeholders.length === 0) return;
 
-      if (!id || !code) return;
+    // Process all placeholders
+    const renderDiagrams = async () => {
+      for (const placeholder of Array.from(placeholders)) {
+        // Check if this render is still current
+        if (renderIdRef.current !== currentRenderId) return;
 
-      try {
-        const { svg } = await mermaid.render(id, code);
+        const code = decodeURIComponent(placeholder.getAttribute('data-mermaid-code') || '');
+        if (!code) continue;
 
-        // Create wrapper with click-to-zoom
-        const wrapper = document.createElement('div');
-        wrapper.className = 'mermaid-diagram';
-        wrapper.innerHTML = svg;
-        wrapper.title = 'Click to zoom';
-        wrapper.onclick = () => setZoomDiagram(svg);
+        // Generate a unique ID for this render
+        const uniqueId = `mermaid-${Date.now()}-${++mermaidIdCounter}`;
 
-        placeholder.replaceWith(wrapper);
-      } catch (error) {
-        console.error('Mermaid render error:', error);
-        // Show error state
-        const errorDiv = document.createElement('div');
-        errorDiv.className = 'mermaid-error';
-        errorDiv.textContent = `Diagram error: ${error instanceof Error ? error.message : 'Failed to render'}`;
-        placeholder.replaceWith(errorDiv);
+        try {
+          // Create a temporary container for rendering (mermaid needs it in DOM)
+          const tempContainer = document.createElement('div');
+          tempContainer.id = uniqueId;
+          tempContainer.style.display = 'none';
+          document.body.appendChild(tempContainer);
+
+          const { svg } = await mermaid.render(uniqueId, code);
+
+          // Clean up temp container
+          tempContainer.remove();
+
+          // Check if still current render
+          if (renderIdRef.current !== currentRenderId) return;
+
+          // Create wrapper with click-to-zoom
+          const wrapper = document.createElement('div');
+          wrapper.className = 'mermaid-diagram';
+          wrapper.innerHTML = svg;
+          wrapper.title = 'Click to zoom';
+          wrapper.style.cursor = 'pointer';
+
+          // Store svg for zoom handler
+          const svgContent = svg;
+          wrapper.addEventListener('click', () => setZoomDiagram(svgContent));
+
+          placeholder.replaceWith(wrapper);
+        } catch (error) {
+          console.error('Mermaid render error:', error);
+
+          // Check if still current render
+          if (renderIdRef.current !== currentRenderId) return;
+
+          // Show error state
+          const errorDiv = document.createElement('div');
+          errorDiv.className = 'mermaid-error';
+          errorDiv.textContent = `Diagram error: ${error instanceof Error ? error.message : 'Failed to render'}`;
+          placeholder.replaceWith(errorDiv);
+        }
       }
-    });
+    };
+
+    renderDiagrams();
   }, [html]);
 
   return (
