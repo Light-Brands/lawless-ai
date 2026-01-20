@@ -154,3 +154,41 @@ permanent records requiring explicit permission.
   it. In user projects, only `.cursor/rules/` exists (no root symlink)
 - Context in `plugins/core/context.md` describes identity and philosophy
 - Bootstrap script clones repo to `~/.ai_coding_config`
+
+## Infrastructure
+
+### Production Backend Server (dev.lightbrands.ai)
+
+- **Host:** `147.224.217.154` (Oracle Cloud)
+- **SSH:** `ssh -i ~/.ssh/oracle-lawless.key ubuntu@147.224.217.154`
+- **Backend Path:** `/home/ubuntu/lawless-ai/backend`
+- **Workspaces:** `/home/ubuntu/workspaces/`
+- **Process Manager:** PM2 (`pm2 restart lawless-backend`)
+- **Port:** 4000 (WebSocket: `wss://dev.lightbrands.ai/ws/terminal`)
+
+**Common Commands:**
+```bash
+# SSH into server
+ssh -i ~/.ssh/oracle-lawless.key ubuntu@147.224.217.154
+
+# Check backend logs
+pm2 logs lawless-backend --lines 50
+
+# Restart backend
+cd /home/ubuntu/lawless-ai/backend && git pull && pm2 restart lawless-backend
+
+# Check/clean git worktrees
+cd /home/ubuntu/workspaces/Light-Brands_lawless-ai/main && git worktree list
+git worktree prune && rm -rf ../worktrees/*
+```
+
+### Supabase
+
+- **Project:** Lawless AI (`jnxfynvgkguaghhorsov`)
+- **Region:** us-west-2
+- **Dashboard:** https://supabase.com/dashboard/project/jnxfynvgkguaghhorsov
+
+### Vercel
+
+- **Frontend:** https://lawless-ai.vercel.app
+- **Dev URL:** Configured via `NEXT_PUBLIC_APP_URL`
