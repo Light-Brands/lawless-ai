@@ -203,14 +203,20 @@ export function DeploymentsPane() {
     if (!projectId) return;
     setRedeploying(deployment.id);
     try {
-      const response = await fetch(`/api/integrations/vercel/deployments/${deployment.id}/redeploy`, {
+      const response = await fetch(`/api/integrations/vercel/projects/${projectId}/redeploy`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ projectId }),
+        body: JSON.stringify({
+          deploymentId: deployment.id,
+          target: deployment.target || 'production'
+        }),
       });
       if (response.ok) {
         // Refresh deployments after a short delay
         setTimeout(fetchDeployments, 1000);
+      } else {
+        const data = await response.json().catch(() => ({}));
+        console.error('Redeploy failed:', data.error);
       }
     } catch (err) {
       console.error('Failed to redeploy:', err);
