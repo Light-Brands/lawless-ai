@@ -38,15 +38,10 @@
   text-decoration: none;
 }
 
-.app-logo-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.app-logo-image {
   width: 36px;
   height: 36px;
-  background: linear-gradient(135deg, var(--color-primary-600, #9333ea) 0%, var(--color-primary-500, #a855f7) 100%);
-  border-radius: 10px;
-  color: white;
+  object-fit: contain;
 }
 
 .app-logo-text {
@@ -130,13 +125,8 @@
     font-size: 1rem;
   }
 
-  .app-logo-icon {
+  .app-logo-image {
     width: 32px;
     height: 32px;
-  }
-
-  .app-logo-icon svg {
-    width: 18px;
-    height: 18px;
   }
 }

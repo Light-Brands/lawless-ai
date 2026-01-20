@@ -26,7 +26,16 @@
 }
 
 .ide-logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   text-decoration: none;
+}
+
+.ide-logo-image {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
 }
 
 .logo-text {

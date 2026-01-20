@@ -3,13 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
+import Image from 'next/image';
 import './login.css';
-
-const LightningIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
-  </svg>
-);
 
 const GitHubIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
@@ -85,9 +80,14 @@ function LoginContent() {
       <div className="login-card">
         {/* Logo */}
         <div className="login-logo">
-          <div className="login-logo-icon">
-            <LightningIcon />
-          </div>
+          <Image
+            src="/logo.png"
+            alt="Lawless AI"
+            width={64}
+            height={64}
+            className="login-logo-image"
+            priority
+          />
           <span className="login-logo-text">Lawless AI</span>
         </div>
 

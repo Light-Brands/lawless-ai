@@ -79,16 +79,10 @@
   margin-bottom: var(--space-6);
 }
 
-.login-logo-icon {
+.login-logo-image {
   width: 64px;
   height: 64px;
-  background: var(--gradient-primary);
-  border-radius: var(--radius-xl);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  box-shadow: var(--glow-primary);
+  object-fit: contain;
 }
 
 .login-logo-text {
@@ -183,14 +177,9 @@
     border-radius: var(--radius-xl);
   }
 
-  .login-logo-icon {
+  .login-logo-image {
     width: 56px;
     height: 56px;
-  }
-
-  .login-logo-icon svg {
-    width: 28px;
-    height: 28px;
   }
 
   .login-title {
