@@ -41,6 +41,7 @@ export function DatabasePane() {
   const [loading, setLoading] = useState(false);
   const [queryLoading, setQueryLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   // Fetch tables when project ref is available
   useEffect(() => {
@@ -65,7 +66,7 @@ export function DatabasePane() {
     };
 
     fetchTables();
-  }, [projectRef]);
+  }, [projectRef, refreshKey]);
 
   // Fetch columns for a table
   const fetchTableColumns = useCallback(async (tableName: string) => {
@@ -195,7 +196,7 @@ export function DatabasePane() {
               <span>Tables ({tables.length})</span>
               <button
                 className="refresh-btn"
-                onClick={() => setProjectRef(projectRef)}
+                onClick={() => setRefreshKey((k) => k + 1)}
                 disabled={loading}
               >
                 {loading ? '...' : 'Refresh'}

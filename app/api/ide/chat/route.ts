@@ -38,7 +38,7 @@ function simplifyMessages(messages: ChatMessage[]): StoredMessage[] {
       id: msg.id || crypto.randomUUID(),
       role: msg.role,
       content: textContent,
-      timestamp: msg.timestamp.toISOString(),
+      timestamp: msg.timestamp?.toISOString() || new Date().toISOString(),
       metadata: {
         ...(hasThinking && { hasThinking }),
         ...(hasToolUse && { hasToolUse, toolNames }),
@@ -67,7 +67,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Return messages from conversation
-    const messages = (conversation.messages as StoredMessage[]) || [];
+    const messages = (conversation.messages as unknown as StoredMessage[]) || [];
 
     return NextResponse.json({
       conversationId: conversation.id,

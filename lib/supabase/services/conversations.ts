@@ -1,11 +1,13 @@
-import { SupabaseClient } from '@supabase/supabase-js';
 import type {
-  Database,
   Conversation,
   ConversationInsert,
   ConversationType,
   Json,
 } from '@/types/database';
+
+// Use generic client type to support both regular and service clients
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type SupabaseClient = any;
 
 export type Message = {
   role: 'user' | 'assistant';
@@ -33,17 +35,17 @@ export interface CreateConversationOptions {
 }
 
 export async function createConversation(
-  supabase: SupabaseClient<Database>,
+  supabase: SupabaseClient,
   options: CreateConversationOptions
 ): Promise<Conversation | null>;
 export async function createConversation(
-  supabase: SupabaseClient<Database>,
+  supabase: SupabaseClient,
   userId: string,
   workspaceSessionId?: string,
   title?: string
 ): Promise<Conversation | null>;
 export async function createConversation(
-  supabase: SupabaseClient<Database>,
+  supabase: SupabaseClient,
   userIdOrOptions: string | CreateConversationOptions,
   workspaceSessionId?: string,
   title?: string
@@ -84,7 +86,7 @@ export async function createConversation(
 }
 
 export async function getConversation(
-  supabase: SupabaseClient<Database>,
+  supabase: SupabaseClient,
   conversationId: string
 ): Promise<Conversation | null> {
   const { data, error } = await supabase
@@ -104,7 +106,7 @@ export async function getConversation(
 }
 
 export async function getConversationByWorkspaceSession(
-  supabase: SupabaseClient<Database>,
+  supabase: SupabaseClient,
   workspaceSessionId: string
 ): Promise<Conversation | null> {
   const { data, error } = await supabase
@@ -126,7 +128,7 @@ export async function getConversationByWorkspaceSession(
 }
 
 export async function listConversations(
-  supabase: SupabaseClient<Database>,
+  supabase: SupabaseClient,
   options?: ListConversationsOptions | string,
   legacyLimit?: number
 ): Promise<Conversation[]> {
@@ -182,7 +184,7 @@ export async function listConversations(
  * List conversations by type for a user
  */
 export async function listConversationsByType(
-  supabase: SupabaseClient<Database>,
+  supabase: SupabaseClient,
   userId: string,
   type: ConversationType | ConversationType[],
   options?: Omit<ListConversationsOptions, 'type'>
@@ -194,14 +196,14 @@ export async function listConversationsByType(
  * Get recent conversations across all types for sidebar display
  */
 export async function getRecentConversations(
-  supabase: SupabaseClient<Database>,
+  supabase: SupabaseClient,
   limit = 20
 ): Promise<Conversation[]> {
   return listConversations(supabase, { limit, includeArchived: false });
 }
 
 export async function appendMessages(
-  supabase: SupabaseClient<Database>,
+  supabase: SupabaseClient,
   conversationId: string,
   newMessages: Message[]
 ): Promise<boolean> {
@@ -232,7 +234,7 @@ export async function appendMessages(
 }
 
 export async function updateConversationTitle(
-  supabase: SupabaseClient<Database>,
+  supabase: SupabaseClient,
   conversationId: string,
   title: string
 ): Promise<boolean> {
@@ -250,7 +252,7 @@ export async function updateConversationTitle(
 }
 
 export async function deleteConversation(
-  supabase: SupabaseClient<Database>,
+  supabase: SupabaseClient,
   conversationId: string
 ): Promise<boolean> {
   const { error } = await supabase
@@ -267,7 +269,7 @@ export async function deleteConversation(
 }
 
 export async function deleteConversationsByWorkspaceSession(
-  supabase: SupabaseClient<Database>,
+  supabase: SupabaseClient,
   workspaceSessionId: string
 ): Promise<boolean> {
   const { error } = await supabase
@@ -287,7 +289,7 @@ export async function deleteConversationsByWorkspaceSession(
  * Get or create a conversation for a workspace session
  */
 export async function getOrCreateConversation(
-  supabase: SupabaseClient<Database>,
+  supabase: SupabaseClient,
   userId: string,
   workspaceSessionId: string,
   repoFullName?: string
@@ -311,7 +313,7 @@ export async function getOrCreateConversation(
  * Archive a conversation (soft delete)
  */
 export async function archiveConversation(
-  supabase: SupabaseClient<Database>,
+  supabase: SupabaseClient,
   conversationId: string
 ): Promise<boolean> {
   const { error } = await supabase
@@ -331,7 +333,7 @@ export async function archiveConversation(
  * Unarchive a conversation
  */
 export async function unarchiveConversation(
-  supabase: SupabaseClient<Database>,
+  supabase: SupabaseClient,
   conversationId: string
 ): Promise<boolean> {
   const { error } = await supabase
@@ -351,7 +353,7 @@ export async function unarchiveConversation(
  * Get or create a root conversation (not tied to workspace)
  */
 export async function getOrCreateRootConversation(
-  supabase: SupabaseClient<Database>,
+  supabase: SupabaseClient,
   userId: string,
   conversationId?: string
 ): Promise<Conversation | null> {
@@ -374,7 +376,7 @@ export async function getOrCreateRootConversation(
  * Get or create a direct conversation (Claude workspace sidebar)
  */
 export async function getOrCreateDirectConversation(
-  supabase: SupabaseClient<Database>,
+  supabase: SupabaseClient,
   userId: string,
   localSessionId: string,
   repoFullName?: string

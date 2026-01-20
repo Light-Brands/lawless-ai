@@ -17,7 +17,7 @@ export interface ActivityEventInput {
 }
 
 export async function createActivityEvent(
-  supabase: SupabaseClient<Database>,
+  supabase: SupabaseClient,
   input: ActivityEventInput
 ): Promise<ActivityEvent | null> {
   const { data, error } = await supabase
@@ -45,7 +45,7 @@ export async function createActivityEvent(
 }
 
 export async function createActivityEvents(
-  supabase: SupabaseClient<Database>,
+  supabase: SupabaseClient,
   events: ActivityEventInput[]
 ): Promise<ActivityEvent[]> {
   if (events.length === 0) return [];
@@ -76,7 +76,7 @@ export async function createActivityEvents(
 }
 
 export async function getActivityEvents(
-  supabase: SupabaseClient<Database>,
+  supabase: SupabaseClient,
   options: {
     sessionId?: string;
     repoFullName?: string;
@@ -121,7 +121,7 @@ export async function getActivityEvents(
 }
 
 export async function getActivityEventsBySession(
-  supabase: SupabaseClient<Database>,
+  supabase: SupabaseClient,
   sessionId: string,
   limit = 100
 ): Promise<ActivityEvent[]> {
@@ -129,7 +129,7 @@ export async function getActivityEventsBySession(
 }
 
 export async function getActivityEventsByRepo(
-  supabase: SupabaseClient<Database>,
+  supabase: SupabaseClient,
   repoFullName: string,
   limit = 100
 ): Promise<ActivityEvent[]> {
@@ -137,7 +137,7 @@ export async function getActivityEventsByRepo(
 }
 
 export async function deleteActivityEvent(
-  supabase: SupabaseClient<Database>,
+  supabase: SupabaseClient,
   eventId: string
 ): Promise<boolean> {
   const { error } = await supabase
@@ -154,7 +154,7 @@ export async function deleteActivityEvent(
 }
 
 export async function deleteActivityEventsBySession(
-  supabase: SupabaseClient<Database>,
+  supabase: SupabaseClient,
   sessionId: string
 ): Promise<boolean> {
   const { error } = await supabase
@@ -171,7 +171,7 @@ export async function deleteActivityEventsBySession(
 }
 
 export async function clearOldActivityEvents(
-  supabase: SupabaseClient<Database>,
+  supabase: SupabaseClient,
   olderThanDays = 30
 ): Promise<boolean> {
   const cutoffDate = new Date();

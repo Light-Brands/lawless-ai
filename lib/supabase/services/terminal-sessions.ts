@@ -1,5 +1,8 @@
-import { SupabaseClient } from '@supabase/supabase-js';
-import type { Database, TerminalSession, TerminalOutput } from '@/types/database';
+import type { TerminalSession, TerminalOutput } from '@/types/database';
+
+// Use generic client type to support both regular and service clients
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type SupabaseClient = any;
 
 export type TerminalSessionInput = {
   sessionId: string;
@@ -11,7 +14,7 @@ export type TerminalSessionInput = {
 };
 
 export async function createTerminalSession(
-  supabase: SupabaseClient<Database>,
+  supabase: SupabaseClient,
   userId: string,
   input: TerminalSessionInput
 ): Promise<TerminalSession | null> {
@@ -38,7 +41,7 @@ export async function createTerminalSession(
 }
 
 export async function getTerminalSession(
-  supabase: SupabaseClient<Database>,
+  supabase: SupabaseClient,
   sessionId: string
 ): Promise<TerminalSession | null> {
   const { data, error } = await supabase
@@ -58,7 +61,7 @@ export async function getTerminalSession(
 }
 
 export async function listTerminalSessions(
-  supabase: SupabaseClient<Database>,
+  supabase: SupabaseClient,
   repoFullName: string
 ): Promise<TerminalSession[]> {
   const { data, error } = await supabase
@@ -76,7 +79,7 @@ export async function listTerminalSessions(
 }
 
 export async function updateTerminalSession(
-  supabase: SupabaseClient<Database>,
+  supabase: SupabaseClient,
   sessionId: string,
   updates: Partial<{
     name: string;
@@ -101,7 +104,7 @@ export async function updateTerminalSession(
 }
 
 export async function deleteTerminalSession(
-  supabase: SupabaseClient<Database>,
+  supabase: SupabaseClient,
   sessionId: string
 ): Promise<boolean> {
   // Delete associated outputs first (cascade should handle this, but be explicit)
@@ -127,7 +130,7 @@ export async function deleteTerminalSession(
 }
 
 export async function touchTerminalSession(
-  supabase: SupabaseClient<Database>,
+  supabase: SupabaseClient,
   sessionId: string
 ): Promise<void> {
   await supabase
@@ -139,7 +142,7 @@ export async function touchTerminalSession(
 // Terminal Outputs
 
 export async function getTerminalOutput(
-  supabase: SupabaseClient<Database>,
+  supabase: SupabaseClient,
   terminalSessionId: string
 ): Promise<TerminalOutput | null> {
   const { data, error } = await supabase
@@ -159,7 +162,7 @@ export async function getTerminalOutput(
 }
 
 export async function saveTerminalOutput(
-  supabase: SupabaseClient<Database>,
+  supabase: SupabaseClient,
   terminalSessionId: string,
   outputLines: string[]
 ): Promise<boolean> {
@@ -185,7 +188,7 @@ export async function saveTerminalOutput(
 }
 
 export async function appendTerminalOutput(
-  supabase: SupabaseClient<Database>,
+  supabase: SupabaseClient,
   terminalSessionId: string,
   newLines: string[],
   maxLines = 1000
@@ -204,7 +207,7 @@ export async function appendTerminalOutput(
 }
 
 export async function deleteTerminalOutput(
-  supabase: SupabaseClient<Database>,
+  supabase: SupabaseClient,
   terminalSessionId: string
 ): Promise<boolean> {
   const { error } = await supabase

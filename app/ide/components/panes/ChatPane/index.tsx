@@ -256,26 +256,24 @@ export function ChatPane() {
       {/* Input area with autocomplete */}
       <div className="chat-input-area">
         {/* Slash autocomplete */}
-        {showAutocomplete && (
-          <SlashAutocomplete
-            query={input.slice(1)}
-            selectedIndex={autocompleteIndex}
-            onSelect={handleAutocompleteSelect}
-            onClose={() => setShowAutocomplete(false)}
-            onIndexChange={setAutocompleteIndex}
-          />
-        )}
+        <SlashAutocomplete
+          searchTerm={input.slice(1)}
+          isVisible={showAutocomplete}
+          selectedIndex={autocompleteIndex}
+          onSelect={handleAutocompleteSelect}
+          onClose={() => setShowAutocomplete(false)}
+          onSelectedIndexChange={setAutocompleteIndex}
+        />
 
         {/* @ mention autocomplete */}
-        {showAtMention && (
-          <AtMentionAutocomplete
-            query={input.match(/(?:^|\s)@(\w*)$/)?.[1] || ''}
-            selectedIndex={atMentionIndex}
-            onSelect={handleAtMentionSelect}
-            onClose={() => setShowAtMention(false)}
-            onIndexChange={setAtMentionIndex}
-          />
-        )}
+        <AtMentionAutocomplete
+          searchTerm={input.match(/(?:^|\s)@(\w*)$/)?.[1] || ''}
+          isVisible={showAtMention}
+          selectedIndex={atMentionIndex}
+          onSelect={handleAtMentionSelect}
+          onClose={() => setShowAtMention(false)}
+          onSelectedIndexChange={setAtMentionIndex}
+        />
 
         <form className="chat-input-form" onSubmit={handleSubmit}>
           <input
@@ -307,16 +305,15 @@ export function ChatPane() {
       </div>
 
       {/* Command Dictionary modal */}
-      {showDictionary && (
-        <CommandDictionary
-          onClose={() => setShowDictionary(false)}
-          onSelect={(item) => {
-            setInput(item.usage || `/${item.name}`);
-            setShowDictionary(false);
-            inputRef.current?.focus();
-          }}
-        />
-      )}
+      <CommandDictionary
+        isOpen={showDictionary}
+        onClose={() => setShowDictionary(false)}
+        onSelect={(item) => {
+          setInput(item.usage || `/${item.name}`);
+          setShowDictionary(false);
+          inputRef.current?.focus();
+        }}
+      />
 
       <style jsx>{`
         .chat-pane {
