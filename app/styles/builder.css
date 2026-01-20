@@ -738,6 +738,142 @@
   margin-top: var(--space-4);
 }
 
+/* Mermaid Diagrams */
+.mermaid-diagram {
+  background: rgba(10, 10, 15, 0.6);
+  border: 1px solid var(--color-surface-glass-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  margin: var(--space-4) 0;
+  overflow-x: auto;
+  cursor: pointer;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.mermaid-diagram:hover {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 1px var(--color-primary);
+}
+
+.mermaid-diagram svg {
+  display: block;
+  margin: 0 auto;
+  max-width: 100%;
+  height: auto;
+}
+
+.mermaid-error {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  margin: var(--space-4) 0;
+  color: #ef4444;
+  font-size: 0.875rem;
+}
+
+.mermaid-placeholder {
+  background: var(--color-surface-glass);
+  border: 1px dashed var(--color-surface-glass-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-6);
+  margin: var(--space-4) 0;
+  text-align: center;
+  color: var(--color-text-muted);
+}
+
+.mermaid-placeholder::before {
+  content: 'Loading diagram...';
+}
+
+/* Diagram Zoom Modal */
+.diagram-zoom-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.9);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(4px);
+}
+
+.diagram-zoom-container {
+  width: 95vw;
+  height: 95vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-surface-glass-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.diagram-zoom-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  background: rgba(10, 10, 15, 0.8);
+  border-bottom: 1px solid var(--color-surface-glass-border);
+}
+
+.diagram-zoom-toolbar button {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-surface-glass);
+  border: 1px solid var(--color-surface-glass-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text-primary);
+  font-size: 1.25rem;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.diagram-zoom-toolbar button:hover {
+  background: var(--color-surface-hover);
+  border-color: var(--color-primary);
+}
+
+.diagram-zoom-level {
+  min-width: 60px;
+  text-align: center;
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.diagram-zoom-close {
+  margin-left: auto;
+}
+
+.diagram-zoom-viewport {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(10, 10, 15, 0.4);
+}
+
+.diagram-zoom-content {
+  transform-origin: center center;
+  transition: transform 0.1s ease-out;
+  padding: var(--space-8);
+}
+
+.diagram-zoom-content svg {
+  display: block;
+  max-width: none;
+  max-height: none;
+}
+
 /* Save Options */
 .builder-save-section {
   padding: var(--space-4);
