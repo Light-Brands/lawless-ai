@@ -8,6 +8,19 @@ import { useIDEContext } from '../../../contexts/IDEContext';
 import { useGitHubConnection } from '../../../contexts/ServiceContext';
 import { CodeEditor } from '../../CodeEditor';
 import { ideEvents } from '../../../lib/eventBus';
+import {
+  FolderIcon,
+  FolderOpenIcon,
+  FileIcon,
+  FileTypeScriptIcon,
+  FileJavaScriptIcon,
+  FileCSSIcon,
+  FileJSONIcon,
+  FileMarkdownIcon,
+  FileHTMLIcon,
+  FileImageIcon,
+  LoadingIcon,
+} from '../../Icons';
 
 // File type detection helpers
 function isImageFile(filename: string): boolean {
@@ -310,31 +323,31 @@ export function EditorPane() {
     });
   };
 
-  const getFileIcon = (filename: string): string => {
+  const getFileIcon = (filename: string): React.ReactNode => {
     const ext = filename.split('.').pop()?.toLowerCase();
     switch (ext) {
       case 'ts':
       case 'tsx':
-        return '🔷';
+        return <FileTypeScriptIcon size={14} />;
       case 'js':
       case 'jsx':
-        return '🟨';
+        return <FileJavaScriptIcon size={14} />;
       case 'css':
       case 'scss':
-        return '🎨';
+        return <FileCSSIcon size={14} />;
       case 'json':
-        return '📋';
+        return <FileJSONIcon size={14} />;
       case 'md':
-        return '📝';
+        return <FileMarkdownIcon size={14} />;
       case 'html':
-        return '🌐';
+        return <FileHTMLIcon size={14} />;
       case 'svg':
       case 'png':
       case 'jpg':
       case 'gif':
-        return '🖼️';
+        return <FileImageIcon size={14} />;
       default:
-        return '📄';
+        return <FileIcon size={14} />;
     }
   };
 
@@ -354,10 +367,10 @@ export function EditorPane() {
             onClick={() => item.type === 'folder' ? toggleFolder(item.path) : handleFileClick(item.path)}
           >
             <span className="file-icon">
-              {item.type === 'folder' ? (isExpanded ? '📂' : '📁') : getFileIcon(item.name)}
+              {item.type === 'folder' ? (isExpanded ? <FolderOpenIcon size={14} /> : <FolderIcon size={14} />) : getFileIcon(item.name)}
             </span>
             <span className="file-name">{item.name}</span>
-            {isLoading && <span className="file-loading">⏳</span>}
+            {isLoading && <span className="file-loading"><LoadingIcon size={12} /></span>}
           </div>
           {item.type === 'folder' && isExpanded && item.children && renderFileTree(item.children, depth + 1)}
         </React.Fragment>

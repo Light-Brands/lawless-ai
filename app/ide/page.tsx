@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { FolderIcon, BooksIcon, SparklesIcon, ArrowRightIcon } from './components/Icons';
 
 interface RecentRepo {
   owner: string;
@@ -65,12 +66,12 @@ export default function IDELandingPage() {
                     href={`/ide/${repo.owner}/${repo.repo}`}
                     className="repo-card"
                   >
-                    <span className="repo-icon">📁</span>
+                    <span className="repo-icon"><FolderIcon size={18} /></span>
                     <div className="repo-info">
                       <span className="repo-name">{repo.repo}</span>
                       <span className="repo-owner">{repo.owner}</span>
                     </div>
-                    <span className="repo-arrow">→</span>
+                    <span className="repo-arrow"><ArrowRightIcon size={16} /></span>
                   </Link>
                 ))}
               </div>
@@ -86,11 +87,11 @@ export default function IDELandingPage() {
             <h2>Get Started</h2>
             <div className="action-buttons">
               <Link href="/repos" className="action-btn primary">
-                <span className="action-icon">📚</span>
+                <span className="action-icon"><BooksIcon size={18} /></span>
                 <span>Browse All Repos</span>
               </Link>
               <Link href="/projects/new" className="action-btn">
-                <span className="action-icon">✨</span>
+                <span className="action-icon"><SparklesIcon size={18} /></span>
                 <span>Create New Project</span>
               </Link>
             </div>

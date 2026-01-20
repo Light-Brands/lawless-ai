@@ -5,7 +5,7 @@ import React from 'react';
 interface PaneContainerProps {
   id: number;
   title: string;
-  icon: string;
+  icon: React.ReactNode;
   children: React.ReactNode;
   onCollapse: () => void;
 }

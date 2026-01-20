@@ -5,6 +5,15 @@ import { Panel, Group as PanelGroup, Separator as PanelResizeHandle } from 'reac
 import { useIDEStore } from '../stores/ideStore';
 import { PaneContainer } from './PaneContainer';
 import { IDEProvider } from '../contexts/IDEContext';
+import {
+  ChatIcon,
+  CodeIcon,
+  GlobeIcon,
+  DatabaseIcon,
+  RocketIcon,
+  ActivityIcon,
+  TerminalIcon,
+} from './Icons';
 
 // Pane components (lazy loaded)
 import dynamic from 'next/dynamic';
@@ -52,14 +61,14 @@ function PaneSkeleton() {
 }
 
 const PANE_CONFIG = {
-  1: { title: 'AI Chat', icon: '💬', component: ChatPane, defaultSize: 20, minSize: 15 },
-  2: { title: 'Editor', icon: '📝', component: EditorPane, defaultSize: 35, minSize: 20 },
-  3: { title: 'Preview', icon: '🌐', component: PreviewPane, defaultSize: 25, minSize: 15 },
-  4: { title: 'Database', icon: '🗄️', component: DatabasePane, defaultSize: 20, minSize: 15 },
-  5: { title: 'Deployments', icon: '🚀', component: DeploymentsPane, defaultSize: 20, minSize: 15 },
-  6: { title: 'Activity', icon: '📋', component: ActivityPane, defaultSize: 18, minSize: 12 },
-  7: { title: 'Terminal', icon: '⌨️', component: TerminalPane, defaultSize: 30, minSize: 15 },
-} as const;
+  1: { title: 'AI Chat', icon: <ChatIcon size={16} />, component: ChatPane, defaultSize: 20, minSize: 15 },
+  2: { title: 'Editor', icon: <CodeIcon size={16} />, component: EditorPane, defaultSize: 35, minSize: 20 },
+  3: { title: 'Preview', icon: <GlobeIcon size={16} />, component: PreviewPane, defaultSize: 25, minSize: 15 },
+  4: { title: 'Database', icon: <DatabaseIcon size={16} />, component: DatabasePane, defaultSize: 20, minSize: 15 },
+  5: { title: 'Deployments', icon: <RocketIcon size={16} />, component: DeploymentsPane, defaultSize: 20, minSize: 15 },
+  6: { title: 'Activity', icon: <ActivityIcon size={16} />, component: ActivityPane, defaultSize: 18, minSize: 12 },
+  7: { title: 'Terminal', icon: <TerminalIcon size={16} />, component: TerminalPane, defaultSize: 30, minSize: 15 },
+};
 
 interface IDELayoutProps {
   owner?: string;

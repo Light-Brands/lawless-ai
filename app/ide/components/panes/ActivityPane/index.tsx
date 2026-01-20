@@ -4,6 +4,70 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { ideEvents, useIDEEvent } from '../../../lib/eventBus';
 import { useIDEContext } from '../../../contexts/IDEContext';
 import type { ActivityEventType } from '@/types/database';
+import {
+  GitHubIcon,
+  DatabaseIcon,
+  RocketIcon,
+  GitBranchIcon,
+  TerminalIcon,
+  PlugIcon,
+  RobotIcon,
+  FileIcon,
+  SaveIcon,
+  FolderOpenIcon,
+  WrenchIcon,
+  CheckCircleIcon,
+  XCircleIcon,
+  PartyIcon,
+  WaveIcon,
+  ActivityIcon,
+} from '../../Icons';
+
+// Map icon keys to React components (supports both new keys and legacy emojis)
+const iconMap: Record<string, React.ReactNode> = {
+  // Service icons
+  github: <GitHubIcon size={14} />,
+  supabase: <DatabaseIcon size={14} />,
+  vercel: <RocketIcon size={14} />,
+  worktree: <GitBranchIcon size={14} />,
+  terminal: <TerminalIcon size={14} />,
+  plug: <PlugIcon size={14} />,
+  // Action icons
+  robot: <RobotIcon size={14} />,
+  file: <FileIcon size={14} />,
+  save: <SaveIcon size={14} />,
+  folder: <FolderOpenIcon size={14} />,
+  wrench: <WrenchIcon size={14} />,
+  rocket: <RocketIcon size={14} />,
+  // Status icons
+  success: <CheckCircleIcon size={14} />,
+  error: <XCircleIcon size={14} />,
+  party: <PartyIcon size={14} />,
+  wave: <WaveIcon size={14} />,
+  activity: <ActivityIcon size={14} />,
+  // Legacy emoji mappings for backward compatibility
+  '🐙': <GitHubIcon size={14} />,
+  '🗄️': <DatabaseIcon size={14} />,
+  '🚀': <RocketIcon size={14} />,
+  '🌿': <GitBranchIcon size={14} />,
+  '⌨️': <TerminalIcon size={14} />,
+  '🔌': <PlugIcon size={14} />,
+  '🤖': <RobotIcon size={14} />,
+  '📝': <FileIcon size={14} />,
+  '💾': <SaveIcon size={14} />,
+  '📂': <FolderOpenIcon size={14} />,
+  '🔧': <WrenchIcon size={14} />,
+  '✅': <CheckCircleIcon size={14} />,
+  '❌': <XCircleIcon size={14} />,
+  '🎉': <PartyIcon size={14} />,
+  '👋': <WaveIcon size={14} />,
+  '📋': <ActivityIcon size={14} />,
+};
+
+// Get icon component from key or emoji
+const getActivityIcon = (iconKey: string): React.ReactNode => {
+  return iconMap[iconKey] || <ActivityIcon size={14} />;
+};
 
 interface ActivityEvent {
   id: string;
@@ -43,11 +107,11 @@ function fromDatabaseEvent(dbEvent: DatabaseActivityEvent): ActivityEvent {
 // Convert service connection events to activity events
 function createServiceEvent(service: string, action: 'connecting' | 'connected' | 'error', error?: string): ActivityEvent {
   const icons: Record<string, string> = {
-    github: '🐙',
-    supabase: '🗄️',
-    vercel: '🚀',
-    worktree: '🌿',
-    terminal: '⌨️',
+    github: 'github',
+    supabase: 'supabase',
+    vercel: 'vercel',
+    worktree: 'worktree',
+    terminal: 'terminal',
   };
 
   const summaries: Record<string, string> = {
@@ -60,7 +124,7 @@ function createServiceEvent(service: string, action: 'connecting' | 'connected' 
     id: `service-${Date.now()}-${Math.random().toString(36).slice(2)}`,
     timestamp: new Date(),
     type: 'service',
-    icon: icons[service] || '🔌',
+    icon: icons[service] || 'plug',
     summary: summaries[action],
     details: error,
     persisted: false,
@@ -200,7 +264,7 @@ export function ActivityPane() {
       id: `file-${Date.now()}`,
       timestamp: new Date(),
       type: data.source === 'claude' ? 'claude' : 'user',
-      icon: data.source === 'claude' ? '🤖' : '📝',
+      icon: data.source === 'claude' ? 'robot' : 'file',
       summary: `${data.source === 'claude' ? 'Claude' : 'You'} edited ${data.path.split('/').pop()}`,
       relatedFile: data.path,
       persisted: false,
@@ -212,7 +276,7 @@ export function ActivityPane() {
       id: `save-${Date.now()}`,
       timestamp: new Date(),
       type: 'user',
-      icon: '💾',
+      icon: 'save',
       summary: `Saved ${data.path.split('/').pop()}`,
       details: `Branch: ${data.branch}`,
       relatedFile: data.path,
@@ -225,7 +289,7 @@ export function ActivityPane() {
       id: `open-${Date.now()}`,
       timestamp: new Date(),
       type: 'user',
-      icon: '📂',
+      icon: 'folder',
       summary: `Opened ${data.path.split('/').pop()}`,
       relatedFile: data.path,
       persisted: false,
@@ -238,7 +302,7 @@ export function ActivityPane() {
       id: `term-connect-${Date.now()}`,
       timestamp: new Date(),
       type: 'terminal',
-      icon: '⌨️',
+      icon: 'terminal',
       summary: 'Terminal connected',
       details: `Session: ${data.sessionId.slice(0, 8)}...`,
       persisted: false,
@@ -250,7 +314,7 @@ export function ActivityPane() {
       id: `term-disconnect-${Date.now()}`,
       timestamp: new Date(),
       type: 'terminal',
-      icon: '⌨️',
+      icon: 'terminal',
       summary: 'Terminal disconnected',
       details: data.code ? `Code: ${data.code}` : undefined,
       persisted: false,
@@ -264,7 +328,7 @@ export function ActivityPane() {
         id: `tool-${Date.now()}`,
         timestamp: new Date(),
         type: 'claude',
-        icon: '🔧',
+        icon: 'wrench',
         summary: `Claude using ${data.tool}`,
         details: data.input ? JSON.stringify(data.input).slice(0, 50) + '...' : undefined,
         persisted: false,
@@ -278,7 +342,7 @@ export function ActivityPane() {
       id: `deploy-start-${Date.now()}`,
       timestamp: new Date(),
       type: 'deployment',
-      icon: '🚀',
+      icon: 'rocket',
       summary: 'Deployment started',
       details: `Branch: ${data.branch}`,
       persisted: false,
@@ -290,7 +354,7 @@ export function ActivityPane() {
       id: `deploy-complete-${Date.now()}`,
       timestamp: new Date(),
       type: 'deployment',
-      icon: data.status === 'success' ? '✅' : '❌',
+      icon: data.status === 'success' ? 'success' : 'error',
       summary: `Deployment ${data.status}`,
       details: data.url,
       persisted: false,
@@ -303,7 +367,7 @@ export function ActivityPane() {
       id: `migration-${Date.now()}`,
       timestamp: new Date(),
       type: 'database',
-      icon: data.success ? '✅' : '❌',
+      icon: data.success ? 'success' : 'error',
       summary: `Migration ${data.success ? 'applied' : 'failed'}: ${data.file}`,
       details: data.error,
       persisted: false,
@@ -316,7 +380,7 @@ export function ActivityPane() {
       id: `session-${Date.now()}`,
       timestamp: new Date(),
       type: 'system',
-      icon: '🎉',
+      icon: 'party',
       summary: 'Session initialized',
       details: `ID: ${data.sessionId.slice(0, 8)}...`,
       persisted: false,
@@ -330,7 +394,7 @@ export function ActivityPane() {
         id: 'welcome',
         timestamp: new Date(),
         type: 'system',
-        icon: '👋',
+        icon: 'wave',
         summary: 'Activity log started',
         details: 'Events will appear here',
         persisted: false,
@@ -430,7 +494,7 @@ export function ActivityPane() {
           </div>
         ) : Object.keys(groupedEvents).length === 0 ? (
           <div className="activity-empty">
-            <span className="empty-icon">📋</span>
+            <span className="empty-icon"><ActivityIcon size={24} /></span>
             <p>No activity yet</p>
           </div>
         ) : (
@@ -440,7 +504,7 @@ export function ActivityPane() {
               {dayEvents.map((event) => (
                 <div key={event.id} className={`timeline-event ${event.type}`}>
                   <div className="event-time">{formatTime(event.timestamp)}</div>
-                  <div className="event-icon">{event.icon}</div>
+                  <div className="event-icon">{getActivityIcon(event.icon)}</div>
                   <div className="event-content">
                     <div className="event-summary">{event.summary}</div>
                     {event.details && (

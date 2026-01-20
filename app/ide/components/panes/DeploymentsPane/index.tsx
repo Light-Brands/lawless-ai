@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useIDEStore } from '../../../stores/ideStore';
 import { useVercelConnection } from '../../../contexts/ServiceContext';
+import { RocketIcon } from '../../Icons';
 
 interface Deployment {
   id: string;
@@ -233,7 +234,7 @@ export function DeploymentsPane() {
     return (
       <div className="deployments-pane">
         <div className="deploy-not-connected">
-          <div className="not-connected-icon">🚀</div>
+          <div className="not-connected-icon"><RocketIcon size={32} /></div>
           <h3>No Deployment Service Connected</h3>
           <p>Link a Vercel project to this repository to view and manage deployments.</p>
           <a href="/integrations/vercel" className="connect-btn">Connect Vercel</a>

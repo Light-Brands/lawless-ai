@@ -11,21 +11,15 @@ import CommandDictionary from '../../../../components/CommandDictionary';
 import { DictionaryItem } from '../../../../data/command-dictionary';
 import { ideEvents } from '../../../lib/eventBus';
 import '../../../../styles/command-dictionary.css';
-
-// Icons
-const BookIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
-  </svg>
-);
-
-const SendIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M22 2L11 13" />
-    <path d="M22 2L15 22L11 13L2 9L22 2Z" />
-  </svg>
-);
+import {
+  BookIcon,
+  SendIcon,
+  FolderIcon,
+  GitBranchIcon,
+  FileIcon,
+  WrenchIcon,
+  ChatIcon,
+} from '../../Icons';
 
 export function ChatPane() {
   const { repoFullName, sessionId } = useIDEContext();
@@ -181,19 +175,19 @@ export function ChatPane() {
           </div>
           <div className="context-items">
             <div className="context-item">
-              <span className="context-icon">📁</span>
+              <span className="context-icon"><FolderIcon size={14} /></span>
               <span>Repo: {activeSession.repo}</span>
             </div>
             <div className="context-item">
-              <span className="context-icon">🌿</span>
+              <span className="context-icon"><GitBranchIcon size={14} /></span>
               <span>Branch: {activeSession.branch}</span>
             </div>
             <div className="context-item">
-              <span className="context-icon">📄</span>
+              <span className="context-icon"><FileIcon size={14} /></span>
               <span>Files: {activeSession.state.open_files.length} open</span>
             </div>
             <div className="context-item">
-              <span className="context-icon">🔧</span>
+              <span className="context-icon"><WrenchIcon size={14} /></span>
               <span>Tools: 8 available</span>
             </div>
           </div>
@@ -210,7 +204,7 @@ export function ChatPane() {
       <div className="chat-messages-container">
         {messages.length === 0 ? (
           <div className="chat-empty-state">
-            <div className="empty-icon">💬</div>
+            <div className="empty-icon"><ChatIcon size={32} /></div>
             <h3>Start a conversation</h3>
             <p>
               {chatMode === 'workspace'

@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useIDEStore } from '../../../stores/ideStore';
 import { useSupabaseConnection } from '../../../contexts/ServiceContext';
+import { TableIcon, BellIcon } from '../../Icons';
 
 interface TableInfo {
   table_name: string;
@@ -418,7 +419,7 @@ export function DatabasePane() {
                         className={`table-list-item ${selectedTable?.table_name === table.table_name ? 'selected' : ''}`}
                         onClick={() => handleSelectTable(table)}
                       >
-                        <span className="table-icon-sm">📋</span>
+                        <span className="table-icon-sm"><TableIcon size={12} /></span>
                         <span className="table-name-sm">{table.table_name}</span>
                       </div>
                     ))
@@ -550,7 +551,7 @@ export function DatabasePane() {
                     <React.Fragment key={table.table_name}>
                       <div className="table-item" onClick={() => toggleTable(table.table_name)}>
                         <span className="table-expand">{isExpanded ? '▼' : '▶'}</span>
-                        <span className="table-icon">📋</span>
+                        <span className="table-icon"><TableIcon size={16} /></span>
                         <span className="table-name">{table.table_name}</span>
                       </div>
                       {isExpanded && table.columns && (
@@ -647,7 +648,7 @@ export function DatabasePane() {
             {pendingMigrations.length > 0 && (
               <div className="migration-alert">
                 <div className="alert-header">
-                  <span>🔔 New Migration Detected</span>
+                  <span><BellIcon size={14} /> New Migration Detected</span>
                   <button className="apply-btn">Apply</button>
                 </div>
                 <div className="alert-file">{pendingMigrations[0]}</div>
