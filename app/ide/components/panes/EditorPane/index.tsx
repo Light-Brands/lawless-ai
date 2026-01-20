@@ -121,6 +121,14 @@ export function EditorPane() {
         throw new Error('Failed to fetch file');
       }
       const data = await response.json();
+
+      // If this is a directory, don't try to load it as a file
+      if (data.type === 'dir') {
+        // Close this from open files since it's not a file
+        closeFile(path);
+        return;
+      }
+
       // API returns { type: 'file', file: { content } } structure
       const base64Content = data.file?.content || data.content;
       if (base64Content) {
@@ -135,7 +143,7 @@ export function EditorPane() {
     } finally {
       setLoadingFile(null);
     }
-  }, [owner, repo, fileContents]);
+  }, [owner, repo, fileContents, closeFile]);
 
   const handleFileChange = useCallback((content: string) => {
     if (!activeFile) return;
