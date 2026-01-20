@@ -1,0 +1,148 @@
+/* IDE Header */
+.ide-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  background: #1a1a2e;
+  border-bottom: 1px solid #2d2d44;
+  height: 48px;
+  flex-shrink: 0;
+}
+
+.ide-header-left,
+.ide-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.ide-header-center {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.ide-logo {
+  text-decoration: none;
+}
+
+.logo-text {
+  font-weight: 600;
+  color: #a78bfa;
+  font-size: 16px;
+}
+
+.session-selector {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: #2d2d44;
+  border: 1px solid #3d3d5c;
+  border-radius: 6px;
+  color: #e0e0e0;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.session-repo {
+  font-weight: 500;
+}
+
+.session-branch {
+  color: #888;
+}
+
+.session-placeholder {
+  color: #666;
+}
+
+.session-selector-wrapper {
+  position: relative;
+}
+
+.session-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 4px;
+  min-width: 250px;
+  background: #1a1a2e;
+  border: 1px solid #3d3d5c;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  z-index: 1000;
+  overflow: hidden;
+}
+
+.session-menu-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px;
+  border-bottom: 1px solid #2d2d44;
+  font-size: 12px;
+  font-weight: 500;
+  color: #888;
+  text-transform: uppercase;
+}
+
+.new-session-btn {
+  padding: 4px 8px;
+  background: #7c3aed;
+  border: none;
+  border-radius: 4px;
+  color: white;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.new-session-btn:hover {
+  background: #6d28d9;
+}
+
+.session-menu-list {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.session-menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 12px;
+  background: transparent;
+  border: none;
+  color: #e0e0e0;
+  cursor: pointer;
+  text-align: left;
+}
+
+.session-menu-item:hover {
+  background: #2d2d44;
+}
+
+.session-menu-item.active {
+  background: rgba(124, 58, 237, 0.2);
+}
+
+.session-name {
+  font-weight: 500;
+}
+
+.session-branch-small {
+  font-size: 12px;
+  color: #888;
+}
+
+.session-menu-empty {
+  padding: 24px;
+  text-align: center;
+  color: #666;
+  font-size: 13px;
+}
+

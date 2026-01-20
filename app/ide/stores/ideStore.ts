@@ -65,6 +65,8 @@ interface IDEStore {
   markFileSaved: (path: string) => void;
   splitView: boolean;
   setSplitView: (enabled: boolean) => void;
+  fileTreeCollapsed: boolean;
+  setFileTreeCollapsed: (collapsed: boolean) => void;
 
   // Command palette
   commandPaletteOpen: boolean;
@@ -179,6 +181,8 @@ export const useIDEStore = create<IDEStore>()(
         }),
       splitView: false,
       setSplitView: (enabled) => set({ splitView: enabled }),
+      fileTreeCollapsed: false,
+      setFileTreeCollapsed: (collapsed) => set({ fileTreeCollapsed: collapsed }),
 
       // Command palette
       commandPaletteOpen: false,
@@ -210,6 +214,7 @@ export const useIDEStore = create<IDEStore>()(
         paneWidths: state.paneWidths,
         chatMode: state.chatMode,
         splitView: state.splitView,
+        fileTreeCollapsed: state.fileTreeCollapsed,
         previewMode: state.previewMode,
         autoApplyMigrations: state.autoApplyMigrations,
       }),

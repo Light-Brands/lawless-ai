@@ -1,0 +1,52 @@
+/* Highlight.js Theme Override */
+.hljs {
+  background: transparent !important;
+  color: #e0e0e0;
+}
+
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-title,
+.hljs-section,
+.hljs-doctag,
+.hljs-name,
+.hljs-strong {
+  color: #c792ea;
+}
+
+.hljs-string,
+.hljs-title.class_,
+.hljs-attr,
+.hljs-symbol,
+.hljs-bullet,
+.hljs-addition,
+.hljs-template-tag,
+.hljs-template-variable {
+  color: #c3e88d;
+}
+
+.hljs-number,
+.hljs-literal,
+.hljs-variable,
+.hljs-meta,
+.hljs-regexp,
+.hljs-link {
+  color: #f78c6c;
+}
+
+.hljs-comment,
+.hljs-quote,
+.hljs-deletion {
+  color: #546e7a;
+}
+
+.hljs-built_in,
+.hljs-type,
+.hljs-class {
+  color: #82aaff;
+}
+
+.hljs-attribute {
+  color: #ffcb6b;
+}
+

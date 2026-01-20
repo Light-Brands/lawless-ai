@@ -1,0 +1,144 @@
+/* IDE Landing Page */
+.ide-landing {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  background: #0d0d1a;
+}
+
+.ide-landing-content {
+  max-width: 600px;
+  width: 100%;
+}
+
+.ide-landing-header {
+  text-align: center;
+  margin-bottom: 48px;
+}
+
+.ide-landing-header h1 {
+  font-size: 32px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  background: linear-gradient(135deg, #a78bfa 0%, #7c3aed 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.ide-landing-header p {
+  color: #888;
+  font-size: 16px;
+}
+
+.ide-landing-section {
+  margin-bottom: 32px;
+}
+
+.ide-landing-section h2 {
+  font-size: 14px;
+  font-weight: 500;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 16px;
+}
+
+.ide-landing .repo-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ide-landing .repo-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  background: #1a1a2e;
+  border: 1px solid #2d2d44;
+  border-radius: 8px;
+  text-decoration: none;
+  color: inherit;
+  transition: all 0.2s;
+}
+
+.ide-landing .repo-card:hover {
+  border-color: #7c3aed;
+  background: #1e1e38;
+}
+
+.ide-landing .repo-icon {
+  font-size: 24px;
+}
+
+.ide-landing .repo-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.ide-landing .repo-name {
+  font-weight: 500;
+  color: #e0e0e0;
+}
+
+.ide-landing .repo-owner {
+  font-size: 13px;
+  color: #888;
+}
+
+.ide-landing .repo-arrow {
+  color: #666;
+  font-size: 18px;
+}
+
+.ide-landing .action-buttons {
+  display: flex;
+  gap: 12px;
+}
+
+.ide-landing .action-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px;
+  background: #1a1a2e;
+  border: 1px solid #2d2d44;
+  border-radius: 8px;
+  text-decoration: none;
+  color: #e0e0e0;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.ide-landing .action-btn:hover {
+  border-color: #7c3aed;
+}
+
+.ide-landing .action-btn.primary {
+  background: #7c3aed;
+  border-color: #7c3aed;
+}
+
+.ide-landing .action-btn.primary:hover {
+  background: #6d28d9;
+}
+
+.ide-landing .action-icon {
+  font-size: 20px;
+}
+
+.ide-landing-loading,
+.ide-landing-empty {
+  padding: 24px;
+  text-align: center;
+  color: #666;
+  background: #1a1a2e;
+  border-radius: 8px;
+}
+

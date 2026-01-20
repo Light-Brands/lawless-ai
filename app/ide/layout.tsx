@@ -1,5 +1,5 @@
 import { Metadata } from 'next';
-import './styles/ide.css';
+import './styles/index.css';
 
 export const metadata: Metadata = {
   title: 'Lawless AI IDE',

@@ -1,0 +1,176 @@
+/* IDE Layout */
+.ide-layout {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+.collapsed-panes {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px;
+  background: #1a1a2e;
+  border-right: 1px solid #2d2d44;
+}
+
+.collapsed-pane-icon {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 18px;
+}
+
+.collapsed-pane-icon:hover {
+  background: #2d2d44;
+  border-color: #3d3d5c;
+}
+
+/* Hidden panes container - keeps components mounted when minimized */
+.pane-content-holder {
+  position: absolute;
+  left: -9999px;
+  top: -9999px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.pane-content-wrapper {
+  position: absolute;
+}
+
+/* Portal target inside visible panels */
+.pane-portal-target {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.panes-container {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+/* Panel (react-resizable-panels) */
+.panel {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* Pane Container */
+.pane-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: #1a1a2e;
+  border-right: 1px solid #2d2d44;
+  overflow: hidden;
+}
+
+.pane-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: #16162a;
+  border-bottom: 1px solid #2d2d44;
+  min-height: 36px;
+}
+
+.pane-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.pane-icon {
+  font-size: 14px;
+}
+
+.pane-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.pane-collapse-btn {
+  padding: 4px;
+  background: transparent;
+  border: none;
+  color: #666;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.pane-collapse-btn:hover {
+  background: #2d2d44;
+  color: #e0e0e0;
+}
+
+.pane-content {
+  flex: 1;
+  overflow: auto;
+}
+
+/* Resize Handle (react-resizable-panels) */
+.resize-handle {
+  width: 4px;
+  background: #2d2d44;
+  cursor: col-resize;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+
+.resize-handle:hover,
+.resize-handle[data-resize-handle-active] {
+  background: #7c3aed;
+}
+
+.resize-handle:focus {
+  outline: none;
+}
+
+/* Pane Skeleton */
+.pane-skeleton {
+  padding: 16px;
+}
+
+.skeleton-header {
+  height: 24px;
+  width: 60%;
+  background: #2d2d44;
+  border-radius: 4px;
+  margin-bottom: 16px;
+}
+
+.skeleton-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.skeleton-line {
+  height: 16px;
+  background: #2d2d44;
+  border-radius: 4px;
+}
+
+.skeleton-line.short {
+  width: 40%;
+}
+

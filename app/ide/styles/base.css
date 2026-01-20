@@ -1,0 +1,148 @@
+/* IDE Root Styles */
+.ide-root {
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  background: #0d0d1a;
+  color: #e0e0e0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.ide-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+/* IDE Loading State */
+.ide-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  gap: 16px;
+}
+
+.ide-loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid #2d2d44;
+  border-top-color: #7c3aed;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.ide-loading p {
+  color: #888;
+  font-size: 14px;
+}
+
+/* IDE Error State */
+.ide-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  gap: 16px;
+  text-align: center;
+}
+
+.ide-error h2 {
+  color: #ef4444;
+  font-size: 24px;
+}
+
+.ide-error p {
+  color: #888;
+}
+
+.ide-error button {
+  padding: 8px 16px;
+  background: #7c3aed;
+  border: none;
+  border-radius: 6px;
+  color: white;
+  cursor: pointer;
+}
+
+.command-palette-trigger {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: #2d2d44;
+  border: 1px solid #3d3d5c;
+  border-radius: 6px;
+  color: #888;
+  cursor: pointer;
+  font-size: 13px;
+  width: 100%;
+  max-width: 400px;
+}
+
+.command-palette-trigger:hover {
+  border-color: #5d5d7c;
+}
+
+.command-palette-trigger kbd {
+  margin-left: auto;
+  padding: 2px 6px;
+  background: #1a1a2e;
+  border-radius: 4px;
+  font-size: 11px;
+}
+
+.status-indicators {
+  display: flex;
+  gap: 6px;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #666;
+}
+
+.status-dot.connected {
+  background: #4ade80;
+}
+
+.status-dot.error {
+  background: #ef4444;
+}
+
+.ide-settings-btn,
+.ide-user-btn {
+  padding: 6px;
+  background: transparent;
+  border: none;
+  color: #888;
+  cursor: pointer;
+  border-radius: 6px;
+}
+
+.ide-settings-btn:hover,
+.ide-user-btn:hover {
+  background: #2d2d44;
+  color: #e0e0e0;
+}
+
+.user-avatar {
+  width: 28px;
+  height: 28px;
+  background: #7c3aed;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: white;
+}
+

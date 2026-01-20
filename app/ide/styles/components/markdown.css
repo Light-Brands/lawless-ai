@@ -1,0 +1,300 @@
+
+/* Markdown Preview - Premium Documentation Style */
+.file-preview-markdown {
+  flex: 1;
+  overflow: auto;
+  padding: 32px 40px;
+  background: linear-gradient(180deg, #0f0f1a 0%, #0a0a12 100%);
+}
+
+.file-preview-markdown .markdown-body {
+  max-width: 850px;
+  margin: 0 auto;
+  color: #d4d4d8;
+  font-size: 15px;
+  line-height: 1.7;
+}
+
+/* Headings with accent styling */
+.file-preview-markdown .markdown-body h1,
+.file-preview-markdown .markdown-body h2,
+.file-preview-markdown .markdown-body h3,
+.file-preview-markdown .markdown-body h4,
+.file-preview-markdown .markdown-body h5,
+.file-preview-markdown .markdown-body h6 {
+  color: #f4f4f5;
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: -0.02em;
+}
+
+.file-preview-markdown .markdown-body h1 {
+  font-size: 2.25em;
+  margin-top: 0;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 2px solid #7c3aed;
+  background: linear-gradient(90deg, #a78bfa 0%, #7c3aed 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.file-preview-markdown .markdown-body h2 {
+  font-size: 1.65em;
+  margin-top: 48px;
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #2d2d44;
+  color: #e4e4e7;
+}
+
+.file-preview-markdown .markdown-body h3 {
+  font-size: 1.35em;
+  margin-top: 36px;
+  margin-bottom: 16px;
+  color: #d4d4d8;
+}
+
+.file-preview-markdown .markdown-body h4 {
+  font-size: 1.15em;
+  margin-top: 28px;
+  margin-bottom: 12px;
+  color: #a1a1aa;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 500;
+}
+
+.file-preview-markdown .markdown-body h5,
+.file-preview-markdown .markdown-body h6 {
+  font-size: 1em;
+  margin-top: 24px;
+  margin-bottom: 10px;
+  color: #a1a1aa;
+}
+
+/* Paragraphs */
+.file-preview-markdown .markdown-body p {
+  margin-bottom: 20px;
+  line-height: 1.75;
+}
+
+.file-preview-markdown .markdown-body > p:first-child {
+  font-size: 1.1em;
+  color: #a1a1aa;
+  line-height: 1.8;
+}
+
+/* Links */
+.file-preview-markdown .markdown-body a {
+  color: #a78bfa;
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: all 0.15s ease;
+}
+
+.file-preview-markdown .markdown-body a:hover {
+  color: #c4b5fd;
+  border-bottom-color: #c4b5fd;
+}
+
+/* Inline code */
+.file-preview-markdown .markdown-body code {
+  background: #1e1e2e;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', monospace;
+  font-size: 0.88em;
+  color: #f472b6;
+  border: 1px solid #2d2d44;
+}
+
+/* Code blocks */
+.file-preview-markdown .markdown-body pre {
+  background: #0a0a14;
+  padding: 20px 24px;
+  border-radius: 12px;
+  overflow-x: auto;
+  margin: 24px 0;
+  border: 1px solid #2d2d44;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+.file-preview-markdown .markdown-body pre code {
+  background: transparent;
+  padding: 0;
+  border: none;
+  color: #e0e0e0;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+/* Lists */
+.file-preview-markdown .markdown-body ul,
+.file-preview-markdown .markdown-body ol {
+  padding-left: 28px;
+  margin-bottom: 20px;
+}
+
+.file-preview-markdown .markdown-body li {
+  margin-bottom: 10px;
+  line-height: 1.7;
+}
+
+.file-preview-markdown .markdown-body li::marker {
+  color: #7c3aed;
+}
+
+.file-preview-markdown .markdown-body ul li {
+  list-style-type: disc;
+}
+
+.file-preview-markdown .markdown-body ul ul li {
+  list-style-type: circle;
+}
+
+.file-preview-markdown .markdown-body ol li {
+  list-style-type: decimal;
+}
+
+/* Nested lists */
+.file-preview-markdown .markdown-body li > ul,
+.file-preview-markdown .markdown-body li > ol {
+  margin-top: 8px;
+  margin-bottom: 0;
+}
+
+/* Task lists */
+.file-preview-markdown .markdown-body input[type="checkbox"] {
+  margin-right: 8px;
+  accent-color: #7c3aed;
+  transform: scale(1.1);
+}
+
+/* Blockquotes - styled as callouts */
+.file-preview-markdown .markdown-body blockquote {
+  background: linear-gradient(90deg, rgba(124, 58, 237, 0.1) 0%, rgba(124, 58, 237, 0.05) 100%);
+  border-left: 4px solid #7c3aed;
+  border-radius: 0 12px 12px 0;
+  margin: 24px 0;
+  padding: 16px 20px;
+  color: #a1a1aa;
+  font-style: italic;
+}
+
+.file-preview-markdown .markdown-body blockquote p {
+  margin-bottom: 0;
+}
+
+.file-preview-markdown .markdown-body blockquote p:not(:last-child) {
+  margin-bottom: 12px;
+}
+
+/* Tables - modern data table styling */
+.file-preview-markdown .markdown-body table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  margin: 24px 0;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid #2d2d44;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.file-preview-markdown .markdown-body th {
+  background: linear-gradient(180deg, #1e1e2e 0%, #1a1a2a 100%);
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.85em;
+  letter-spacing: 0.05em;
+  color: #a1a1aa;
+  padding: 14px 16px;
+  text-align: left;
+  border-bottom: 2px solid #7c3aed;
+}
+
+.file-preview-markdown .markdown-body td {
+  padding: 14px 16px;
+  border-bottom: 1px solid #2d2d44;
+  background: #0f0f1a;
+}
+
+.file-preview-markdown .markdown-body tr:last-child td {
+  border-bottom: none;
+}
+
+.file-preview-markdown .markdown-body tr:hover td {
+  background: #1a1a2e;
+}
+
+/* Images */
+.file-preview-markdown .markdown-body img {
+  max-width: 100%;
+  border-radius: 12px;
+  margin: 20px 0;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  border: 1px solid #2d2d44;
+}
+
+/* Horizontal rule */
+.file-preview-markdown .markdown-body hr {
+  border: none;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #2d2d44 20%, #2d2d44 80%, transparent);
+  margin: 40px 0;
+}
+
+/* Strong and emphasis */
+.file-preview-markdown .markdown-body strong {
+  color: #f4f4f5;
+  font-weight: 600;
+}
+
+.file-preview-markdown .markdown-body em {
+  color: #a1a1aa;
+  font-style: italic;
+}
+
+/* Definition lists (if supported) */
+.file-preview-markdown .markdown-body dl {
+  margin: 20px 0;
+}
+
+.file-preview-markdown .markdown-body dt {
+  font-weight: 600;
+  color: #e4e4e7;
+  margin-top: 16px;
+}
+
+.file-preview-markdown .markdown-body dd {
+  margin-left: 24px;
+  color: #a1a1aa;
+}
+
+/* Keyboard keys */
+.file-preview-markdown .markdown-body kbd {
+  background: #1e1e2e;
+  border: 1px solid #3d3d5c;
+  border-radius: 6px;
+  padding: 3px 8px;
+  font-family: 'SF Mono', monospace;
+  font-size: 0.85em;
+  box-shadow: 0 2px 0 #2d2d44;
+}
+
+/* Footnotes */
+.file-preview-markdown .markdown-body .footnotes {
+  margin-top: 48px;
+  padding-top: 24px;
+  border-top: 1px solid #2d2d44;
+  font-size: 0.9em;
+  color: #71717a;
+}
+
+/* Selection styling */
+.file-preview-markdown .markdown-body ::selection {
+  background: rgba(124, 58, 237, 0.3);
+}
+

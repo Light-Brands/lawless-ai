@@ -1,0 +1,371 @@
+/* Preview Pane */
+.preview-pane {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.preview-header {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px;
+  border-bottom: 1px solid #2d2d44;
+}
+
+.preview-mode-toggle {
+  display: flex;
+  gap: 4px;
+}
+
+.preview-mode-btn {
+  padding: 6px 12px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: #888;
+  cursor: pointer;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.preview-mode-btn:hover {
+  color: #e0e0e0;
+}
+
+.preview-mode-btn.active {
+  background: #2d2d44;
+  border-color: #3d3d5c;
+  color: #e0e0e0;
+}
+
+.status-indicator {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.status-indicator.running {
+  background: #4ade80;
+}
+
+.preview-refresh-btn {
+  padding: 6px 10px;
+  background: transparent;
+  border: 1px solid #3d3d5c;
+  border-radius: 6px;
+  color: #888;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.preview-refresh-btn:hover {
+  background: #2d2d44;
+  color: #e0e0e0;
+}
+
+.preview-url-bar {
+  padding: 6px 12px;
+  background: #0d0d1a;
+  border-bottom: 1px solid #2d2d44;
+  font-size: 12px;
+  color: #666;
+  font-family: monospace;
+}
+
+.preview-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.preview-iframe {
+  flex: 1;
+  border: none;
+  background: white;
+}
+
+.preview-placeholder {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: #666;
+}
+
+.server-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-icon {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #666;
+}
+
+.status-icon.running { background: #4ade80; }
+.status-icon.starting { background: #f59e0b; }
+.status-icon.stopped { background: #666; }
+.status-icon.error { background: #ef4444; }
+
+.start-server-btn {
+  padding: 8px 16px;
+  background: #7c3aed;
+  border: none;
+  border-radius: 6px;
+  color: white;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.loading-spinner {
+  width: 24px;
+  height: 24px;
+  border: 2px solid #2d2d44;
+  border-top-color: #7c3aed;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.preview-console {
+  height: 120px;
+  border-top: 1px solid #2d2d44;
+  display: flex;
+  flex-direction: column;
+}
+
+.console-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 4px 8px;
+  border-bottom: 1px solid #2d2d44;
+}
+
+.console-tab {
+  padding: 4px 8px;
+  background: transparent;
+  border: none;
+  color: #666;
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.console-tab.active {
+  color: #e0e0e0;
+}
+
+.console-tab-action {
+  margin-left: auto;
+  padding: 4px 8px;
+  background: transparent;
+  border: none;
+  color: #666;
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.console-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+  font-family: monospace;
+  font-size: 11px;
+}
+
+.console-line {
+  display: flex;
+  gap: 8px;
+}
+
+.console-time {
+  color: #666;
+}
+
+.console-message {
+  color: #e0e0e0;
+}
+
+/* Preview Pane - Enhanced */
+.preview-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-indicator.building {
+  background: #f59e0b;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.status-indicator.ready {
+  background: #4ade80;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.preview-branch-dropdown {
+  position: relative;
+}
+
+.preview-branch-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  background: #1a1a2e;
+  border: 1px solid #3d3d5c;
+  border-radius: 6px;
+  color: #888;
+  cursor: pointer;
+  font-size: 11px;
+  transition: all 0.15s ease;
+}
+
+.preview-branch-btn:hover {
+  background: #2d2d44;
+  color: #e0e0e0;
+  border-color: #4d4d6c;
+}
+
+.preview-branch-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  min-width: 150px;
+  max-height: 200px;
+  overflow-y: auto;
+  background: #1a1a2e;
+  border: 1px solid #3d3d5c;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  z-index: 100;
+}
+
+.preview-branch-option {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  background: transparent;
+  border: none;
+  color: #888;
+  cursor: pointer;
+  font-size: 11px;
+  text-align: left;
+  transition: background 0.1s ease;
+}
+
+.preview-branch-option:hover {
+  background: #2d2d44;
+  color: #e0e0e0;
+}
+
+.preview-branch-option.active {
+  background: #2d2d44;
+  color: #7c3aed;
+}
+
+.preview-url-deployed {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+}
+
+.preview-url-deployed span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.preview-external-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  color: #888;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+}
+
+.preview-external-link:hover {
+  background: #2d2d44;
+  color: #4ade80;
+}
+
+.deployment-status-indicator {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 16px;
+  border-radius: 8px;
+  background: #1a1a2e;
+}
+
+.deployment-status-indicator.building {
+  color: #f59e0b;
+}
+
+.deployment-status-indicator.error {
+  color: #ef4444;
+}
+
+.deployment-status-indicator.canceled {
+  color: #666;
+}
+
+.deployment-status-indicator.queued,
+.deployment-status-indicator.initializing {
+  color: #888;
+}
+
+.preview-commit-message {
+  font-size: 12px;
+  color: #888;
+  max-width: 300px;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.preview-branch-info {
+  font-size: 11px;
+  color: #666;
+}
+
+.preview-hint {
+  font-size: 11px;
+  color: #666;
+}
+
+.connect-vercel-btn {
+  padding: 8px 16px;
+  background: linear-gradient(135deg, #000 0%, #333 100%);
+  border: 1px solid #444;
+  border-radius: 6px;
+  color: white;
+  cursor: pointer;
+  font-size: 12px;
+  text-decoration: none;
+  transition: all 0.15s ease;
+}
+
+.connect-vercel-btn:hover {
+  background: linear-gradient(135deg, #111 0%, #444 100%);
+  border-color: #555;
+}
+

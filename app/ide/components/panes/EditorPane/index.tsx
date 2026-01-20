@@ -20,6 +20,8 @@ import {
   FileHTMLIcon,
   FileImageIcon,
   LoadingIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
 } from '../../Icons';
 import { MarkdownRenderer } from '../../MarkdownRenderer';
 
@@ -105,7 +107,7 @@ function convertApiTree(nodes: ApiTreeNode[]): FileTreeItem[] {
 export function EditorPane() {
   const { owner, repo } = useIDEContext();
   const github = useGitHubConnection();
-  const { activeFile, openFiles, unsavedFiles, setActiveFile, closeFile, splitView, setSplitView, openFile, markFileUnsaved, markFileSaved } = useIDEStore();
+  const { activeFile, openFiles, unsavedFiles, setActiveFile, closeFile, splitView, setSplitView, openFile, markFileUnsaved, markFileSaved, fileTreeCollapsed, setFileTreeCollapsed } = useIDEStore();
   const [fileTree, setFileTree] = useState<FileTreeItem[]>([]);
   const [fileContents, setFileContents] = useState<Record<string, string>>({});
   const [originalContents, setOriginalContents] = useState<Record<string, string>>({});
@@ -147,7 +149,7 @@ export function EditorPane() {
       const { startX, startPercent, containerWidth } = resizeRef.current;
       const deltaX = e.clientX - startX;
       const deltaPercent = (deltaX / containerWidth) * 100;
-      const newPercent = Math.max(15, Math.min(50, startPercent + deltaPercent));
+      const newPercent = Math.max(10, Math.min(80, startPercent + deltaPercent));
       setSidebarPercent(newPercent);
     };
 
@@ -266,18 +268,23 @@ export function EditorPane() {
     markFileSaved(activeFile);
   }, [activeFile, markFileSaved]);
 
-  // Keyboard shortcut for save
+  // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 's') {
         e.preventDefault();
         handleSave();
       }
+      // Cmd+B to toggle sidebar
+      if ((e.metaKey || e.ctrlKey) && e.key === 'b') {
+        e.preventDefault();
+        setFileTreeCollapsed(!fileTreeCollapsed);
+      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleSave]);
+  }, [handleSave, fileTreeCollapsed, setFileTreeCollapsed]);
 
   // Syntax highlighting for preview mode
   useEffect(() => {
@@ -483,36 +490,60 @@ export function EditorPane() {
       </div>
 
       {/* File tree sidebar */}
-      <div ref={layoutRef} className={`editor-layout ${isResizing ? 'resizing' : ''}`}>
-        <div className="file-tree" style={{ width: `${sidebarPercent}%`, minWidth: '150px', maxWidth: '50%' }}>
-          <div className="file-tree-header">
-            <input
-              type="text"
-              placeholder="Search files..."
-              className="file-search"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
+      <div ref={layoutRef} className={`editor-layout ${isResizing ? 'resizing' : ''} ${fileTreeCollapsed ? 'sidebar-collapsed' : ''}`}>
+        {fileTreeCollapsed ? (
+          /* Collapsed sidebar - thin bar with expand button */
+          <div className="file-tree-collapsed">
+            <button
+              className="file-tree-expand-btn"
+              onClick={() => setFileTreeCollapsed(false)}
+              title="Expand file explorer (Cmd+B)"
+            >
+              <FolderIcon size={16} />
+              <ChevronRightIcon size={12} />
+            </button>
           </div>
-          <div className="file-tree-content">
-            {loading ? (
-              <div className="file-tree-loading">Loading files...</div>
-            ) : error ? (
-              <div className="file-tree-error">{error}</div>
-            ) : fileTree.length === 0 ? (
-              <div className="file-tree-empty">No files found</div>
-            ) : (
-              renderFileTree(fileTree)
-            )}
-          </div>
-        </div>
+        ) : (
+          /* Expanded sidebar */
+          <>
+            <div className="file-tree" style={{ width: `${sidebarPercent}%`, minWidth: '100px', maxWidth: '80%' }}>
+              <div className="file-tree-header">
+                <input
+                  type="text"
+                  placeholder="Search files..."
+                  className="file-search"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+                <button
+                  className="file-tree-collapse-btn"
+                  onClick={() => setFileTreeCollapsed(true)}
+                  title="Collapse file explorer (Cmd+B)"
+                >
+                  <ChevronLeftIcon size={14} />
+                </button>
+              </div>
+              <div className="file-tree-content">
+                {loading ? (
+                  <div className="file-tree-loading">Loading files...</div>
+                ) : error ? (
+                  <div className="file-tree-error">{error}</div>
+                ) : fileTree.length === 0 ? (
+                  <div className="file-tree-empty">No files found</div>
+                ) : (
+                  renderFileTree(fileTree)
+                )}
+              </div>
+            </div>
 
-        {/* Resize handle for file tree */}
-        <div
-          className="file-tree-resize-handle"
-          onMouseDown={handleResizeStart}
-          title="Drag to resize"
-        />
+            {/* Resize handle for file tree */}
+            <div
+              className="file-tree-resize-handle"
+              onMouseDown={handleResizeStart}
+              title="Drag to resize"
+            />
+          </>
+        )}
 
         {/* Code editor area */}
         <div className="code-editor-container">

@@ -1,0 +1,33 @@
+/*
+ * IDE Styles - Main Entry Point
+ *
+ * This file imports all IDE styles in the correct order.
+ * Each file is kept small and focused for easier maintenance.
+ */
+
+/* Base styles - root, container, loading, error states */
+@import './base.css';
+
+/* Landing page */
+@import './landing.css';
+
+/* Header */
+@import './header.css';
+
+/* Layout - panes container, panels, resize handles */
+@import './layout.css';
+
+/* Components */
+@import './components/command-palette.css';
+@import './components/markdown.css';
+@import './components/mermaid.css';
+@import './components/highlight.css';
+@import './components/modals.css';
+
+/* Panes */
+@import './panes/chat.css';
+@import './panes/editor.css';
+@import './panes/preview.css';
+@import './panes/database.css';
+@import './panes/deployments.css';
+@import './panes/activity.css';

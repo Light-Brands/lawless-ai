@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useCallback } from 'react';
+import React, { useCallback, useRef, useEffect, useState } from 'react';
 import { Panel, Group as PanelGroup, Separator as PanelResizeHandle } from 'react-resizable-panels';
+import { createPortal } from 'react-dom';
 import { useIDEStore } from '../stores/ideStore';
 import { PaneContainer } from './PaneContainer';
 import { IDEProvider } from '../contexts/IDEContext';
@@ -47,6 +48,37 @@ const TerminalPane = dynamic(() => import('./panes/TerminalPane').then((m) => m.
   ssr: false, // Terminal uses browser-only APIs
 });
 
+// Context for pane content portals
+const PanePortalContext = React.createContext<{
+  registerTarget: (paneId: number, element: HTMLDivElement | null) => void;
+  targets: Record<number, HTMLDivElement | null>;
+}>({
+  registerTarget: () => {},
+  targets: {},
+});
+
+// Component that renders pane content and portals it to the target when visible
+function PaneContentPortal({
+  paneId,
+  isVisible,
+  children,
+}: {
+  paneId: number;
+  isVisible: boolean;
+  children: React.ReactNode;
+}) {
+  const { targets } = React.useContext(PanePortalContext);
+  const target = targets[paneId];
+
+  // When visible and target exists, portal to the target
+  if (isVisible && target) {
+    return createPortal(children, target);
+  }
+
+  // When hidden, render in place (hidden container)
+  return <>{children}</>;
+}
+
 function PaneSkeleton() {
   return (
     <div className="pane-skeleton">
@@ -79,7 +111,17 @@ interface IDELayoutProps {
 export function IDELayout({ owner = '', repo = '', sessionId = null }: IDELayoutProps) {
   const { paneOrder, paneVisibility, togglePane } = useIDEStore();
 
-  // Get visible panes in order
+  // Track portal targets for each pane
+  const [portalTargets, setPortalTargets] = useState<Record<number, HTMLDivElement | null>>({});
+
+  const registerTarget = useCallback((paneId: number, element: HTMLDivElement | null) => {
+    setPortalTargets((prev) => {
+      if (prev[paneId] === element) return prev;
+      return { ...prev, [paneId]: element };
+    });
+  }, []);
+
+  // Get visible and collapsed panes
   const visiblePanes = paneOrder.filter((p) => paneVisibility[p]);
   const collapsedPanes = paneOrder.filter((p) => !paneVisibility[p]);
 
@@ -95,59 +137,100 @@ export function IDELayout({ owner = '', repo = '', sessionId = null }: IDELayout
 
   return (
     <IDEProvider owner={owner} repo={repo} sessionId={sessionId}>
-      <div className="ide-layout">
-        {/* Collapsed pane icons */}
-        {collapsedPanes.length > 0 && (
-          <div className="collapsed-panes">
-            {collapsedPanes.map((paneId) => {
+      <PanePortalContext.Provider value={{ registerTarget, targets: portalTargets }}>
+        <div className="ide-layout">
+          {/* Collapsed pane icons */}
+          {collapsedPanes.length > 0 && (
+            <div className="collapsed-panes">
+              {collapsedPanes.map((paneId) => {
+                const config = PANE_CONFIG[paneId as keyof typeof PANE_CONFIG];
+                return (
+                  <button
+                    key={paneId}
+                    className="collapsed-pane-icon"
+                    onClick={() => togglePane(paneId)}
+                    title={`${config.title} (Cmd+${paneId})`}
+                  >
+                    <span className="pane-icon">{config.icon}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {/*
+            All pane content is rendered here ONCE in consistent order.
+            When visible, content portals to the panel target.
+            When collapsed, content stays here but hidden.
+            This prevents unmounting/remounting when toggling visibility.
+          */}
+          <div className="pane-content-holder">
+            {paneOrder.map((paneId) => {
               const config = PANE_CONFIG[paneId as keyof typeof PANE_CONFIG];
+              const PaneComponent = config.component;
+              const isVisible = paneVisibility[paneId];
+
               return (
-                <button
-                  key={paneId}
-                  className="collapsed-pane-icon"
-                  onClick={() => togglePane(paneId)}
-                  title={`${config.title} (Cmd+${paneId})`}
+                <div
+                  key={`content-${paneId}`}
+                  className="pane-content-wrapper"
+                  style={{ display: isVisible ? 'none' : 'block' }}
                 >
-                  <span className="pane-icon">{config.icon}</span>
-                </button>
+                  <PaneContentPortal paneId={paneId} isVisible={isVisible}>
+                    <PaneComponent />
+                  </PaneContentPortal>
+                </div>
               );
             })}
           </div>
-        )}
 
-        {/* Visible panes with react-resizable-panels */}
-        <PanelGroup orientation="horizontal" className="panes-container">
-          {visiblePanes.map((paneId, index) => {
-            const config = PANE_CONFIG[paneId as keyof typeof PANE_CONFIG];
-            const PaneComponent = config.component;
+          {/* Visible panes with react-resizable-panels */}
+          <PanelGroup orientation="horizontal" className="panes-container">
+            {visiblePanes.map((paneId, index) => {
+              const config = PANE_CONFIG[paneId as keyof typeof PANE_CONFIG];
 
-            return (
-              <React.Fragment key={paneId}>
-                <Panel
-                  id={`pane-${paneId}`}
-                  defaultSize={`${getDefaultSize(paneId)}%`}
-                  minSize={`${config.minSize}%`}
-                  className="panel"
-                >
-                  <PaneContainer
-                    id={paneId}
-                    title={config.title}
-                    icon={config.icon}
-                    onCollapse={() => togglePane(paneId)}
+              return (
+                <React.Fragment key={paneId}>
+                  <Panel
+                    id={`pane-${paneId}`}
+                    defaultSize={getDefaultSize(paneId)}
+                    minSize={config.minSize}
+                    className="panel"
                   >
-                    <PaneComponent />
-                  </PaneContainer>
-                </Panel>
+                    <PaneContainer
+                      id={paneId}
+                      title={config.title}
+                      icon={config.icon}
+                      onCollapse={() => togglePane(paneId)}
+                    >
+                      {/* Portal target - content will be rendered here via portal */}
+                      <PanePortalTarget paneId={paneId} />
+                    </PaneContainer>
+                  </Panel>
 
-                {/* Resize handle between panes */}
-                {index < visiblePanes.length - 1 && (
-                  <PanelResizeHandle className="resize-handle" />
-                )}
-              </React.Fragment>
-            );
-          })}
-        </PanelGroup>
-      </div>
+                  {/* Resize handle between panes */}
+                  {index < visiblePanes.length - 1 && (
+                    <PanelResizeHandle className="resize-handle" />
+                  )}
+                </React.Fragment>
+              );
+            })}
+          </PanelGroup>
+        </div>
+      </PanePortalContext.Provider>
     </IDEProvider>
   );
+}
+
+// Component that registers itself as a portal target
+function PanePortalTarget({ paneId }: { paneId: number }) {
+  const { registerTarget } = React.useContext(PanePortalContext);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    registerTarget(paneId, ref.current);
+    return () => registerTarget(paneId, null);
+  }, [paneId, registerTarget]);
+
+  return <div ref={ref} className="pane-portal-target" />;
 }
