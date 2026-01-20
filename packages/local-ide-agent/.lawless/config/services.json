@@ -1,0 +1,38 @@
+{
+  "$schema": "./services.schema.json",
+  "version": "1.0.0",
+  "services": {
+    "claude": {
+      "enabled": true,
+      "apiKeyEnvVar": "ANTHROPIC_API_KEY",
+      "defaultModel": "claude-sonnet-4-20250514",
+      "maxTokens": 8096,
+      "temperature": 0.7
+    },
+    "github": {
+      "enabled": true,
+      "tokenEnvVar": "GITHUB_TOKEN",
+      "owner": "",
+      "repo": "",
+      "defaultBranch": "main"
+    },
+    "supabase": {
+      "enabled": true,
+      "urlEnvVar": "NEXT_PUBLIC_SUPABASE_URL",
+      "anonKeyEnvVar": "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+      "serviceKeyEnvVar": "SUPABASE_SERVICE_ROLE_KEY"
+    },
+    "vercel": {
+      "enabled": true,
+      "tokenEnvVar": "VERCEL_TOKEN",
+      "projectId": "",
+      "teamId": ""
+    }
+  },
+  "automation": {
+    "autoCommit": false,
+    "autoPush": false,
+    "autoApplyMigrations": false,
+    "autoFixDeployments": false
+  }
+}
