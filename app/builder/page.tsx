@@ -306,6 +306,7 @@ export default function BuilderPage() {
         onClose={() => setShowVault(false)}
         brands={brands}
         onSelectBrand={handleSelectBrand}
+        onRefresh={refreshBrands}
         loading={loadingBrands}
       />
     </div>
