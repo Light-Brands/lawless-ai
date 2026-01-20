@@ -141,14 +141,13 @@ export function PreviewPane() {
     }
   }, [vercel.status, vercel.projectId, fetchDeployments]);
 
-  // Build preview URL using dedicated subdomain
-  // This gives a cleaner browsing experience with proper URL isolation
+  // Build preview URL using dedicated subdomain with port
+  // Format: preview-{sessionId}-{port}.dev.lightbrands.ai
+  // Each port gets a unique subdomain for clean isolation
   const getLocalPreviewUrl = useCallback(() => {
     const port = selectedPort || 3000;
-    // Use preview subdomain: preview-{sessionId}.dev.lightbrands.ai
-    // The subdomain handler on the backend proxies to the session's localhost
-    const previewHost = `preview-${effectiveSessionId}.dev.lightbrands.ai`;
-    return `https://${previewHost}${port !== 3000 ? `?port=${port}` : ''}`;
+    const previewHost = `preview-${effectiveSessionId}-${port}.dev.lightbrands.ai`;
+    return `https://${previewHost}`;
   }, [effectiveSessionId, selectedPort]);
 
   // Refresh iframe
@@ -291,7 +290,7 @@ export function PreviewPane() {
         {previewMode === 'local' ? (
           <span>
             {hasActivePorts && effectiveSessionId
-              ? `preview-${effectiveSessionId}.dev.lightbrands.ai`
+              ? `preview-${effectiveSessionId}-${selectedPort || 3000}.dev.lightbrands.ai`
               : 'Scanning for dev servers...'}
           </span>
         ) : (

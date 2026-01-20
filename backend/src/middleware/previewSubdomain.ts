@@ -1,11 +1,13 @@
 import { Request, Response, NextFunction } from 'express';
 import { db } from '../config/database';
 
-const PREVIEW_SUBDOMAIN_PATTERN = /^preview-([a-zA-Z0-9_-]+)\.dev\.lightbrands\.ai$/;
+// Match preview-{sessionId}-{port}.dev.lightbrands.ai
+// Port is required in the subdomain for unique URLs per port
+const PREVIEW_SUBDOMAIN_PATTERN = /^preview-([a-zA-Z0-9_-]+)-(\d+)\.dev\.lightbrands\.ai$/;
 
 /**
  * Middleware that handles preview subdomain requests.
- * Routes like preview-{sessionId}.dev.lightbrands.ai get proxied to the session's localhost.
+ * Routes like preview-{sessionId}-{port}.dev.lightbrands.ai get proxied to the session's localhost:{port}.
  */
 export async function previewSubdomainMiddleware(req: Request, res: Response, next: NextFunction) {
   const host = req.headers.host || '';
@@ -17,7 +19,7 @@ export async function previewSubdomainMiddleware(req: Request, res: Response, ne
   }
 
   const sessionId = match[1];
-  const port = req.query.port || '3000';
+  const port = match[2] || '3000'; // Port from subdomain
   const reqPath = req.path || '/';
 
   // Verify session exists
@@ -30,16 +32,14 @@ export async function previewSubdomainMiddleware(req: Request, res: Response, ne
   }
 
   try {
-    // Build query string from original request (excluding our internal params)
+    // Build query string from original request
     const queryParams = new URLSearchParams();
     for (const [key, value] of Object.entries(req.query)) {
-      if (key !== 'port') {
-        queryParams.append(key, String(value));
-      }
+      queryParams.append(key, String(value));
     }
     const queryString = queryParams.toString() ? `?${queryParams.toString()}` : '';
 
-    // Proxy request to localhost:port
+    // Proxy request to localhost:port (port comes from subdomain)
     const targetUrl = `http://localhost:${port}${reqPath}${queryString}`;
 
     const proxyRes = await fetch(targetUrl, {
