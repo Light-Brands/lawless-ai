@@ -545,6 +545,22 @@ export function useTerminal(options: UseTerminalOptions = {}): UseTerminalReturn
           sendInput(data);
         });
 
+        // Custom wheel handler to ensure scrolling works even when app captures mouse
+        // This intercepts wheel events and scrolls the terminal viewport directly
+        const viewport = el.querySelector('.xterm-viewport') as HTMLElement;
+        if (viewport) {
+          el.addEventListener('wheel', (e: WheelEvent) => {
+            e.preventDefault();
+            e.stopPropagation();
+
+            // Calculate scroll amount (3 lines per scroll tick)
+            const lineHeight = 17; // Approximate line height in pixels
+            const scrollAmount = Math.sign(e.deltaY) * lineHeight * 3;
+
+            viewport.scrollTop += scrollAmount;
+          }, { passive: false });
+        }
+
         // Load saved output from previous session
         await loadSavedOutput();
 
