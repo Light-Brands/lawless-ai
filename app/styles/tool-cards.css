@@ -9,9 +9,9 @@
 .tool-card {
   background: var(--color-surface-glass);
   border: 1px solid var(--color-surface-glass-border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
   overflow: hidden;
-  margin: var(--space-3) 0;
+  margin: var(--space-1) 0;
   transition: border-color var(--transition-fast);
 }
 
@@ -36,7 +36,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--space-3) var(--space-4);
+  padding: var(--space-2) var(--space-3);
   background: rgba(255, 255, 255, 0.02);
   border-bottom: 1px solid var(--color-surface-glass-border);
   cursor: pointer;
@@ -58,16 +58,16 @@
 .tool-card-header-left {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: 6px;
 }
 
 .tool-card-icon {
-  font-size: 1rem;
+  font-size: 0.875rem;
 }
 
 .tool-card-label {
   font-family: var(--font-mono);
-  font-size: 0.75rem;
+  font-size: 0.6875rem;
   font-weight: var(--font-weight-semibold);
   color: var(--color-text-secondary);
   text-transform: uppercase;
@@ -77,15 +77,15 @@
 .tool-card-header-right {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--space-2);
   flex: 1;
   min-width: 0;
-  margin-left: var(--space-4);
+  margin-left: var(--space-3);
 }
 
 .tool-card-title {
   font-family: var(--font-mono);
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
   color: var(--color-text-primary);
   white-space: nowrap;
   overflow: hidden;
@@ -94,7 +94,7 @@
 }
 
 .tool-card-subtitle {
-  font-size: 0.75rem;
+  font-size: 0.6875rem;
   color: var(--color-text-muted);
   white-space: nowrap;
 }
@@ -104,8 +104,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 18px;
-  height: 18px;
+  width: 14px;
+  height: 14px;
 }
 
 .tool-card-status.success {
@@ -121,8 +121,8 @@
 }
 
 .tool-card-spinner {
-  width: 14px;
-  height: 14px;
+  width: 12px;
+  height: 12px;
   border: 2px solid rgba(168, 85, 247, 0.2);
   border-top-color: var(--color-primary-500);
   border-radius: 50%;
@@ -137,7 +137,7 @@
 
 /* Tool Card Body */
 .tool-card-body {
-  max-height: 500px;
+  max-height: 300px;
   overflow: auto;
 }
 
