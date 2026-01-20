@@ -6,6 +6,7 @@ import { createPortal } from 'react-dom';
 import { useIDEStore } from '../stores/ideStore';
 import { PaneContainer } from './PaneContainer';
 import { IDEProvider } from '../contexts/IDEContext';
+import { useServiceContext } from '../contexts/ServiceContext';
 import {
   ChatIcon,
   CodeIcon,
@@ -103,13 +104,13 @@ const ExternalLinkIcon = () => (
 );
 
 const PANE_CONFIG = {
-  1: { title: 'AI Chat', icon: <ChatIcon size={16} />, component: ChatPane, defaultSize: 20, minSize: 15, externalLink: null },
-  2: { title: 'Editor', icon: <CodeIcon size={16} />, component: EditorPane, defaultSize: 35, minSize: 20, externalLink: { url: 'https://github.com', title: 'Open GitHub' } },
-  3: { title: 'Preview', icon: <GlobeIcon size={16} />, component: PreviewPane, defaultSize: 25, minSize: 15, externalLink: null },
-  4: { title: 'Database', icon: <DatabaseIcon size={16} />, component: DatabasePane, defaultSize: 20, minSize: 15, externalLink: { url: 'https://supabase.com/dashboard', title: 'Open Supabase' } },
-  5: { title: 'Deployments', icon: <RocketIcon size={16} />, component: DeploymentsPane, defaultSize: 20, minSize: 15, externalLink: { url: 'https://vercel.com/dashboard', title: 'Open Vercel' } },
-  6: { title: 'Activity', icon: <ActivityIcon size={16} />, component: ActivityPane, defaultSize: 18, minSize: 12, externalLink: null },
-  7: { title: 'Terminal', icon: <TerminalIcon size={16} />, component: TerminalPane, defaultSize: 30, minSize: 15, externalLink: null },
+  1: { title: 'AI Chat', icon: <ChatIcon size={16} />, component: ChatPane, defaultSize: 20, minSize: 15, externalLinkType: null },
+  2: { title: 'Editor', icon: <CodeIcon size={16} />, component: EditorPane, defaultSize: 35, minSize: 20, externalLinkType: 'github' as const },
+  3: { title: 'Preview', icon: <GlobeIcon size={16} />, component: PreviewPane, defaultSize: 25, minSize: 15, externalLinkType: null },
+  4: { title: 'Database', icon: <DatabaseIcon size={16} />, component: DatabasePane, defaultSize: 20, minSize: 15, externalLinkType: 'supabase' as const },
+  5: { title: 'Deployments', icon: <RocketIcon size={16} />, component: DeploymentsPane, defaultSize: 20, minSize: 15, externalLinkType: 'vercel' as const },
+  6: { title: 'Activity', icon: <ActivityIcon size={16} />, component: ActivityPane, defaultSize: 18, minSize: 12, externalLinkType: null },
+  7: { title: 'Terminal', icon: <TerminalIcon size={16} />, component: TerminalPane, defaultSize: 30, minSize: 15, externalLinkType: null },
 };
 
 interface IDELayoutProps {
@@ -124,6 +125,41 @@ export function IDELayout({ owner = '', repo = '', sessionId = null }: IDELayout
 
   // Track portal targets for each pane
   const [portalTargets, setPortalTargets] = useState<Record<number, HTMLDivElement | null>>({});
+
+  // Get service context for dynamic external links
+  const { vercel, supabase } = useServiceContext();
+
+  // Compute external links dynamically based on current service connections
+  const getExternalLink = useCallback((linkType: 'github' | 'vercel' | 'supabase' | null) => {
+    if (!linkType) return null;
+
+    switch (linkType) {
+      case 'github':
+        // Link to exact project codebase
+        if (owner && repo) {
+          return { url: `https://github.com/${owner}/${repo}`, title: 'Open GitHub Repository' };
+        }
+        return { url: 'https://github.com', title: 'Open GitHub' };
+
+      case 'vercel':
+        // Link to exact project deployments
+        if (vercel.projectId) {
+          const teamPath = vercel.teamId || '~';
+          return { url: `https://vercel.com/${teamPath}/${vercel.projectId}`, title: 'Open Vercel Project' };
+        }
+        return { url: 'https://vercel.com/autod3vs-projects/~/deployments', title: 'Open Vercel' };
+
+      case 'supabase':
+        // Link to exact database table view
+        if (supabase.projectRef) {
+          return { url: `https://supabase.com/dashboard/project/${supabase.projectRef}/editor`, title: 'Open Supabase Table Editor' };
+        }
+        return { url: 'https://supabase.com/dashboard', title: 'Open Supabase' };
+
+      default:
+        return null;
+    }
+  }, [owner, repo, vercel.projectId, vercel.teamId, supabase.projectRef]);
 
   const registerTarget = useCallback((paneId: number, element: HTMLDivElement | null) => {
     setPortalTargets((prev) => {
@@ -221,15 +257,18 @@ export function IDELayout({ owner = '', repo = '', sessionId = null }: IDELayout
                       title={config.title}
                       icon={config.icon}
                       onCollapse={() => togglePane(paneId)}
-                      headerActions={config.externalLink ? (
-                        <button
-                          className="pane-external-link-btn"
-                          onClick={() => window.open(config.externalLink.url, '_blank')}
-                          title={config.externalLink.title}
-                        >
-                          <ExternalLinkIcon />
-                        </button>
-                      ) : undefined}
+                      headerActions={(() => {
+                        const externalLink = getExternalLink(config.externalLinkType);
+                        return externalLink ? (
+                          <button
+                            className="pane-external-link-btn"
+                            onClick={() => window.open(externalLink.url, '_blank')}
+                            title={externalLink.title}
+                          >
+                            <ExternalLinkIcon />
+                          </button>
+                        ) : undefined;
+                      })()}
                     >
                       {/* Portal target - content will be rendered here via portal */}
                       <PanePortalTarget paneId={paneId} />
