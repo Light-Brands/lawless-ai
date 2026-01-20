@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import { useIDEStore } from '../stores/ideStore';
 import { useServiceConnection } from '../hooks/useServiceConnection';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 interface Session {
   sessionId: string;
@@ -15,8 +16,16 @@ interface Session {
   messageCount?: number;
 }
 
+interface Repo {
+  repo_full_name: string;
+  repo_name: string;
+  is_favorite?: boolean;
+  last_accessed_at?: string;
+}
+
 interface IDEHeaderProps {
   repoFullName?: string;
+  repos?: Repo[];
   sessions?: Session[];
   activeSessionId?: string | null;
   onSessionChange?: (sessionId: string) => void;
@@ -26,18 +35,55 @@ interface IDEHeaderProps {
 
 export function IDEHeader({
   repoFullName,
+  repos = [],
   sessions = [],
   activeSessionId,
   onSessionChange,
   onNewSession,
   onDeleteSession,
 }: IDEHeaderProps) {
+  const router = useRouter();
   const { activeSession, setCommandPaletteOpen } = useIDEStore();
   const { services, getStatusColor } = useServiceConnection();
+  const [repoMenuOpen, setRepoMenuOpen] = useState(false);
   const [sessionMenuOpen, setSessionMenuOpen] = useState(false);
 
   const currentSession = sessions.find((s) => s.sessionId === activeSessionId);
   const [owner, repoName] = (repoFullName || '').split('/');
+
+  // Sort repos: favorites first, then by last accessed
+  const sortedRepos = [...repos].sort((a, b) => {
+    if (a.is_favorite && !b.is_favorite) return -1;
+    if (!a.is_favorite && b.is_favorite) return 1;
+    const aTime = a.last_accessed_at ? new Date(a.last_accessed_at).getTime() : 0;
+    const bTime = b.last_accessed_at ? new Date(b.last_accessed_at).getTime() : 0;
+    return bTime - aTime;
+  });
+
+  const repoMenuRef = useRef<HTMLDivElement>(null);
+  const sessionMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close menus when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (repoMenuRef.current && !repoMenuRef.current.contains(event.target as Node)) {
+        setRepoMenuOpen(false);
+      }
+      if (sessionMenuRef.current && !sessionMenuRef.current.contains(event.target as Node)) {
+        setSessionMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleRepoSelect = (repo: Repo) => {
+    setRepoMenuOpen(false);
+    if (repo.repo_full_name !== repoFullName) {
+      router.push(`/ide/${repo.repo_full_name}`);
+    }
+  };
 
   return (
     <header className="ide-header">
@@ -54,11 +100,61 @@ export function IDEHeader({
           <span className="logo-text">Lawless AI</span>
         </Link>
 
+        {/* Repo selector */}
+        <div className="repo-selector-wrapper" ref={repoMenuRef}>
+          <button
+            className="repo-selector"
+            onClick={() => {
+              setRepoMenuOpen(!repoMenuOpen);
+              setSessionMenuOpen(false);
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" className="repo-icon">
+              <path d="M2 2.5A2.5 2.5 0 014.5 0h8.75a.75.75 0 01.75.75v12.5a.75.75 0 01-.75.75h-2.5a.75.75 0 110-1.5h1.75v-2h-8a1 1 0 00-.714 1.7.75.75 0 01-1.072 1.05A2.495 2.495 0 012 11.5v-9zm10.5-1V9h-8c-.356 0-.694.074-1 .208V2.5a1 1 0 011-1h8zM5 12.25v3.25a.25.25 0 00.4.2l1.45-1.087a.25.25 0 01.3 0L8.6 15.7a.25.25 0 00.4-.2v-3.25a.25.25 0 00-.25-.25h-3.5a.25.25 0 00-.25.25z"/>
+            </svg>
+            <span className="repo-name">{repoName || 'Select repo'}</span>
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor" className="dropdown-arrow">
+              <path d="M3 5l3 3 3-3" />
+            </svg>
+          </button>
+
+          {repoMenuOpen && (
+            <div className="repo-menu">
+              <div className="repo-menu-header">
+                <span>Repositories</span>
+              </div>
+              <div className="repo-menu-list">
+                {sortedRepos.map((repo) => (
+                  <button
+                    key={repo.repo_full_name}
+                    className={`repo-menu-item ${repo.repo_full_name === repoFullName ? 'active' : ''}`}
+                    onClick={() => handleRepoSelect(repo)}
+                  >
+                    {repo.is_favorite && (
+                      <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" className="favorite-star">
+                        <path d="M8 .25a.75.75 0 01.673.418l1.882 3.815 4.21.612a.75.75 0 01.416 1.279l-3.046 2.97.719 4.192a.75.75 0 01-1.088.791L8 12.347l-3.766 1.98a.75.75 0 01-1.088-.79l.72-4.194L.818 6.374a.75.75 0 01.416-1.28l4.21-.611L7.327.668A.75.75 0 018 .25z"/>
+                      </svg>
+                    )}
+                    <span className="repo-menu-item-name">{repo.repo_name}</span>
+                    <span className="repo-menu-item-owner">{repo.repo_full_name.split('/')[0]}</span>
+                  </button>
+                ))}
+                {repos.length === 0 && (
+                  <div className="repo-menu-empty">No repos found</div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
         {/* Session selector */}
-        <div className="session-selector-wrapper">
+        <div className="session-selector-wrapper" ref={sessionMenuRef}>
           <button
             className="session-selector"
-            onClick={() => setSessionMenuOpen(!sessionMenuOpen)}
+            onClick={() => {
+              setSessionMenuOpen(!sessionMenuOpen);
+              setRepoMenuOpen(false);
+            }}
           >
             {repoFullName ? (
               <>

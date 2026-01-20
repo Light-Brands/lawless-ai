@@ -25,6 +25,13 @@ interface WorkspaceSession {
   isValid?: boolean;
 }
 
+interface UserRepo {
+  repo_full_name: string;
+  repo_name: string;
+  is_favorite?: boolean;
+  last_accessed_at?: string;
+}
+
 export default function IDERepoPage() {
   const params = useParams();
   const router = useRouter();
@@ -39,11 +46,25 @@ export default function IDERepoPage() {
 
   const [sessions, setSessions] = useState<WorkspaceSession[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+  const [repos, setRepos] = useState<UserRepo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // Initialize keyboard shortcuts
   useKeyboardShortcuts();
+
+  // Fetch user's repos for the dropdown
+  const fetchRepos = useCallback(async () => {
+    try {
+      const response = await fetch('/api/user/repos');
+      const data = await response.json();
+      if (data.repos) {
+        setRepos(data.repos);
+      }
+    } catch (err) {
+      console.error('Failed to fetch repos:', err);
+    }
+  }, []);
 
   // Fetch existing sessions for this repo - returns the sessions array
   const fetchSessions = useCallback(async (): Promise<WorkspaceSession[]> => {
@@ -221,8 +242,11 @@ export default function IDERepoPage() {
       setLoading(true);
       setError(null);
 
-      // Fetch existing sessions and check returned value (not state which updates async)
-      const existingSessions = await fetchSessions();
+      // Fetch repos and sessions in parallel
+      const [existingSessions] = await Promise.all([
+        fetchSessions(),
+        fetchRepos(),
+      ]);
 
       // If no sessions exist, create one
       if (existingSessions.length === 0) {
@@ -233,7 +257,7 @@ export default function IDERepoPage() {
     };
 
     init();
-  }, [owner, repoName, fetchSessions, createSession, authLoading, user?.login]);
+  }, [owner, repoName, fetchSessions, fetchRepos, createSession, authLoading, user?.login]);
 
   // Update active session in store when it changes
   useEffect(() => {
@@ -289,6 +313,7 @@ export default function IDERepoPage() {
           <InitializationOverlay />
           <IDEHeader
             repoFullName={repoFullName || ''}
+            repos={repos}
             sessions={sessions}
             activeSessionId={activeSessionId}
             onSessionChange={setActiveSessionId}
