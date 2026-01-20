@@ -1631,7 +1631,7 @@ ${metadata?.description ? `Meta Description: ${metadata.description}` : ''}
 ${metadata?.ogTitle ? `OG Title: ${metadata.ogTitle}` : ''}
 ${metadata?.ogDescription ? `OG Description: ${metadata.ogDescription}` : ''}
 
-Extracted Colors: ${colors?.length > 0 ? colors.join(', ') : 'None found'}
+Extracted Colors: ${colors && colors.length > 0 ? colors.join(', ') : 'None found'}
 
 Page Content (Markdown):
 ${content?.slice(0, 12000) || 'No content extracted'}
@@ -1695,7 +1695,7 @@ Respond with ONLY valid JSON, no markdown or explanation.`;
       }
 
       // Add extracted colors from scraping
-      if (colors?.length > 0) {
+      if (colors && colors.length > 0) {
         analysis.brandColors = colors.slice(0, 6);
       }
 
