@@ -68,30 +68,17 @@ function parseDocumentUpdates(text: string, builderType: BuilderType): { rawCont
 }
 
 // Initial greeting messages
-const PLAN_GREETING = `Hello! I'm here to help you build a comprehensive project plan for your brand.
+const PLAN_GREETING = `Hey! I'm excited to help you shape your project vision.
 
-I'll guide you through each section step by step. We'll cover:
-1. Project Overview
-2. Goals
-3. Target Users
-4. Key Features
-5. Technical Stack
-6. Success Metrics
-7. Timeline
+Rather than fill out a bunch of forms, let's just have a conversation. I'll ask you a few questions to understand what you're building, and then I'll put together a draft plan for you to review.
 
-Let's start with the **Project Overview**. What is this project about? What problem does it solve?`;
+So let's start with the fun part—**what's the idea that's been bouncing around in your head?** Tell me about it like you're explaining it to a friend over coffee.`;
 
-const IDENTITY_GREETING = `Hello! I'm here to help you create a compelling brand identity.
+const IDENTITY_GREETING = `Hey! I'm here to help you discover and articulate your brand's identity.
 
-I'll guide you through defining what makes your brand unique. We'll cover:
-1. Brand Overview
-2. Mission Statement
-3. Voice & Tone
-4. Visual Identity
-5. Target Audience
-6. Brand Personality
+This isn't about filling out templates—it's about finding the words that capture who you really are. I'll ask you a few questions, and then put together a brand identity draft for you to review and refine.
 
-Let's start with the **Brand Overview**. What does your brand stand for? What makes it unique?`;
+Let's start with the heart of it—**if your brand could only stand for ONE thing in people's minds, what would it be?** Don't overthink it, what's your gut answer?`;
 
 export function useBuilderChat(options: UseBuilderChatOptions): UseBuilderChatReturn {
   const { brandName, builderType, brandContext, onDocumentUpdate } = options;
