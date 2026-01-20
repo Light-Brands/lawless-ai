@@ -1483,7 +1483,13 @@ Section names: overview, goals, target_users, key_features, technical_stack, suc
 - Match their energy—if they're excited, be excited with them
 - If they give short answers, ask a gentle follow-up to dig deeper
 - Use mermaid diagrams for architecture and timelines when helpful
-- Keep the plan concise but comprehensive`;
+- Keep the plan concise but comprehensive
+
+## Web Research Tool
+You have access to a web scraping tool. If the user shares a URL or asks you to look at a website, use this tag:
+<scrape_website url="https://example.com"/>
+
+The system will fetch the website content and return it to you. Then continue the conversation with the information you learned.`;
 
 const IDENTITY_BUILDER_PROMPT = `You are a brand strategist for Lawless AI. Your role is to help users discover and articulate their brand identity through warm, insightful conversation—like a creative partner, not a form to fill out.
 
@@ -1570,7 +1576,13 @@ Section names: brand_overview, mission_statement, voice_and_tone, visual_identit
 - If they have brand colors from website analysis, incorporate them thoughtfully
 - Help them see their brand through their customer's eyes
 - Use tables for visual identity specs (color codes, font pairings)
-- Be a creative partner, not a questionnaire`;
+- Be a creative partner, not a questionnaire
+
+## Web Research Tool
+You have access to a web scraping tool. If the user shares a URL or asks you to look at a website, use this tag:
+<scrape_website url="https://example.com"/>
+
+The system will fetch the website content and return it to you. Then continue the conversation with the information you learned.`;
 
 // Website analysis endpoint - uses Supabase edge function with Firecrawl for JS-rendered sites
 app.post('/api/builder/analyze-website', authenticateApiKey, async (req: Request, res: Response) => {
@@ -1773,6 +1785,53 @@ function extractColorsFromHtml(html: string): string[] {
   return Array.from(colors).slice(0, 10);
 }
 
+// Helper function for scraping websites (used by chat tool loop)
+async function scrapeWebsiteForChat(url: string): Promise<{ success: boolean; content?: string; error?: string }> {
+  try {
+    const parsedUrl = new URL(url);
+    if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+      return { success: false, error: 'Invalid URL protocol' };
+    }
+
+    const supabaseUrl = process.env.SUPABASE_URL || 'https://jnxfynvgkguaghhorsov.supabase.co';
+    const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || '';
+
+    const scrapeResponse = await fetch(`${supabaseUrl}/functions/v1/scrape-url`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${supabaseAnonKey}`,
+      },
+      body: JSON.stringify({ url: parsedUrl.toString() }),
+      signal: AbortSignal.timeout(60000),
+    });
+
+    const scrapeData = await scrapeResponse.json() as {
+      success: boolean;
+      content?: string;
+      metadata?: Record<string, string>;
+      colors?: string[];
+      error?: string;
+    };
+
+    if (!scrapeResponse.ok || !scrapeData.success) {
+      return { success: false, error: scrapeData.error || 'Scraping failed' };
+    }
+
+    // Format the scraped content for Claude
+    const { content, metadata, colors } = scrapeData;
+    let formattedContent = `## Website Content from ${url}\n\n`;
+    if (metadata?.title) formattedContent += `**Title:** ${metadata.title}\n`;
+    if (metadata?.description) formattedContent += `**Description:** ${metadata.description}\n`;
+    if (colors && colors.length > 0) formattedContent += `**Brand Colors:** ${colors.join(', ')}\n`;
+    formattedContent += `\n### Page Content:\n${content?.slice(0, 10000) || 'No content extracted'}`;
+
+    return { success: true, content: formattedContent };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+  }
+}
+
 app.post('/api/builder/chat', authenticateApiKey, async (req: Request, res: Response) => {
   const { message, brandName, builderType, history, userId, currentDocument, brandContext } = req.body;
 
@@ -1822,23 +1881,6 @@ app.post('/api/builder/chat', authenticateApiKey, async (req: Request, res: Resp
     documentSection = `\n\n## Current Document\nThe user has the following document open. When they ask for changes, update the ENTIRE document using <document_replace> tags:\n\n\`\`\`markdown\n${currentDocument}\n\`\`\``;
   }
 
-  // Build prompt with context
-  const fullPrompt = conversationHistory
-    ? `${systemPrompt}
-
-Brand: ${brandName}${contextSection}${documentSection}
-
-Previous conversation:
-${conversationHistory}
-
-User: ${message}`
-    : `${systemPrompt}
-
-Brand: ${brandName}${contextSection}${documentSection}
-
-User: ${message}`;
-
-  // Spawn Claude CLI
   const spawnEnv = {
     ...process.env,
     NO_COLOR: '1',
@@ -1846,87 +1888,125 @@ User: ${message}`;
     PATH: '/usr/local/bin:/usr/bin:/bin:/home/ubuntu/.local/bin'
   };
 
-  const claude: ChildProcessWithoutNullStreams = spawn('claude', [
-    '--print',
-    '--output-format', 'stream-json',
-    '--verbose'
-  ], {
-    env: spawnEnv,
-    cwd: '/home/ubuntu'
-  });
+  // Helper to run Claude and collect response
+  const runClaude = (prompt: string): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const claude: ChildProcessWithoutNullStreams = spawn('claude', [
+        '--print',
+        '--output-format', 'stream-json',
+        '--verbose'
+      ], {
+        env: spawnEnv,
+        cwd: '/home/ubuntu'
+      });
 
-  claude.stdin.write(fullPrompt);
-  claude.stdin.end();
+      claude.stdin.write(prompt);
+      claude.stdin.end();
 
-  let responseContent = '';
-  let buffer = '';
+      let responseContent = '';
+      let buffer = '';
 
-  claude.stdout.on('data', (chunk: Buffer) => {
-    buffer += chunk.toString();
-    const lines = buffer.split('\n');
-    buffer = lines.pop() || '';
+      claude.stdout.on('data', (chunk: Buffer) => {
+        buffer += chunk.toString();
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
 
-    for (const line of lines) {
-      if (!line.trim()) continue;
+        for (const line of lines) {
+          if (!line.trim()) continue;
 
-      try {
-        const data = JSON.parse(line);
+          try {
+            const data = JSON.parse(line);
 
-        // Handle assistant message with content
-        if (data.type === 'assistant' && data.message?.content) {
-          for (const content of data.message.content) {
-            if (content.type === 'text' && content.text) {
-              // Deduplication logic
-              if (content.text.startsWith(responseContent) && responseContent.length > 0) {
-                const newContent = content.text.slice(responseContent.length);
-                if (newContent) {
-                  responseContent = content.text;
-                  res.write(`data: ${JSON.stringify({
-                    type: 'chunk',
-                    content: newContent
-                  })}\n\n`);
+            if (data.type === 'assistant' && data.message?.content) {
+              for (const content of data.message.content) {
+                if (content.type === 'text' && content.text) {
+                  if (content.text.startsWith(responseContent) && responseContent.length > 0) {
+                    const newContent = content.text.slice(responseContent.length);
+                    if (newContent) {
+                      responseContent = content.text;
+                      res.write(`data: ${JSON.stringify({ type: 'chunk', content: newContent })}\n\n`);
+                    }
+                  } else if (!responseContent.includes(content.text)) {
+                    responseContent += content.text;
+                    res.write(`data: ${JSON.stringify({ type: 'chunk', content: content.text })}\n\n`);
+                  }
                 }
-              } else if (!responseContent.includes(content.text)) {
-                responseContent += content.text;
-                res.write(`data: ${JSON.stringify({
-                  type: 'chunk',
-                  content: content.text
-                })}\n\n`);
               }
             }
+
+            if (data.type === 'result' && data.result) {
+              if (!responseContent) {
+                responseContent = data.result;
+                res.write(`data: ${JSON.stringify({ type: 'chunk', content: data.result })}\n\n`);
+              }
+            }
+
+            if (data.type === 'error' || data.is_error) {
+              res.write(`data: ${JSON.stringify({ type: 'error', message: data.message || data.error || 'Unknown error' })}\n\n`);
+            }
+          } catch {
+            // Ignore JSON parse errors
           }
         }
+      });
 
-        // Handle result/completion
-        if (data.type === 'result' && data.result) {
-          if (!responseContent) {
-            responseContent = data.result;
-            res.write(`data: ${JSON.stringify({
-              type: 'chunk',
-              content: data.result
-            })}\n\n`);
-          }
+      claude.stderr.on('data', (data: Buffer) => {
+        console.error('[Builder Chat] stderr:', data.toString());
+      });
+
+      claude.on('close', () => resolve(responseContent));
+      claude.on('error', reject);
+    });
+  };
+
+  // Build initial prompt
+  let fullPrompt = conversationHistory
+    ? `${systemPrompt}\n\nBrand: ${brandName}${contextSection}${documentSection}\n\nPrevious conversation:\n${conversationHistory}\n\nUser: ${message}`
+    : `${systemPrompt}\n\nBrand: ${brandName}${contextSection}${documentSection}\n\nUser: ${message}`;
+
+  try {
+    let responseContent = '';
+    let toolResults = '';
+    const maxToolIterations = 3; // Prevent infinite loops
+
+    for (let i = 0; i < maxToolIterations; i++) {
+      // Run Claude with current prompt (including any tool results from previous iteration)
+      const promptWithTools = toolResults
+        ? `${fullPrompt}\n\nAssistant: ${responseContent}\n\n[Tool Results]\n${toolResults}\n\nContinue your response to the user, incorporating the website information you just received:`
+        : fullPrompt;
+
+      responseContent = await runClaude(promptWithTools);
+
+      // Check for scrape_website tool calls
+      const scrapeMatch = responseContent.match(/<scrape_website\s+url="([^"]+)"\s*\/>/);
+
+      if (scrapeMatch) {
+        const urlToScrape = scrapeMatch[1];
+        console.log(`[Builder Chat] Scraping website: ${urlToScrape}`);
+
+        // Notify frontend that we're fetching
+        res.write(`data: ${JSON.stringify({ type: 'status', message: `Fetching ${urlToScrape}...` })}\n\n`);
+
+        // Execute the scrape
+        const scrapeResult = await scrapeWebsiteForChat(urlToScrape);
+
+        if (scrapeResult.success) {
+          toolResults = scrapeResult.content || '';
+          // Strip the tool tag from response before continuing
+          responseContent = responseContent.replace(/<scrape_website\s+url="[^"]+"\s*\/>/, '[Fetching website...]');
+        } else {
+          toolResults = `Error fetching website: ${scrapeResult.error}`;
         }
 
-        // Handle errors
-        if (data.type === 'error' || data.is_error) {
-          res.write(`data: ${JSON.stringify({
-            type: 'error',
-            message: data.message || data.error || 'Unknown error'
-          })}\n\n`);
-        }
-      } catch (e) {
-        // Ignore JSON parse errors
+        // Continue loop to re-run Claude with tool results
+        continue;
       }
+
+      // No more tool calls, break out of loop
+      break;
     }
-  });
 
-  claude.stderr.on('data', (data: Buffer) => {
-    console.error('[Builder Chat] stderr:', data.toString());
-  });
-
-  claude.on('close', (code: number) => {
-    // Parse document updates from response
+    // Parse document updates from final response
     const tagName = builderType === 'plan' ? 'plan_update' : 'identity_update';
     const regex = new RegExp(`<${tagName}\\s+section="([^"]+)">([\\s\\S]*?)<\\/${tagName}>`, 'g');
 
@@ -1940,21 +2020,14 @@ User: ${message}`;
       })}\n\n`);
     }
 
-    res.write(`data: ${JSON.stringify({
-      type: 'done',
-      content: responseContent.trim()
-    })}\n\n`);
+    res.write(`data: ${JSON.stringify({ type: 'done', content: responseContent.trim() })}\n\n`);
     res.end();
-  });
 
-  claude.on('error', (err: Error) => {
+  } catch (err) {
     console.error('Failed to spawn Claude for builder:', err);
-    res.write(`data: ${JSON.stringify({
-      type: 'error',
-      message: 'Failed to start Claude CLI'
-    })}\n\n`);
+    res.write(`data: ${JSON.stringify({ type: 'error', message: 'Failed to start Claude CLI' })}\n\n`);
     res.end();
-  });
+  }
 });
 
 // Demo chat endpoint for testing tools (no auth required, uses demo workspace)
