@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useTerminal, TERMINAL_KEYS } from '../../../hooks/useTerminal';
 import { useIDEContext } from '../../../contexts/IDEContext';
+import { useIDEStore } from '../../../stores/ideStore';
 import { ideEvents } from '../../../lib/eventBus';
 import '@xterm/xterm/css/xterm.css';
 
@@ -49,6 +50,7 @@ const GitBranchIcon = () => (
 
 export function TerminalPane() {
   const { sessionId } = useIDEContext();
+  const { setServerStatus, setServerPort } = useIDEStore();
   const [error, setError] = useState<string | null>(null);
 
   const handleConnected = useCallback(() => {
@@ -63,7 +65,10 @@ export function TerminalPane() {
     if (code !== 1000) {
       setError(`Disconnected (code: ${code})`);
     }
-  }, []);
+    // Reset server status on disconnect
+    setServerStatus('stopped');
+    setServerPort(null);
+  }, [setServerStatus, setServerPort]);
 
   const handleError = useCallback((errorMsg: string) => {
     setError(errorMsg);
@@ -72,6 +77,21 @@ export function TerminalPane() {
       type: 'error',
     });
   }, []);
+
+  // Server detection handlers
+  const handleServerDetected = useCallback((port: number) => {
+    setServerPort(port);
+    setServerStatus('running');
+    ideEvents.emit('toast:show', {
+      message: `Dev server detected on port ${port}`,
+      type: 'success',
+    });
+  }, [setServerPort, setServerStatus]);
+
+  const handleServerStopped = useCallback(() => {
+    setServerStatus('stopped');
+    setServerPort(null);
+  }, [setServerStatus, setServerPort]);
 
   const {
     containerRef,
@@ -91,6 +111,8 @@ export function TerminalPane() {
     onConnected: handleConnected,
     onDisconnected: handleDisconnected,
     onError: handleError,
+    onServerDetected: handleServerDetected,
+    onServerStopped: handleServerStopped,
     autoReconnect: true,
     persistOutput: true,
   });

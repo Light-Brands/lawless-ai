@@ -34,6 +34,8 @@ export interface UseTerminalOptions {
   onDisconnected?: (code: number) => void;
   onError?: (error: string) => void;
   onBranchInfo?: (branchName: string, baseBranch: string, baseCommit: string) => void;
+  onServerDetected?: (port: number) => void;
+  onServerStopped?: () => void;
   autoReconnect?: boolean;
   persistOutput?: boolean;
 }
@@ -55,12 +57,42 @@ export interface UseTerminalReturn {
   cancelReconnect: () => void;
 }
 
+// Server startup detection patterns (matches common dev server output)
+const SERVER_PATTERNS = [
+  // Next.js: "- Local: http://localhost:3000"
+  /Local:\s*https?:\/\/localhost:(\d+)/i,
+  // Vite: "Local:   http://localhost:5173/"
+  /Local:\s+https?:\/\/localhost:(\d+)/i,
+  // Generic: "listening on port 3000" or "Listening on port 3000"
+  /listening on (?:port )?(\d+)/i,
+  // Express: "Server running at http://localhost:3000"
+  /Server (?:running|started|listening) (?:at|on) https?:\/\/localhost:(\d+)/i,
+  // "Started server on localhost:3000"
+  /Started (?:server|dev server) on (?:https?:\/\/)?localhost:(\d+)/i,
+  // "ready on http://localhost:3000"
+  /ready (?:on|at) https?:\/\/localhost:(\d+)/i,
+  // Remix: "http://localhost:3000"
+  /\s+https?:\/\/localhost:(\d+)\s*$/,
+  // "port 3000" at end of line
+  /port (\d+)$/i,
+];
+
+// Server stopped patterns
+const SERVER_STOPPED_PATTERNS = [
+  /EADDRINUSE/i,
+  /Server (?:stopped|terminated|killed)/i,
+  /process exited/i,
+  /Ctrl\+C/,
+];
+
 export function useTerminal(options: UseTerminalOptions = {}): UseTerminalReturn {
   const {
     onConnected,
     onDisconnected,
     onError,
     onBranchInfo,
+    onServerDetected,
+    onServerStopped,
     autoReconnect = true,
     persistOutput = true,
   } = options;
@@ -90,6 +122,7 @@ export function useTerminal(options: UseTerminalOptions = {}): UseTerminalReturn
   const connectionStableTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const heartbeatCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const previousSessionIdRef = useRef<string | null>(null);
+  const detectedServerPortRef = useRef<number | null>(null);
 
   // Fetch backend WebSocket URL on mount
   useEffect(() => {
@@ -125,7 +158,7 @@ export function useTerminal(options: UseTerminalOptions = {}): UseTerminalReturn
     }
   }, [persistOutput, sessionId, repoFullName]);
 
-  // Capture output for history persistence (debounced save)
+  // Capture output for history persistence (debounced save) and server detection
   const captureOutput = useCallback((data: string) => {
     const newLines = data.split('\n');
     outputHistoryRef.current = [...outputHistoryRef.current, ...newLines].slice(-MAX_HISTORY_LINES);
@@ -137,7 +170,31 @@ export function useTerminal(options: UseTerminalOptions = {}): UseTerminalReturn
     saveOutputTimeoutRef.current = setTimeout(() => {
       saveOutputToDatabase();
     }, 2000); // Save every 2 seconds at most
-  }, [saveOutputToDatabase]);
+
+    // Server detection - check for startup patterns
+    for (const pattern of SERVER_PATTERNS) {
+      const match = data.match(pattern);
+      if (match && match[1]) {
+        const port = parseInt(match[1], 10);
+        if (port > 0 && port < 65536 && port !== detectedServerPortRef.current) {
+          detectedServerPortRef.current = port;
+          onServerDetected?.(port);
+          break;
+        }
+      }
+    }
+
+    // Server stopped detection
+    for (const pattern of SERVER_STOPPED_PATTERNS) {
+      if (pattern.test(data)) {
+        if (detectedServerPortRef.current !== null) {
+          detectedServerPortRef.current = null;
+          onServerStopped?.();
+        }
+        break;
+      }
+    }
+  }, [saveOutputToDatabase, onServerDetected, onServerStopped]);
 
   // Load saved output from database
   const loadSavedOutput = useCallback(async () => {
