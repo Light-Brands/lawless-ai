@@ -56,15 +56,24 @@ export function PreviewPane() {
   const terminal = useTerminalConnection();
   const { sessionId: contextSessionId } = useIDEContext();
 
+  // Detect if we're running inside an iframe (nested preview)
+  const [isInIframe, setIsInIframe] = useState(false);
+  useEffect(() => {
+    setIsInIframe(window.self !== window.top);
+  }, []);
+
   // Use terminal.sessionId if available, fall back to context sessionId
   const effectiveSessionId = terminal.sessionId || contextSessionId;
 
   // Port scanner toggle - disabled by default to prevent session errors
   const [scannerEnabled, setScannerEnabled] = useState(false);
 
-  // Enable port scanning only when manually enabled AND terminal session is connected
+  // Enable port scanning only when:
+  // - Not in iframe (nested preview would cause recursive API calls)
+  // - Manually enabled
+  // - Terminal session is connected
   const { scanNow } = usePortScanner({
-    enabled: scannerEnabled && terminal.status === 'connected'
+    enabled: !isInIframe && scannerEnabled && terminal.status === 'connected'
   });
 
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -309,7 +318,12 @@ export function PreviewPane() {
 
       {/* Preview iframe */}
       <div className="preview-content">
-        {previewMode === 'local' ? (
+        {isInIframe ? (
+          <div className="preview-placeholder">
+            <p>Preview disabled in nested view</p>
+            <p className="preview-hint">Open in a new window to use preview</p>
+          </div>
+        ) : previewMode === 'local' ? (
           hasActivePorts && selectedPort && effectiveSessionId ? (
             <iframe
               ref={iframeRef}
