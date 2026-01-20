@@ -181,8 +181,17 @@
   font-size: 13px;
 }
 
-/* Remote Desktop button */
-.ide-remote-btn {
+/* Quick links group */
+.ide-quick-links {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 8px;
+  border-left: 1px solid #2d2d44;
+  margin-left: 4px;
+}
+
+.ide-quick-link-btn {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -196,8 +205,23 @@
   transition: all 0.15s;
 }
 
-.ide-remote-btn:hover {
+.ide-quick-link-btn:hover {
   background: #2d2d44;
   border-color: #3d3d5c;
+}
+
+.ide-quick-link-btn.github:hover {
+  color: #f0f0f0;
+}
+
+.ide-quick-link-btn.vercel:hover {
+  color: #f0f0f0;
+}
+
+.ide-quick-link-btn.supabase:hover {
+  color: #3ecf8e;
+}
+
+.ide-quick-link-btn.remote:hover {
   color: #60a5fa;
 }

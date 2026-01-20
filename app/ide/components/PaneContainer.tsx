@@ -8,6 +8,7 @@ interface PaneContainerProps {
   icon: React.ReactNode;
   children: React.ReactNode;
   onCollapse: () => void;
+  headerActions?: React.ReactNode;
 }
 
 export function PaneContainer({
@@ -16,6 +17,7 @@ export function PaneContainer({
   icon,
   children,
   onCollapse,
+  headerActions,
 }: PaneContainerProps) {
   return (
     <div className="pane-container">
@@ -25,6 +27,7 @@ export function PaneContainer({
           <span className="pane-name">{title}</span>
         </div>
         <div className="pane-actions">
+          {headerActions}
           <button
             className="pane-collapse-btn"
             onClick={onCollapse}

@@ -131,6 +131,23 @@
   color: #e0e0e0;
 }
 
+.pane-external-link-btn {
+  padding: 4px;
+  background: transparent;
+  border: none;
+  color: #666;
+  cursor: pointer;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pane-external-link-btn:hover {
+  background: #2d2d44;
+  color: #60a5fa;
+}
+
 .pane-content {
   flex: 1;
   min-height: 0; /* Allow shrinking in flex container */

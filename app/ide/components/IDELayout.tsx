@@ -93,14 +93,23 @@ function PaneSkeleton() {
   );
 }
 
+// External link icon component
+const ExternalLinkIcon = () => (
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+    <polyline points="15 3 21 3 21 9" />
+    <line x1="10" y1="14" x2="21" y2="3" />
+  </svg>
+);
+
 const PANE_CONFIG = {
-  1: { title: 'AI Chat', icon: <ChatIcon size={16} />, component: ChatPane, defaultSize: 20, minSize: 15 },
-  2: { title: 'Editor', icon: <CodeIcon size={16} />, component: EditorPane, defaultSize: 35, minSize: 20 },
-  3: { title: 'Preview', icon: <GlobeIcon size={16} />, component: PreviewPane, defaultSize: 25, minSize: 15 },
-  4: { title: 'Database', icon: <DatabaseIcon size={16} />, component: DatabasePane, defaultSize: 20, minSize: 15 },
-  5: { title: 'Deployments', icon: <RocketIcon size={16} />, component: DeploymentsPane, defaultSize: 20, minSize: 15 },
-  6: { title: 'Activity', icon: <ActivityIcon size={16} />, component: ActivityPane, defaultSize: 18, minSize: 12 },
-  7: { title: 'Terminal', icon: <TerminalIcon size={16} />, component: TerminalPane, defaultSize: 30, minSize: 15 },
+  1: { title: 'AI Chat', icon: <ChatIcon size={16} />, component: ChatPane, defaultSize: 20, minSize: 15, externalLink: null },
+  2: { title: 'Editor', icon: <CodeIcon size={16} />, component: EditorPane, defaultSize: 35, minSize: 20, externalLink: { url: 'https://github.com', title: 'Open GitHub' } },
+  3: { title: 'Preview', icon: <GlobeIcon size={16} />, component: PreviewPane, defaultSize: 25, minSize: 15, externalLink: null },
+  4: { title: 'Database', icon: <DatabaseIcon size={16} />, component: DatabasePane, defaultSize: 20, minSize: 15, externalLink: { url: 'https://supabase.com/dashboard', title: 'Open Supabase' } },
+  5: { title: 'Deployments', icon: <RocketIcon size={16} />, component: DeploymentsPane, defaultSize: 20, minSize: 15, externalLink: { url: 'https://vercel.com/dashboard', title: 'Open Vercel' } },
+  6: { title: 'Activity', icon: <ActivityIcon size={16} />, component: ActivityPane, defaultSize: 18, minSize: 12, externalLink: null },
+  7: { title: 'Terminal', icon: <TerminalIcon size={16} />, component: TerminalPane, defaultSize: 30, minSize: 15, externalLink: null },
 };
 
 interface IDELayoutProps {
@@ -212,6 +221,15 @@ export function IDELayout({ owner = '', repo = '', sessionId = null }: IDELayout
                       title={config.title}
                       icon={config.icon}
                       onCollapse={() => togglePane(paneId)}
+                      headerActions={config.externalLink ? (
+                        <button
+                          className="pane-external-link-btn"
+                          onClick={() => window.open(config.externalLink.url, '_blank')}
+                          title={config.externalLink.title}
+                        >
+                          <ExternalLinkIcon />
+                        </button>
+                      ) : undefined}
                     >
                       {/* Portal target - content will be rendered here via portal */}
                       <PanePortalTarget paneId={paneId} />
