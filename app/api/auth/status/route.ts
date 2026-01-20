@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 
 export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 // Check if Supabase is configured
 const USE_SUPABASE_AUTH = !!(

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getGitHubToken } from '@/lib/github/auth';
 
 export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 // Parse Link header to extract next page URL
 function getNextPageUrl(linkHeader: string | null): string | null {
