@@ -9,6 +9,35 @@ export const dynamic = 'force-dynamic';
 const BRAND_FACTORY_REPO = 'Light-Brands/brand-factory';
 const BRANDS_PATH = 'brands';
 
+// File patterns that indicate a project plan
+const PLAN_PATTERNS = [
+  /^project-plan\.md$/i,
+  /^PROJECT-PLAN\.md$/,
+  /^SPEC_OVERVIEW\.md$/i,
+  /^\d+-implementation-roadmap\.md$/i,
+  /^roadmap\.md$/i,
+  /^plan\.md$/i,
+  /^master-plan\.md$/i,
+  /^MASTER-PLAN\.md$/,
+];
+
+// File patterns that indicate a brand identity
+const IDENTITY_PATTERNS = [
+  /^brand-identity\.md$/i,
+  /^BRAND_IDENTITY_GUIDE\.md$/,
+  /^brand-identity-guide\.md$/i,
+  /^visual-identity\.md$/i,
+  /^brand-guide\.md$/i,
+];
+
+function hasPlanFile(fileNames: string[]): boolean {
+  return fileNames.some(name => PLAN_PATTERNS.some(pattern => pattern.test(name)));
+}
+
+function hasIdentityFile(fileNames: string[]): boolean {
+  return fileNames.some(name => IDENTITY_PATTERNS.some(pattern => pattern.test(name)));
+}
+
 /**
  * GET /api/builder/brands
  * List all brands from the brand-factory repository
@@ -69,8 +98,8 @@ export async function GET() {
             const files = await folderRes.json();
             const fileNames = files.map((f: { name: string }) => f.name);
 
-            hasPlan = fileNames.includes('project-plan.md');
-            hasIdentity = fileNames.includes('brand-identity.md');
+            hasPlan = hasPlanFile(fileNames);
+            hasIdentity = hasIdentityFile(fileNames);
 
             // Try to fetch metadata.json
             if (fileNames.includes('metadata.json')) {
