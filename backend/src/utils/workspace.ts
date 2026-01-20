@@ -95,6 +95,16 @@ export function updateSessionAccess(sessionId: string): void {
   db.prepare('UPDATE terminal_sessions SET last_accessed_at = CURRENT_TIMESTAMP WHERE session_id = ?').run(sessionId);
 }
 
+// Check if a branch exists
+function branchExists(repoPath: string, branchName: string): boolean {
+  try {
+    execSync(`git show-ref --verify --quiet refs/heads/${branchName}`, { cwd: repoPath });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 // Create a new session worktree
 export function createSessionWorktree(repoFullName: string, sessionId: string, baseBranch: string = 'main'): TerminalSessionInfo {
   const mainRepoPath = getMainRepoPath(repoFullName);
@@ -112,6 +122,17 @@ export function createSessionWorktree(repoFullName: string, sessionId: string, b
     cwd: mainRepoPath,
     encoding: 'utf-8'
   }).trim();
+
+  // Check if branch already exists (from a previous incomplete cleanup)
+  if (branchExists(mainRepoPath, branchName)) {
+    // Delete the stale branch first
+    try {
+      execSync(`git branch -D "${branchName}"`, { cwd: mainRepoPath });
+      console.log(`Deleted stale branch: ${branchName}`);
+    } catch (e) {
+      console.warn(`Failed to delete stale branch ${branchName}:`, e);
+    }
+  }
 
   // Create worktree with new branch
   execSync(`git worktree add -b "${branchName}" "${worktreePath}" ${baseBranch}`, {
