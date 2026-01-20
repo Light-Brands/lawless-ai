@@ -1,9 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getGitHubToken } from '@/lib/github/auth';
 import { getIntegrationToken } from '@/lib/integrations/tokens';
+import { createHash } from 'crypto';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+
+// Simple hash for SQL content tracking
+function hashSql(sql: string): string {
+  return createHash('sha256').update(sql).digest('hex').slice(0, 16);
+}
 
 // Helper to extract results from Supabase API response
 function extractResults(data: unknown): Record<string, unknown>[] {
@@ -40,6 +46,72 @@ function parseSqlError(errorData: Record<string, unknown>): {
     hint: errorData.hint ? String(errorData.hint) : null,
     detail: errorData.detail ? String(errorData.detail) : null,
   };
+}
+
+// Record migration run in IDE history table
+async function recordMigrationHistory(
+  supabaseToken: string,
+  projectRef: string,
+  params: {
+    migrationVersion: string;
+    migrationName: string;
+    migrationPath: string;
+    owner: string;
+    repo: string;
+    success: boolean;
+    errorMessage?: string;
+    errorCode?: string;
+    executionTimeMs?: number;
+    sqlHash?: string;
+  }
+): Promise<void> {
+  try {
+    const query = `
+      INSERT INTO public.ide_migration_history (
+        migration_version,
+        migration_name,
+        migration_path,
+        project_ref,
+        owner,
+        repo,
+        success,
+        error_message,
+        error_code,
+        execution_time_ms,
+        sql_hash
+      ) VALUES (
+        '${params.migrationVersion}',
+        '${params.migrationName.replace(/'/g, "''")}',
+        '${params.migrationPath.replace(/'/g, "''")}',
+        '${projectRef}',
+        '${params.owner}',
+        '${params.repo}',
+        ${params.success},
+        ${params.errorMessage ? `'${params.errorMessage.replace(/'/g, "''").slice(0, 1000)}'` : 'NULL'},
+        ${params.errorCode ? `'${params.errorCode}'` : 'NULL'},
+        ${params.executionTimeMs ?? 'NULL'},
+        ${params.sqlHash ? `'${params.sqlHash}'` : 'NULL'}
+      )
+      ON CONFLICT (project_ref, migration_version) DO UPDATE SET
+        success = EXCLUDED.success,
+        error_message = EXCLUDED.error_message,
+        error_code = EXCLUDED.error_code,
+        execution_time_ms = EXCLUDED.execution_time_ms,
+        executed_at = now()
+    `;
+
+    await fetch(`https://api.supabase.com/v1/projects/${projectRef}/database/query`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${supabaseToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ query }),
+    });
+  } catch (err) {
+    // Don't fail the migration if history recording fails
+    console.error('Failed to record migration history:', err);
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -114,8 +186,11 @@ export async function POST(request: NextRequest) {
 
     const fileData = await githubResponse.json();
     const migrationContent = Buffer.from(fileData.content, 'base64').toString('utf-8');
+    const migrationName = migrationPath.split('/').pop() || '';
+    const sqlHash = hashSql(migrationContent);
 
-    // 3. Run the migration SQL
+    // 3. Run the migration SQL (track execution time)
+    const startTime = Date.now();
     const sqlResponse = await fetch(
       `https://api.supabase.com/v1/projects/${projectRef}/database/query`,
       {
@@ -127,6 +202,7 @@ export async function POST(request: NextRequest) {
         body: JSON.stringify({ query: migrationContent }),
       }
     );
+    const executionTimeMs = Date.now() - startTime;
 
     if (!sqlResponse.ok) {
       const errorData = await sqlResponse.json().catch(() => ({}));
@@ -137,6 +213,20 @@ export async function POST(request: NextRequest) {
         parsed.code === '42710' || // duplicate_object
         parsed.code === '42P07' || // duplicate_table
         parsed.message.toLowerCase().includes('already exists');
+
+      // Record failed migration in history
+      await recordMigrationHistory(supabaseToken, projectRef, {
+        migrationVersion,
+        migrationName,
+        migrationPath,
+        owner,
+        repo,
+        success: false,
+        errorMessage: parsed.message,
+        errorCode: parsed.code ?? undefined,
+        executionTimeMs,
+        sqlHash,
+      });
 
       return NextResponse.json({
         success: false,
@@ -152,7 +242,6 @@ export async function POST(request: NextRequest) {
     }
 
     // 4. Record the migration in schema_migrations table
-    const migrationName = migrationPath.split('/').pop() || '';
     const recordQuery = `
       INSERT INTO supabase_migrations.schema_migrations (version, statements, name)
       VALUES ('${migrationVersion}', ARRAY[]::text[], '${migrationName.replace(/'/g, "''")}')
@@ -173,11 +262,24 @@ export async function POST(request: NextRequest) {
 
     const recorded = recordResponse.ok;
 
+    // Record successful migration in IDE history
+    await recordMigrationHistory(supabaseToken, projectRef, {
+      migrationVersion,
+      migrationName,
+      migrationPath,
+      owner,
+      repo,
+      success: true,
+      executionTimeMs,
+      sqlHash,
+    });
+
     return NextResponse.json({
       success: true,
       recorded,
       message: `Migration ${migrationVersion} applied successfully`,
       version: migrationVersion,
+      executionTimeMs,
     });
   } catch (error) {
     console.error('Error running migration:', error);
