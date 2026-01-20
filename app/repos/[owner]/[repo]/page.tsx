@@ -328,7 +328,7 @@ export default function RepoBrowserPage() {
   }
 
   function handleOpenWorkspace() {
-    router.push(`/workspace/${owner}/${repo}`);
+    router.push(`/ide/${owner}/${repo}`);
   }
 
   async function handleBranchChange(newBranch: string) {

@@ -72,3 +72,9 @@
 
 /* Workers page */
 @import './styles/workers.css';
+
+/* Auth gate loading spinner */
+@import './styles/auth-gate.css';
+
+/* User menu dropdown */
+@import './styles/user-menu.css';

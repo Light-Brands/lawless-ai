@@ -1265,9 +1265,9 @@ export default function TerminalPage() {
             </div>
 
             <div className="terminal-header-right">
-              <Link href={`/workspace/${repoPath}`} className="terminal-btn">
+              <Link href={`/ide/${repoPath}`} className="terminal-btn">
                 <WorkspaceIcon />
-                Workspace UI
+                IDE
               </Link>
             </div>
           </header>

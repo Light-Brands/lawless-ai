@@ -9,7 +9,7 @@ interface AuthGateProps {
 }
 
 // Routes that don't require authentication
-const PUBLIC_ROUTES = ['/login'];
+const PUBLIC_ROUTES = ['/login', '/ide'];
 
 export default function AuthGate({ children }: AuthGateProps) {
   const { user, loading } = useAuth();
@@ -30,32 +30,6 @@ export default function AuthGate({ children }: AuthGateProps) {
     return (
       <div className="auth-gate-loading">
         <div className="auth-gate-spinner" />
-        <style jsx>{`
-          .auth-gate-loading {
-            position: fixed;
-            inset: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: var(--color-bg-primary, #0a0a0f);
-            z-index: 9999;
-          }
-
-          .auth-gate-spinner {
-            width: 40px;
-            height: 40px;
-            border: 3px solid rgba(255, 255, 255, 0.1);
-            border-top-color: #a855f7;
-            border-radius: 50%;
-            animation: auth-spin 1s linear infinite;
-          }
-
-          @keyframes auth-spin {
-            to {
-              transform: rotate(360deg);
-            }
-          }
-        `}</style>
       </div>
     );
   }
@@ -71,32 +45,6 @@ export default function AuthGate({ children }: AuthGateProps) {
     return (
       <div className="auth-gate-loading">
         <div className="auth-gate-spinner" />
-        <style jsx>{`
-          .auth-gate-loading {
-            position: fixed;
-            inset: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: var(--color-bg-primary, #0a0a0f);
-            z-index: 9999;
-          }
-
-          .auth-gate-spinner {
-            width: 40px;
-            height: 40px;
-            border: 3px solid rgba(255, 255, 255, 0.1);
-            border-top-color: #a855f7;
-            border-radius: 50%;
-            animation: auth-spin 1s linear infinite;
-          }
-
-          @keyframes auth-spin {
-            to {
-              transform: rotate(360deg);
-            }
-          }
-        `}</style>
       </div>
     );
   }
