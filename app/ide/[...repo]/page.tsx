@@ -150,6 +150,53 @@ export default function IDERepoPage() {
     }
   }, [owner, repoName, addSession, user?.login]);
 
+  // Delete a session
+  const deleteSession = useCallback(async (sessionId: string) => {
+    if (!owner || !repoName) return;
+
+    const repoFullName = `${owner}/${repoName}`;
+
+    try {
+      const response = await fetch(`/api/workspace/session/${sessionId}?repoFullName=${encodeURIComponent(repoFullName)}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        // Remove from local state
+        setSessions((prev) => prev.filter((s) => s.sessionId !== sessionId));
+
+        // If we deleted the active session, switch to another one
+        if (sessionId === activeSessionId) {
+          const remaining = sessions.filter((s) => s.sessionId !== sessionId);
+          if (remaining.length > 0) {
+            setActiveSessionId(remaining[0].sessionId);
+          } else {
+            // No sessions left, create a new one
+            await createSession();
+          }
+        }
+
+        ideEvents.emit('toast:show', {
+          message: 'Session deleted',
+          type: 'success',
+        });
+      } else {
+        const data = await response.json();
+        console.error('Failed to delete session:', data.error);
+        ideEvents.emit('toast:show', {
+          message: data.error || 'Failed to delete session',
+          type: 'error',
+        });
+      }
+    } catch (err) {
+      console.error('Failed to delete session:', err);
+      ideEvents.emit('toast:show', {
+        message: 'Failed to delete session',
+        type: 'error',
+      });
+    }
+  }, [owner, repoName, activeSessionId, sessions, createSession]);
+
   // Initialize on mount
   useEffect(() => {
     if (!owner || !repoName) {
@@ -246,6 +293,7 @@ export default function IDERepoPage() {
             activeSessionId={activeSessionId}
             onSessionChange={setActiveSessionId}
             onNewSession={() => createSession()}
+            onDeleteSession={deleteSession}
           />
           <IDELayout
             owner={owner}

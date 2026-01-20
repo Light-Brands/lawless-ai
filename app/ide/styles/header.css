@@ -114,11 +114,9 @@
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  padding: 12px;
   background: transparent;
   border: none;
   color: #e0e0e0;
-  cursor: pointer;
   text-align: left;
 }
 
@@ -128,6 +126,43 @@
 
 .session-menu-item.active {
   background: rgba(124, 58, 237, 0.2);
+}
+
+.session-menu-item-main {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px;
+  background: transparent;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.session-delete-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  margin-right: 8px;
+  background: transparent;
+  border: none;
+  color: #666;
+  cursor: pointer;
+  border-radius: 4px;
+  opacity: 0;
+  transition: opacity 0.15s, background 0.15s, color 0.15s;
+}
+
+.session-menu-item:hover .session-delete-btn {
+  opacity: 1;
+}
+
+.session-delete-btn:hover {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
 }
 
 .session-name {

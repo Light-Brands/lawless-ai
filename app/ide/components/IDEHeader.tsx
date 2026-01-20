@@ -20,6 +20,7 @@ interface IDEHeaderProps {
   activeSessionId?: string | null;
   onSessionChange?: (sessionId: string) => void;
   onNewSession?: () => void;
+  onDeleteSession?: (sessionId: string) => void;
 }
 
 export function IDEHeader({
@@ -28,6 +29,7 @@ export function IDEHeader({
   activeSessionId,
   onSessionChange,
   onNewSession,
+  onDeleteSession,
 }: IDEHeaderProps) {
   const { activeSession, setCommandPaletteOpen } = useIDEStore();
   const { services, getStatusColor } = useServiceConnection();
@@ -87,17 +89,37 @@ export function IDEHeader({
               </div>
               <div className="session-menu-list">
                 {sessions.map((session) => (
-                  <button
+                  <div
                     key={session.sessionId}
                     className={`session-menu-item ${session.sessionId === activeSessionId ? 'active' : ''}`}
-                    onClick={() => {
-                      onSessionChange?.(session.sessionId);
-                      setSessionMenuOpen(false);
-                    }}
                   >
-                    <span className="session-name">{session.name}</span>
-                    <span className="session-branch-small">{session.branchName}</span>
-                  </button>
+                    <button
+                      className="session-menu-item-main"
+                      onClick={() => {
+                        onSessionChange?.(session.sessionId);
+                        setSessionMenuOpen(false);
+                      }}
+                    >
+                      <span className="session-name">{session.name}</span>
+                      <span className="session-branch-small">{session.branchName}</span>
+                    </button>
+                    {onDeleteSession && (
+                      <button
+                        className="session-delete-btn"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (confirm(`Delete session "${session.name}"?`)) {
+                            onDeleteSession(session.sessionId);
+                          }
+                        }}
+                        title="Delete session"
+                      >
+                        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
+                          <path d="M3 3.5h8M5.5 3.5V2.5a1 1 0 011-1h1a1 1 0 011 1v1M6 6v4M8 6v4M4 3.5l.5 8a1 1 0 001 1h3a1 1 0 001-1l.5-8" />
+                        </svg>
+                      </button>
+                    )}
+                  </div>
                 ))}
                 {sessions.length === 0 && (
                   <div className="session-menu-empty">No sessions yet</div>
