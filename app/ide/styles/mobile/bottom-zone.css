@@ -158,6 +158,41 @@
   border-bottom: 1px solid #2d2d44;
 }
 
+/* Terminal adjustments when in bottom zone */
+.bottom-zone-pane.terminal .terminal-pane {
+  height: 100%;
+}
+
+/* Remove extra safe area padding - bottom nav handles it */
+.bottom-zone-pane.terminal .terminal-mobile-toolbar {
+  padding-bottom: 10px;
+}
+
+/* Hide terminal tabs bar in collapsed state - save space */
+.mobile-bottom-zone[data-height="collapsed"] .terminal-tabs-bar {
+  display: none;
+}
+
+/* Chat adjustments when in bottom zone */
+.bottom-zone-pane.chat .chat-pane {
+  height: 100%;
+}
+
+/* Compact chat input in bottom zone */
+.bottom-zone-pane.chat .chat-input-wrapper {
+  padding: 8px 12px;
+}
+
+/* Remove safe area from chat input - bottom nav handles it */
+.bottom-zone-pane.chat .chat-input-wrapper {
+  padding-bottom: 8px;
+}
+
+/* Hide context panel in collapsed state */
+.mobile-bottom-zone[data-height="collapsed"] .chat-context-panel {
+  display: none;
+}
+
 /* Landscape adjustments */
 @media (orientation: landscape) and (max-height: 500px) {
   .mobile-bottom-zone[data-height="half"] {
