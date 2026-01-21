@@ -1,0 +1,80 @@
+/* Mobile Bottom Navigation - Controls Main Pane Only */
+
+.mobile-bottom-nav {
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  border-top: 1px solid #1a1a1f;
+  background: #0a0a0c;
+  flex-shrink: 0;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.mobile-nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 8px;
+  min-width: 44px;
+  min-height: 44px;
+  color: #666;
+  border: none;
+  background: none;
+  cursor: pointer;
+  transition: color 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mobile-nav-item:active {
+  color: #888;
+}
+
+.mobile-nav-item.active {
+  color: #7c3aed;
+}
+
+.mobile-nav-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 2px;
+}
+
+.mobile-nav-icon svg {
+  width: 22px;
+  height: 22px;
+}
+
+.mobile-nav-label {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 500;
+}
+
+/* Landscape adjustments */
+@media (orientation: landscape) and (max-height: 500px) {
+  .mobile-bottom-nav {
+    height: 48px;
+  }
+
+  .mobile-nav-item {
+    padding: 4px 6px;
+  }
+
+  .mobile-nav-icon svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .mobile-nav-label {
+    font-size: 8px;
+  }
+}
+
+/* Hide on fullscreen bottom zone */
+.mobile-ide-layout[data-bottom-zone-height="fullscreen"] .mobile-bottom-nav {
+  display: none;
+}

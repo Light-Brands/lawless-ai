@@ -1,0 +1,177 @@
+/* Mobile Bottom Zone - Terminal + Chat Toggle */
+
+.mobile-bottom-zone {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid #1a1a1f;
+  background: #0a0a0c;
+  transition: height 0.2s ease-out, flex 0.2s ease-out;
+  overflow: hidden;
+}
+
+/* Height states */
+.mobile-bottom-zone[data-height="collapsed"] {
+  height: 48px;
+  flex: 0 0 48px;
+}
+
+.mobile-bottom-zone[data-height="half"] {
+  flex: 0 0 45%;
+  min-height: 200px;
+}
+
+.mobile-bottom-zone[data-height="expanded"] {
+  flex: 0 0 70%;
+  min-height: 300px;
+}
+
+.mobile-bottom-zone[data-height="fullscreen"] {
+  position: fixed;
+  inset: 0;
+  top: env(safe-area-inset-top);
+  height: auto;
+  flex: none;
+  z-index: 100;
+  border-top: none;
+}
+
+/* Toggle bar (Terminal ↔ Chat) */
+.bottom-zone-toggle {
+  display: flex;
+  align-items: center;
+  height: 48px;
+  min-height: 48px;
+  border-bottom: 1px solid #1a1a1f;
+  background: #0d0d0f;
+  flex-shrink: 0;
+}
+
+.bottom-zone-drag-handle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 100%;
+  color: #666;
+  border: none;
+  background: none;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+
+.bottom-zone-drag-handle:active {
+  color: #888;
+}
+
+.bottom-zone-toggle-tab {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 100%;
+  padding: 0 16px;
+  color: #666;
+  border: none;
+  background: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.bottom-zone-toggle-tab:active {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.bottom-zone-toggle-tab.active {
+  color: #e0e0e0;
+  border-bottom-color: #7c3aed;
+}
+
+.bottom-zone-toggle-tab svg {
+  flex-shrink: 0;
+}
+
+/* Running indicator (green dot for terminal) */
+.bottom-zone-toggle-tab.terminal.running::after {
+  content: '';
+  width: 6px;
+  height: 6px;
+  background: #22c55e;
+  border-radius: 50%;
+  margin-left: 4px;
+  flex-shrink: 0;
+}
+
+/* Toggle divider */
+.bottom-zone-toggle-divider {
+  width: 1px;
+  height: 24px;
+  background: #1a1a1f;
+  flex-shrink: 0;
+}
+
+/* Unread badge for chat */
+.bottom-zone-unread-badge {
+  background: #7c3aed;
+  color: white;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 10px;
+  min-width: 18px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+/* Content area */
+.bottom-zone-content {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+  min-height: 0;
+}
+
+/* Individual panes in content */
+.bottom-zone-pane {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.15s ease;
+}
+
+.bottom-zone-pane.active {
+  opacity: 1;
+  visibility: visible;
+  position: relative;
+  height: 100%;
+}
+
+/* Fullscreen close button */
+.mobile-bottom-zone[data-height="fullscreen"] .bottom-zone-toggle {
+  border-bottom: 1px solid #2d2d44;
+}
+
+/* Landscape adjustments */
+@media (orientation: landscape) and (max-height: 500px) {
+  .mobile-bottom-zone[data-height="half"] {
+    flex: 0 0 50%;
+    min-height: 150px;
+  }
+
+  .mobile-bottom-zone[data-height="expanded"] {
+    flex: 0 0 75%;
+    min-height: 200px;
+  }
+
+  .bottom-zone-toggle {
+    height: 40px;
+    min-height: 40px;
+  }
+}

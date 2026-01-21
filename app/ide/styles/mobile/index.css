@@ -1,8 +1,12 @@
 /* Mobile IDE Styles - Only loaded on mobile viewports */
 
-/* Core mobile layout */
+/* Core mobile layout (two-zone architecture) */
 @import './layout.css';
 @import './header.css';
+@import './bottom-zone.css';
+@import './bottom-nav.css';
+
+/* Legacy - kept for backward compatibility */
 @import './tab-bar.css';
 
 /* Mobile components */

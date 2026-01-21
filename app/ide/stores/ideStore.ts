@@ -168,6 +168,22 @@ interface IDEStore {
   // Deployments
   deploymentStatus: 'idle' | 'building' | 'ready' | 'failed';
   setDeploymentStatus: (status: 'idle' | 'building' | 'ready' | 'failed') => void;
+
+  // Mobile Two-Zone Layout (new architecture)
+  mobile: {
+    mainPane: 'preview' | 'editor' | 'database' | 'deployments' | 'activity' | 'settings';
+    bottomZoneHeight: 'collapsed' | 'half' | 'expanded' | 'fullscreen';
+    bottomZoneTab: 'terminal' | 'chat';
+    chatUnreadCount: number;
+  };
+  setMobileMainPane: (pane: 'preview' | 'editor' | 'database' | 'deployments' | 'activity' | 'settings') => void;
+  setMobileBottomZoneHeight: (height: 'collapsed' | 'half' | 'expanded' | 'fullscreen') => void;
+  setMobileBottomZoneTab: (tab: 'terminal' | 'chat') => void;
+  toggleMobileBottomZone: () => void;
+  expandMobileBottomZone: () => void;
+  collapseMobileBottomZone: () => void;
+  incrementMobileChatUnread: () => void;
+  clearMobileChatUnread: () => void;
 }
 
 export const useIDEStore = create<IDEStore>()(
@@ -409,6 +425,57 @@ export const useIDEStore = create<IDEStore>()(
       // Deployments
       deploymentStatus: 'idle',
       setDeploymentStatus: (status) => set({ deploymentStatus: status }),
+
+      // Mobile Two-Zone Layout (new architecture)
+      mobile: {
+        mainPane: 'preview',  // Default to preview
+        bottomZoneHeight: 'half',  // Default to half height
+        bottomZoneTab: 'terminal',  // Default to terminal
+        chatUnreadCount: 0,
+      },
+      setMobileMainPane: (pane) => set((state) => ({
+        mobile: { ...state.mobile, mainPane: pane }
+      })),
+      setMobileBottomZoneHeight: (height) => set((state) => ({
+        mobile: { ...state.mobile, bottomZoneHeight: height }
+      })),
+      setMobileBottomZoneTab: (tab) => set((state) => ({
+        mobile: {
+          ...state.mobile,
+          bottomZoneTab: tab,
+          // Clear unread when switching to chat
+          chatUnreadCount: tab === 'chat' ? 0 : state.mobile.chatUnreadCount
+        }
+      })),
+      toggleMobileBottomZone: () => set((state) => ({
+        mobile: {
+          ...state.mobile,
+          bottomZoneHeight: state.mobile.bottomZoneHeight === 'collapsed' ? 'half' : 'collapsed'
+        }
+      })),
+      expandMobileBottomZone: () => set((state) => {
+        const order: Array<'collapsed' | 'half' | 'expanded' | 'fullscreen'> = ['collapsed', 'half', 'expanded', 'fullscreen'];
+        const currentIndex = order.indexOf(state.mobile.bottomZoneHeight);
+        const nextIndex = Math.min(currentIndex + 1, order.length - 1);
+        return { mobile: { ...state.mobile, bottomZoneHeight: order[nextIndex] } };
+      }),
+      collapseMobileBottomZone: () => set((state) => {
+        const order: Array<'collapsed' | 'half' | 'expanded' | 'fullscreen'> = ['collapsed', 'half', 'expanded', 'fullscreen'];
+        const currentIndex = order.indexOf(state.mobile.bottomZoneHeight);
+        const prevIndex = Math.max(currentIndex - 1, 0);
+        return { mobile: { ...state.mobile, bottomZoneHeight: order[prevIndex] } };
+      }),
+      incrementMobileChatUnread: () => set((state) => ({
+        mobile: {
+          ...state.mobile,
+          chatUnreadCount: state.mobile.bottomZoneTab === 'chat'
+            ? 0  // Don't increment if already viewing chat
+            : state.mobile.chatUnreadCount + 1
+        }
+      })),
+      clearMobileChatUnread: () => set((state) => ({
+        mobile: { ...state.mobile, chatUnreadCount: 0 }
+      })),
     }),
     {
       name: 'lawless-ide-store',
@@ -423,6 +490,8 @@ export const useIDEStore = create<IDEStore>()(
         autoApplyMigrations: state.autoApplyMigrations,
         activeMobilePane: state.activeMobilePane,
         mobileTabOrder: state.mobileTabOrder,
+        // Two-zone mobile state
+        mobile: state.mobile,
       }),
     }
   )
