@@ -2,379 +2,336 @@
 
 ## Executive Summary
 
-Transform Lawless AI into a mobile-first application where mobile is the primary experience. This plan addresses all pages, navigation patterns, and interactions to ensure the mobile experience is exceptional.
+A two-tier mobile strategy: the **main app** keeps its current functional mobile layout, while the **IDE** (`/ide/[...repo]`) provides a hyper-refined, purpose-built mobile coding experience. When users enter the IDE, the entire UI transforms into an optimized development environment.
 
 ---
 
-## Current State Assessment
+## Architecture Overview
 
-### What Works Well
+```
+Main App (/, /repos, /databases, etc.)
+├── Current mobile layout (works well)
+├── Sidebar → Drawer on mobile
+├── Bottom sheet patterns
+└── Standard responsive behavior
+
+IDE (/ide/[...repo])
+├── Dedicated MobileIDELayout
+├── Custom MobileHeader with repo context
+├── MobileTabBar for 7-pane navigation
+├── Swipe gestures between panes
+├── Pull-to-refresh on data panes
+└── Touch-optimized controls throughout
+```
+
+---
+
+## Part 1: Main App Mobile (Maintain & Polish)
+
+**Status:** Functional, minor enhancements only
+
+### What Works Well (Keep As-Is)
 - Sidebar transforms to drawer on mobile (< 768px)
-- Bottom sheet pattern exists for workspace selection
+- Bottom sheet pattern for workspace selection
 - Touch targets meet 44x44px minimum
 - Safe area insets supported (notch/dynamic island)
 - Viewport meta tags properly configured
-- Basic responsive breakpoints defined
+- Navigation to all pages functional
 
-### Critical Gaps
-1. **Desktop-first CSS** - Need to invert to mobile-first
-2. **Multi-panel layouts** - Workspace/terminal pages unusable on mobile
-3. **Navigation** - No mobile navigation to advanced pages
-4. **Page-specific optimization** - Databases, Deployments, Integrations pages have minimal mobile support
-
----
-
-## Phase 1: Mobile Navigation Overhaul
-
-**Goal:** Ensure all pages are accessible from mobile
-
-### 1.1 Mobile Navigation Menu
-- [ ] Add bottom navigation bar for primary actions (Home, Repos, Tools)
-- [ ] Add "More" menu for secondary pages (Databases, Deployments, Integrations)
-- [ ] Convert sidebar to full-screen mobile menu with all navigation options
-- [ ] Add visual indicators for current page
-
-### 1.2 Navigation Structure
-```
-Bottom Nav (always visible on mobile):
-├── Home (Chat) - Primary action
-├── Repos - Repository browser
-├── Tools - Quick access to common tools
-└── More - Opens full menu
-
-Full Menu (slide-up sheet):
-├── All navigation from sidebar
-├── Databases
-├── Deployments
-├── Integrations
-├── Settings
-└── New Project
-```
-
-### 1.3 Files to Modify
-- `/app/styles/mobile-menu.css` - Enhance mobile menu
-- `/app/components/` - Create MobileNav component
-- `/app/styles/variables.css` - Add bottom nav height variable
+### Minor Enhancements (Low Priority)
+- [ ] Pull-to-refresh on `/repos` page
+- [ ] Slightly larger touch targets on repo cards
+- [ ] Smoother drawer animation
+- [ ] Better empty states on mobile
 
 ---
 
-## Phase 2: Mobile-First CSS Refactor
+## Part 2: IDE Mobile Experience (Primary Focus)
 
-**Goal:** Invert CSS to mobile-first approach
+**Status:** Foundation built, needs refinement
 
-### 2.1 Breakpoint Strategy (Mobile-First)
-```css
-/* Base styles = mobile (< 640px) */
-.component { /* mobile styles */ }
+### 2.1 Current Implementation
 
-/* Small tablets (640px+) */
-@media (min-width: 640px) { }
+#### Components Built
+- `MobileIDELayout` - Container that detects mobile and renders appropriate layout
+- `MobileHeader` - Repo name, branch, actions (replaces desktop header)
+- `MobileTabBar` - Bottom navigation for 7 panes
+- `MobileFileTreeSheet` - Bottom sheet file browser
+- `PullToRefresh` - Touch gesture for refreshing data panes
 
-/* Tablets (768px+) */
-@media (min-width: 768px) { }
-
-/* Laptops (1024px+) */
-@media (min-width: 1024px) { }
-
-/* Desktops (1280px+) */
-@media (min-width: 1280px) { }
+#### CSS Structure
+```
+app/ide/styles/mobile/
+├── index.css          # Main import file
+├── layout.css         # Core mobile layout
+├── header.css         # Mobile header styles
+├── tab-bar.css        # Bottom tab navigation
+├── components/
+│   ├── bottom-sheet.css
+│   ├── swipeable.css
+│   └── pull-to-refresh.css
+└── panes/
+    ├── chat.css
+    ├── editor.css
+    ├── terminal.css
+    ├── preview.css
+    ├── database.css
+    ├── deployments.css
+    └── activity.css
 ```
 
-### 2.2 CSS Files to Refactor (Priority Order)
-1. [ ] `/app/styles/responsive.css` - Convert all max-width to min-width
-2. [ ] `/app/styles/base.css` - Mobile-first layout foundation
-3. [ ] `/app/styles/sidebar.css` - Hidden by default, show on desktop
-4. [ ] `/app/styles/chat.css` - Optimize for mobile-first
-5. [ ] `/app/styles/repos.css` - Single column default
-6. [ ] `/app/styles/workspace.css` - Complete mobile redesign
-7. [ ] `/app/styles/databases.css` - Mobile optimization
-8. [ ] `/app/styles/deployments.css` - Mobile optimization
-9. [ ] `/app/styles/repo-browser.css` - Mobile tree view
+### 2.2 The 7 Panes
 
----
+| # | Pane | Icon | Primary Action | Refresh Action |
+|---|------|------|----------------|----------------|
+| 1 | Chat | MessageSquare | AI conversation | - |
+| 2 | Editor | Code | View/edit files | - |
+| 3 | Preview | Eye | View app preview | Reload iframe |
+| 4 | Database | Database | Manage data | Reload tables |
+| 5 | Deployments | Rocket | Deploy status | Fetch deployments |
+| 6 | Activity | Activity | Event log | Reload events |
+| 7 | Terminal | Terminal | Run commands | - |
 
-## Phase 3: Page-by-Page Mobile Optimization
+### 2.3 Refinement Checklist
 
-### 3.1 Home/Chat Page (`/`)
-**Current:** Mostly works, some polish needed
-**Priority:** Medium
+#### Chat Pane
+- [ ] Optimize message input for mobile keyboard
+- [ ] Auto-scroll to bottom on new messages
+- [ ] Collapsible tool call results
+- [ ] Quick action chips (horizontally scrollable)
+- [ ] Voice input button (future)
+- [ ] Haptic feedback on send
 
-- [ ] Optimize welcome screen for mobile
-- [ ] Ensure message bubbles don't overflow
-- [ ] Improve input area for mobile keyboards
-- [ ] Add keyboard-aware scrolling
-- [ ] Optimize feature cards for single column
-- [ ] Make suggestion chips scrollable horizontally
+#### Editor Pane
+- [ ] File tree as bottom sheet (built, needs polish)
+- [ ] Horizontal tab scrolling for open files
+- [ ] Mobile-optimized Monaco settings
+- [ ] Pinch-to-zoom on code
+- [ ] Quick actions toolbar (save, format, undo)
+- [ ] Syntax highlighting theme optimized for mobile
+- [ ] Line number tap to select line
 
-### 3.2 Repos Page (`/repos`)
-**Current:** Basic support exists
-**Priority:** Medium
+#### Preview Pane
+- [ ] Pull-to-refresh (built)
+- [ ] Port selector as horizontal pills (built)
+- [ ] Device frame selector (iPhone, Android, responsive)
+- [ ] Orientation toggle (portrait/landscape)
+- [ ] Console as collapsible bottom section
+- [ ] Screenshot button
 
-- [ ] Full-width search on mobile
-- [ ] Single column repo cards
-- [ ] Larger touch targets for repo items
-- [ ] Pull-to-refresh gesture
-- [ ] Sticky header with search
+#### Database Pane
+- [ ] Pull-to-refresh (built)
+- [ ] Table selector as horizontal scroll
+- [ ] Card view for rows (vs table view)
+- [ ] Swipe to delete row
+- [ ] Inline edit with tap
+- [ ] SQL query sheet (slide up)
+- [ ] Migration runner with status badges
 
-### 3.3 Repository Browser (`/repos/[owner]/[repo]`)
-**Current:** Partial support
-**Priority:** High
+#### Deployments Pane
+- [ ] Pull-to-refresh (built)
+- [ ] Deployment cards with status indicators
+- [ ] Log viewer as full-screen sheet
+- [ ] One-tap redeploy
+- [ ] Branch filter chips
+- [ ] Env var editor sheet
 
-- [ ] Collapsible file tree (drawer or bottom sheet)
-- [ ] Full-screen file viewer
-- [ ] Swipe gestures for navigation
-- [ ] Breadcrumb overflow handling
-- [ ] Touch-friendly file selection
+#### Activity Pane
+- [ ] Pull-to-refresh (built)
+- [ ] Grouped by time (Today, Yesterday, etc.)
+- [ ] Filter chips by type
+- [ ] Tap to expand details
+- [ ] Clear all button
+- [ ] Real-time updates indicator
 
-### 3.4 Workspace Page (`/workspace/[...repo]`)
-**Current:** Minimal mobile support
-**Priority:** Critical
-
-- [ ] Single-panel view with tab switching
-- [ ] Bottom sheet for file browser
-- [ ] Full-screen code editor
-- [ ] Collapsible chat panel (slide from right)
-- [ ] Floating action button for common actions
-
-### 3.5 Terminal Page (`/terminal/[...repo]`)
-**Current:** Minimal mobile support
-**Priority:** High
-
-- [ ] Full-screen terminal
-- [ ] Touch-friendly keyboard toolbar
+#### Terminal Pane
+- [ ] Full-screen terminal experience
+- [ ] Custom keyboard toolbar (Tab, Ctrl, arrows, etc.)
+- [ ] Command history sheet (swipe up)
 - [ ] Copy/paste buttons
-- [ ] Command history drawer
+- [ ] Clear terminal button
+- [ ] Multiple terminal tabs
 - [ ] Landscape optimization
 
-### 3.6 Databases Page (`/databases`)
-**Current:** Desktop-only layout
-**Priority:** High
+---
 
-- [ ] Card-based database list
-- [ ] Bottom sheet for query editor
-- [ ] Horizontal scroll for table results
-- [ ] Touch-friendly row selection
-- [ ] Mobile SQL editor with keyboard
+## Part 3: Gestures & Interactions
 
-### 3.7 Deployments Page (`/deployments`)
-**Current:** Desktop-only layout
-**Priority:** Medium
+### 3.1 Implemented
+- [x] Swipe left/right between panes
+- [x] Pull-to-refresh on data panes
+- [x] Bottom sheet drag-to-dismiss
+- [x] Tap tab to switch panes
 
-- [ ] Vertical deployment timeline
-- [ ] Expandable deployment cards
-- [ ] Status badges optimized for mobile
-- [ ] Log viewer as full-screen modal
+### 3.2 To Implement
+- [ ] Long press on file for context menu
+- [ ] Pinch-to-zoom on code editor
+- [ ] Swipe to delete (database rows, activity items)
+- [ ] Double-tap to zoom preview
+- [ ] Three-finger swipe for undo/redo (editor)
 
-### 3.8 Integrations Page (`/integrations`)
-**Current:** Desktop-only layout
-**Priority:** Medium
-
-- [ ] Grid of integration cards
-- [ ] Search/filter functionality
-- [ ] Full-screen connection flow
-- [ ] Settings as bottom sheet
-
-### 3.9 New Project Page (`/projects/new`)
-**Current:** Basic mobile support
-**Priority:** Medium
-
-- [ ] Step-by-step wizard flow
-- [ ] Full-width form inputs
-- [ ] Mobile-optimized dropdowns
-- [ ] Progress indicator
+### 3.3 Haptic Feedback
+- [ ] Tab switch vibration (light)
+- [ ] Pull-to-refresh threshold (medium)
+- [ ] Destructive actions (heavy)
+- [ ] Success confirmations (success pattern)
 
 ---
 
-## Phase 4: Mobile Interaction Patterns
+## Part 4: Visual Polish
 
-### 4.1 Gestures to Implement
-- [ ] Swipe right to open sidebar/menu
-- [ ] Swipe left to close sidebar/menu
-- [ ] Pull down to refresh (where applicable)
-- [ ] Long press for context menus
-- [ ] Pinch to zoom in code viewer
+### 4.1 Animations
+- [ ] Smooth pane transitions (spring physics)
+- [ ] Tab bar indicator animation
+- [ ] Pull indicator bounce
+- [ ] Sheet slide-up with backdrop blur
+- [ ] Loading skeleton animations
 
-### 4.2 Touch Feedback
-- [ ] Active states for all interactive elements
-- [ ] Ripple effects on buttons
-- [ ] Scale transforms on press
-- [ ] Haptic feedback consideration (via API)
+### 4.2 Typography
+- [ ] Slightly larger base font on mobile (16px min)
+- [ ] Code font optimized for mobile (SF Mono, 14px)
+- [ ] Line height adjustments for readability
+- [ ] Truncation with ellipsis consistently
 
-### 4.3 Keyboard Handling
-- [ ] Auto-scroll when keyboard opens
-- [ ] Input field focus management
-- [ ] Dismiss keyboard on scroll
-- [ ] "Done" button for input fields
+### 4.3 Spacing
+- [ ] Consistent 16px horizontal padding
+- [ ] 12px vertical rhythm
+- [ ] Safe area respect on all edges
+- [ ] Thumb-zone optimization for key actions
 
----
-
-## Phase 5: Mobile Components Library
-
-### 5.1 New Components to Create
-- [ ] `MobileBottomNav` - Fixed bottom navigation
-- [ ] `MobileSheet` - Reusable bottom sheet (generalize existing)
-- [ ] `MobileDrawer` - Side drawer component
-- [ ] `MobileTabs` - Tab bar for multi-panel views
-- [ ] `MobileToolbar` - Context-aware action toolbar
-- [ ] `PullToRefresh` - Pull to refresh wrapper
-- [ ] `SwipeableView` - Swipeable container
-
-### 5.2 Component Specifications
-
-#### MobileBottomNav
-```
-Height: 56px + safe area bottom
-Items: 4-5 max
-Active indicator: Top border or filled icon
-Badge support: For notifications
-```
-
-#### MobileSheet
-```
-Max height: 90vh
-Handle bar: Draggable
-Snap points: 25%, 50%, 90%
-Backdrop: Blur + dim
-Close: Swipe down, tap backdrop, X button
-```
-
-#### MobileTabs
-```
-Position: Below header
-Height: 44px
-Scroll: Horizontal if > 4 tabs
-Indicator: Animated underline
-```
+### 4.4 Dark Mode Optimization
+- [ ] OLED-friendly true blacks where appropriate
+- [ ] Reduced contrast for night coding
+- [ ] Syntax highlighting colors tuned for mobile screens
 
 ---
 
-## Phase 6: Performance Optimization
+## Part 5: Performance
 
-### 6.1 Mobile-Specific Performance
-- [ ] Lazy load off-screen content
-- [ ] Reduce animation complexity on mobile
-- [ ] Implement virtualized lists for long content
-- [ ] Optimize images with srcset
-- [ ] Code split by route
-- [ ] Preload critical routes
+### 5.1 Mobile-Specific Optimizations
+- [ ] Lazy load panes (only render active pane)
+- [ ] Virtualized lists (activity, deployments, file tree)
+- [ ] Debounced scroll handlers
+- [ ] Reduced animation on low-power mode
+- [ ] Image optimization for previews
 
-### 6.2 Metrics to Target
-- First Contentful Paint: < 1.5s on 3G
-- Time to Interactive: < 3s on 3G
-- Largest Contentful Paint: < 2.5s
-- Cumulative Layout Shift: < 0.1
-
----
-
-## Phase 7: Testing & Polish
-
-### 7.1 Device Testing Matrix
-- [ ] iPhone SE (375px) - Small phone
-- [ ] iPhone 14 (390px) - Standard phone
-- [ ] iPhone 14 Pro Max (430px) - Large phone
-- [ ] iPad Mini (768px) - Small tablet
-- [ ] iPad Pro (1024px) - Large tablet
-- [ ] Android phones (various)
-
-### 7.2 Orientation Testing
-- [ ] Portrait mode for all pages
-- [ ] Landscape mode for code/terminal
-- [ ] Orientation change handling
-
-### 7.3 Accessibility
-- [ ] Touch target sizes (44x44px minimum)
-- [ ] Color contrast ratios
-- [ ] Focus indicators for keyboard nav
-- [ ] Screen reader compatibility
-- [ ] Reduced motion support
+### 5.2 Offline Considerations
+- [ ] Cache last viewed files
+- [ ] Queue actions when offline
+- [ ] Offline indicator in header
+- [ ] Sync status for pending changes
 
 ---
 
-## Implementation Order
+## Part 6: Testing Matrix
 
-### Sprint 1: Navigation & Access (Critical)
-1. Mobile bottom navigation bar
-2. Full mobile menu with all pages
-3. Ensure every page is reachable
+### Devices to Test
+- [ ] iPhone SE (375px) - Smallest target
+- [ ] iPhone 14 (390px) - Standard
+- [ ] iPhone 14 Pro Max (430px) - Large
+- [ ] iPad Mini (768px) - Tablet threshold
+- [ ] Android phones (various aspect ratios)
 
-### Sprint 2: Core Pages (High Priority)
-4. Workspace page mobile redesign
-5. Terminal page mobile optimization
-6. Repository browser mobile view
+### Scenarios
+- [ ] Cold start to IDE
+- [ ] Switch between all 7 panes
+- [ ] Edit file and save
+- [ ] Run terminal command
+- [ ] View deployment logs
+- [ ] Query database
+- [ ] Pull-to-refresh each pane
+- [ ] Rotate device mid-task
+- [ ] Background/foreground app
+- [ ] Low battery / low-power mode
 
-### Sprint 3: Supporting Pages (Medium Priority)
-7. Databases page mobile layout
-8. Deployments page mobile layout
-9. Integrations page mobile layout
+---
 
-### Sprint 4: Polish & Components (Final)
-10. Mobile-first CSS refactor
-11. Gesture support
-12. Performance optimization
-13. Testing and bug fixes
+## Implementation Priority
+
+### Phase 1: Core Polish (Current Sprint)
+1. Chat pane keyboard optimization
+2. Editor file tree sheet refinement
+3. Terminal keyboard toolbar
+4. Consistent spacing across all panes
+
+### Phase 2: Interactions
+5. Long press context menus
+6. Pinch-to-zoom on editor
+7. Swipe-to-delete gestures
+8. Haptic feedback throughout
+
+### Phase 3: Visual Refinement
+9. Animation polish
+10. Typography pass
+11. Dark mode optimization
+12. Loading states
+
+### Phase 4: Performance & Testing
+13. Lazy loading implementation
+14. Device testing
+15. Performance profiling
+16. Bug fixes
 
 ---
 
 ## Success Criteria
 
-- [ ] All pages accessible from mobile navigation
-- [ ] No horizontal scrolling on any page
+- [ ] All 7 panes fully functional on mobile
+- [ ] No horizontal scroll anywhere
 - [ ] All touch targets >= 44x44px
-- [ ] Lighthouse mobile score >= 90
-- [ ] All forms usable with mobile keyboard
-- [ ] File browser usable on mobile
-- [ ] Code editor functional on mobile
-- [ ] Terminal usable on mobile
+- [ ] Pane switch < 100ms perceived
+- [ ] Pull-to-refresh feels native
+- [ ] Can complete full dev workflow on phone:
+  - Open repo
+  - Edit code
+  - Run in terminal
+  - Preview changes
+  - Deploy
+  - Monitor activity
 
 ---
 
-## Technical Decisions
+## Technical Notes
 
-### Bottom Navigation vs Hamburger Menu
-**Decision:** Use both
-- Bottom nav for primary 4 actions (always visible)
-- Hamburger/full menu for complete navigation
-- Rationale: Bottom nav provides quick access, full menu provides completeness
+### State Persistence
+- Active pane stored in URL hash (`#chat`, `#editor`, etc.)
+- Scroll positions preserved per pane
+- Form state preserved on pane switch
 
-### Bottom Sheet vs Modal
-**Decision:** Bottom sheets for all mobile overlays
-- Rationale: More natural on mobile, thumb-reachable, progressive disclosure
+### Keyboard Handling
+- Input focus management on pane switch
+- Virtual keyboard detection for layout adjustment
+- Dismiss keyboard on pane switch (configurable)
 
-### Tab Bar vs Dropdown for Multi-Panel
-**Decision:** Tab bar with swipeable views
-- Rationale: Visible affordance, easy switching, familiar pattern
-
-### CSS Framework
-**Decision:** Keep custom CSS, add mobile-first utilities
-- Rationale: Already invested, just needs reorganization
+### Orientation
+- Portrait: Default, optimized layout
+- Landscape: Editor and terminal get more height
+- Lock option in settings (future)
 
 ---
 
 ## Files Reference
 
-### CSS Files (in order of modification priority)
-1. `/app/styles/variables.css`
-2. `/app/styles/base.css`
-3. `/app/styles/responsive.css`
-4. `/app/styles/sidebar.css`
-5. `/app/styles/mobile-menu.css`
-6. `/app/styles/chat.css`
-7. `/app/styles/workspace.css`
-8. `/app/styles/repo-browser.css`
-9. `/app/styles/databases.css`
-10. `/app/styles/deployments.css`
+### IDE Mobile Components
+- `/app/ide/components/mobile/MobileIDELayout.tsx`
+- `/app/ide/components/mobile/MobileHeader.tsx`
+- `/app/ide/components/mobile/MobileTabBar.tsx`
+- `/app/ide/components/mobile/MobileFileTreeSheet.tsx`
+- `/app/ide/components/mobile/PullToRefresh.tsx`
 
-### Key React Components
-- `/app/page.tsx` - Main chat
-- `/app/repos/page.tsx` - Repo list
-- `/app/workspace/[...repo]/page.tsx` - Workspace
-- `/app/layout.tsx` - Root layout (add bottom nav here)
+### IDE Mobile Styles
+- `/app/ide/styles/mobile/` (all files)
+
+### Hooks
+- `/app/ide/hooks/useMobileDetection.ts`
+- `/app/ide/hooks/useSwipeNavigation.ts` (to create)
 
 ---
 
 ## Notes
 
-- Preserve existing desktop functionality
-- Progressive enhancement from mobile base
+- Main app mobile is "good enough" - don't over-engineer
+- IDE mobile is the differentiator - make it exceptional
 - Test on real devices, not just simulators
-- Consider PWA enhancements after mobile optimization
+- Prioritize the coding workflow (edit → terminal → preview)
+- Consider PWA enhancements after core mobile is solid
