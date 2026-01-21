@@ -16,6 +16,7 @@ import {
 import {
   getMainRepoPath,
   getWorktreesDir,
+  getWorkspaceBasePath,
   getWorkspaceSessionInfo,
   isWorkspaceSessionWorktreeValid,
   migrateWorkspaceIfNeeded,
@@ -136,9 +137,40 @@ async function deleteWorkspaceSessionWorktree(repoFullName: string, sessionId: s
   }
 }
 
+// Auto-setup workspace (clone repo) if it doesn't exist
+async function autoSetupWorkspace(repoFullName: string, githubToken: string): Promise<boolean> {
+  const basePath = getWorkspaceBasePath(repoFullName);
+  const mainRepoPath = getMainRepoPath(repoFullName);
+  const worktreesDir = getWorktreesDir(repoFullName);
+
+  try {
+    console.log(`[Auto-Setup] Setting up workspace for ${repoFullName}`);
+
+    // Create base directory structure
+    fs.mkdirSync(basePath, { recursive: true });
+    fs.mkdirSync(worktreesDir, { recursive: true });
+
+    // Clone the repo into main/
+    const cloneUrl = `https://${githubToken}@github.com/${repoFullName}.git`;
+    execSync(`git clone ${cloneUrl} "${mainRepoPath}"`, {
+      env: { ...process.env, GIT_TERMINAL_PROMPT: '0' }
+    });
+
+    // Set git config for commits in main repo
+    execSync(`git config user.email "lawless-ai@localhost"`, { cwd: mainRepoPath });
+    execSync(`git config user.name "Lawless AI"`, { cwd: mainRepoPath });
+
+    console.log(`[Auto-Setup] Successfully set up workspace for ${repoFullName}`);
+    return true;
+  } catch (error: any) {
+    console.error(`[Auto-Setup] Failed to setup workspace for ${repoFullName}:`, error.message);
+    return false;
+  }
+}
+
 // Create a new workspace session with worktree
 router.post('/api/workspace/session/create', authenticateApiKey, async (req: Request, res: Response) => {
-  const { repoFullName, sessionId, sessionName, baseBranch = 'main', userId } = req.body;
+  const { repoFullName, sessionId, sessionName, baseBranch = 'main', userId, githubToken } = req.body;
 
   if (!repoFullName || !sessionId || !sessionName) {
     res.status(400).json({ error: 'Repository name, session ID, and session name required' });
@@ -161,9 +193,18 @@ router.post('/api/workspace/session/create', authenticateApiKey, async (req: Req
   const migrated = migrateWorkspaceIfNeeded(repoFullName);
   const mainRepoPath = getMainRepoPath(repoFullName);
 
+  // Auto-setup workspace if it doesn't exist
   if (!migrated && !fs.existsSync(mainRepoPath)) {
-    res.status(400).json({ error: 'Workspace not found. Please set up the repository first.' });
-    return;
+    if (!githubToken) {
+      res.status(400).json({ error: 'GitHub token required for initial workspace setup' });
+      return;
+    }
+
+    const setupSuccess = await autoSetupWorkspace(repoFullName, githubToken);
+    if (!setupSuccess) {
+      res.status(500).json({ error: 'Failed to auto-setup workspace. Please try again.' });
+      return;
+    }
   }
 
   try {

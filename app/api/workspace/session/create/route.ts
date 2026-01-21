@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getIntegrationToken } from '@/lib/integrations/tokens';
 
 export async function POST(request: NextRequest) {
   const backendUrl = process.env.BACKEND_URL || 'http://localhost:4000';
@@ -22,6 +23,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Get GitHub token for auto-setup if workspace doesn't exist
+    const githubToken = await getIntegrationToken('github', userId);
+    if (!githubToken) {
+      return NextResponse.json(
+        { error: 'GitHub not connected. Please connect your GitHub account.' },
+        { status: 401 }
+      );
+    }
+
     console.log(`[Session Create] Calling backend: ${backendUrl}/api/workspace/session/create (userId: ${userId})`);
 
     const response = await fetch(`${backendUrl}/api/workspace/session/create`, {
@@ -30,7 +40,7 @@ export async function POST(request: NextRequest) {
         'Content-Type': 'application/json',
         ...(apiKey ? { 'X-API-Key': apiKey } : {}),
       },
-      body: JSON.stringify({ repoFullName, sessionId, sessionName, baseBranch, userId }),
+      body: JSON.stringify({ repoFullName, sessionId, sessionName, baseBranch, userId, githubToken }),
     });
 
     const text = await response.text();
