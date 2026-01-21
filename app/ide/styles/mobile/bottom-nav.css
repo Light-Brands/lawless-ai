@@ -1,5 +1,11 @@
 /* Mobile Bottom Navigation - Controls Main Pane Only */
 
+/* Spring-like easing */
+:root {
+  --spring-ease: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --smooth-ease: cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
 .mobile-bottom-nav {
   height: 56px;
   display: flex;
@@ -23,12 +29,13 @@
   border: none;
   background: none;
   cursor: pointer;
-  transition: color 0.15s;
+  transition: color 0.2s var(--smooth-ease), transform 0.15s var(--spring-ease);
   -webkit-tap-highlight-color: transparent;
 }
 
 .mobile-nav-item:active {
   color: #888;
+  transform: scale(0.92);
 }
 
 .mobile-nav-item.active {

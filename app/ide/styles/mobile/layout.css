@@ -1,5 +1,11 @@
 /* Mobile IDE Two-Zone Layout */
 
+/* Spring-like easing for smooth animations */
+:root {
+  --spring-ease: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --smooth-ease: cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
 /* Root layout container */
 .mobile-ide-layout {
   display: flex;
@@ -21,7 +27,8 @@
   position: relative;
   display: flex;
   flex-direction: column;
-  transition: flex 0.2s ease-out;
+  transition: flex 0.3s var(--smooth-ease);
+  will-change: flex;
 }
 
 /* Adjust main pane based on bottom zone height */
@@ -84,6 +91,23 @@
   }
   100% {
     background-position: -200% 0;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .mobile-main-pane,
+  .mobile-bottom-zone,
+  .bottom-zone-pane,
+  .mobile-nav-item {
+    transition: none !important;
+    animation: none !important;
+  }
+
+  .mobile-pane-skeleton .skeleton-header,
+  .mobile-pane-skeleton .skeleton-line {
+    animation: none !important;
+    background: #1a1a2e !important;
   }
 }
 
