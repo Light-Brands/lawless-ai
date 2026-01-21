@@ -566,7 +566,7 @@ Mode 4: SQL Editor (tap SQL button)
 
 ## Technical Implementation
 
-### Phase 1: Mobile Detection & Layout Switch
+### Component: MobileIDELayout
 
 **New Component: MobileIDELayout.tsx**
 
@@ -625,7 +625,7 @@ export function IDELayout() {
 }
 ```
 
-### Phase 2: Mobile-Specific Hooks
+### Hooks
 
 **useMobileDetection.ts**:
 ```tsx
@@ -693,7 +693,7 @@ function collapseHeight(current: BottomZoneHeight): BottomZoneHeight {
 }
 ```
 
-### Phase 3: Store Updates
+### Store Updates (ideStore.ts)
 
 **ideStore.ts additions**:
 
@@ -768,7 +768,7 @@ mobile: {
 }
 ```
 
-### Phase 4: CSS Architecture
+### CSS Architecture
 
 **New file: styles/mobile-ide.css**
 
