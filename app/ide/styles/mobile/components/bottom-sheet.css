@@ -1,0 +1,147 @@
+/* Mobile Bottom Sheet */
+
+.mobile-bottom-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  z-index: 1000;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.mobile-bottom-sheet-backdrop.visible {
+  opacity: 1;
+}
+
+.mobile-bottom-sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  max-height: 90vh;
+  background: #1a1a2e;
+  border-radius: 16px 16px 0 0;
+  z-index: 1001;
+  display: flex;
+  flex-direction: column;
+  transform: translateY(100%);
+  transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.mobile-bottom-sheet.open {
+  transform: translateY(0);
+}
+
+/* Snap points */
+.mobile-bottom-sheet.snap-25 {
+  height: 25vh;
+}
+
+.mobile-bottom-sheet.snap-50 {
+  height: 50vh;
+}
+
+.mobile-bottom-sheet.snap-90 {
+  height: 90vh;
+}
+
+/* Drag handle */
+.mobile-bottom-sheet-handle {
+  display: flex;
+  justify-content: center;
+  padding: 12px;
+  cursor: grab;
+}
+
+.mobile-bottom-sheet-handle::before {
+  content: '';
+  width: 36px;
+  height: 4px;
+  background: #3d3d5c;
+  border-radius: 2px;
+}
+
+.mobile-bottom-sheet-handle:active {
+  cursor: grabbing;
+}
+
+/* Header */
+.mobile-bottom-sheet-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px 12px;
+  border-bottom: 1px solid #2d2d44;
+}
+
+.mobile-bottom-sheet-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #e0e0e0;
+}
+
+.mobile-bottom-sheet-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  color: #888;
+  cursor: pointer;
+}
+
+.mobile-bottom-sheet-close:active {
+  background: #2d2d44;
+  color: #e0e0e0;
+}
+
+/* Content */
+.mobile-bottom-sheet-content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Actions footer */
+.mobile-bottom-sheet-footer {
+  display: flex;
+  gap: 12px;
+  padding: 12px 16px;
+  border-top: 1px solid #2d2d44;
+}
+
+.mobile-bottom-sheet-btn {
+  flex: 1;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.mobile-bottom-sheet-btn.primary {
+  background: #7c3aed;
+  border: none;
+  color: white;
+}
+
+.mobile-bottom-sheet-btn.primary:active {
+  background: #6d28d9;
+}
+
+.mobile-bottom-sheet-btn.secondary {
+  background: transparent;
+  border: 1px solid #3d3d5c;
+  color: #e0e0e0;
+}
+
+.mobile-bottom-sheet-btn.secondary:active {
+  background: #2d2d44;
+}

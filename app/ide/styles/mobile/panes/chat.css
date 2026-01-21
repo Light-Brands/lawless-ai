@@ -1,0 +1,60 @@
+/* Mobile Chat Pane Overrides */
+
+@media (max-width: 767px) {
+  .chat-pane {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .chat-messages {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 12px;
+  }
+
+  .chat-message {
+    max-width: 100%;
+  }
+
+  .chat-message-content {
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  .chat-input-container {
+    padding: 8px 12px;
+    padding-bottom: calc(8px + env(safe-area-inset-bottom));
+    background: #0a0a0c;
+    border-top: 1px solid #1a1a1f;
+  }
+
+  .chat-input {
+    font-size: 16px; /* Prevents iOS zoom on focus */
+    padding: 12px;
+    border-radius: 12px;
+  }
+
+  .chat-input-actions {
+    padding: 8px 0 0;
+  }
+
+  /* Scroll to bottom button */
+  .chat-scroll-btn {
+    position: absolute;
+    bottom: 80px;
+    right: 16px;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #2d2d44;
+    border: 1px solid #3d3d5c;
+    color: #e0e0e0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  }
+}

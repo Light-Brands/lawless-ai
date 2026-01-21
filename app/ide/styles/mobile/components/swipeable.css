@@ -1,0 +1,63 @@
+/* Swipeable Pane Container */
+
+.swipeable-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  touch-action: pan-y;
+}
+
+.swipeable-track {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.swipeable-track.swiping {
+  transition: none;
+}
+
+.swipeable-slide {
+  flex: 0 0 100%;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* Peek effect during swipe */
+.swipeable-slide.peek-left {
+  transform: translateX(-10%);
+  opacity: 0.5;
+}
+
+.swipeable-slide.peek-right {
+  transform: translateX(10%);
+  opacity: 0.5;
+}
+
+/* Indicator dots (optional) */
+.swipeable-indicators {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px;
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+}
+
+.swipeable-indicator {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #3d3d5c;
+  transition: background 0.2s, transform 0.2s;
+}
+
+.swipeable-indicator.active {
+  background: #7c3aed;
+  transform: scale(1.2);
+}

@@ -1,0 +1,102 @@
+/* Mobile Editor Pane Overrides */
+
+@media (max-width: 767px) {
+  .editor-pane {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Hide desktop sidebar, use bottom sheet instead */
+  .editor-file-tree-sidebar {
+    display: none;
+  }
+
+  /* File selector in header */
+  .mobile-file-selector {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: #0a0a0c;
+    border-bottom: 1px solid #1a1a1f;
+  }
+
+  .mobile-file-selector-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: #1a1a2e;
+    border: 1px solid #2d2d44;
+    border-radius: 8px;
+    color: #e0e0e0;
+    font-size: 13px;
+    text-align: left;
+  }
+
+  .mobile-file-selector-path {
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* Editor area */
+  .editor-content {
+    flex: 1;
+    min-height: 0;
+  }
+
+  /* Monaco editor adjustments */
+  .monaco-editor {
+    font-size: 14px !important;
+  }
+
+  .monaco-editor .margin {
+    width: 40px !important;
+  }
+
+  /* Mobile editor toolbar */
+  .mobile-editor-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 8px 12px;
+    background: #0a0a0c;
+    border-top: 1px solid #1a1a1f;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .mobile-editor-toolbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .mobile-editor-toolbar-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 40px;
+    height: 40px;
+    padding: 0 12px;
+    background: #1a1a2e;
+    border: 1px solid #2d2d44;
+    border-radius: 8px;
+    color: #888;
+    font-size: 13px;
+    white-space: nowrap;
+  }
+
+  .mobile-editor-toolbar-btn:active {
+    background: #2d2d44;
+    color: #e0e0e0;
+  }
+
+  .mobile-editor-toolbar-btn.primary {
+    background: #7c3aed;
+    border-color: #7c3aed;
+    color: white;
+  }
+}

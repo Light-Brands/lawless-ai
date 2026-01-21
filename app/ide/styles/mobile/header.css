@@ -1,0 +1,127 @@
+/* Mobile IDE Header */
+
+.mobile-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 48px;
+  min-height: 48px;
+  padding: 0 12px;
+  background: #0a0a0c;
+  border-bottom: 1px solid #1a1a1f;
+  gap: 8px;
+}
+
+.mobile-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.mobile-header-right {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Repo/branch selector button */
+.mobile-repo-selector {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: #1a1a2e;
+  border: 1px solid #2d2d44;
+  border-radius: 8px;
+  color: #e0e0e0;
+  font-size: 13px;
+  cursor: pointer;
+  max-width: 200px;
+  min-width: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mobile-repo-selector:active {
+  background: #2d2d44;
+}
+
+.mobile-repo-icon {
+  flex-shrink: 0;
+  color: #888;
+}
+
+.mobile-repo-name {
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mobile-branch-name {
+  color: #888;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mobile-repo-chevron {
+  flex-shrink: 0;
+  color: #666;
+}
+
+/* Header action buttons */
+.mobile-header-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  color: #888;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mobile-header-btn:active {
+  background: #2d2d44;
+  color: #e0e0e0;
+}
+
+/* Status indicator (single dot) */
+.mobile-status-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #22c55e;
+  margin-right: 4px;
+}
+
+.mobile-status-indicator.warning {
+  background: #eab308;
+}
+
+.mobile-status-indicator.error {
+  background: #ef4444;
+}
+
+.mobile-status-indicator.offline {
+  background: #666;
+}
+
+/* Pane title in header */
+.mobile-pane-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #e0e0e0;
+}
+
+.mobile-pane-title-icon {
+  color: #a78bfa;
+}
