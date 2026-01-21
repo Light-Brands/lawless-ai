@@ -307,6 +307,14 @@ export function ServiceProvider({ children, sessionId }: ServiceProviderProps) {
       setInitProgress(0);
       setInitStep('Starting initialization...');
 
+      // CRITICAL: Reset all service states immediately when starting initialization
+      // This prevents stale data from previous repos from briefly appearing
+      setSupabase({ status: 'disconnected', projectRef: null });
+      setVercel({ status: 'disconnected', projectId: null, projectName: null });
+      setGithub({ status: 'disconnected' });
+      setWorktree({ status: 'disconnected', path: null, branchName: null });
+      setTerminal({ status: 'disconnected', sessionId: null });
+
       try {
         // Step 1: Fetch integrations
         await fetchIntegrations();

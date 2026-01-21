@@ -29,6 +29,10 @@ const ActivityPane = dynamic(() => import('../panes/ActivityPane').then((m) => m
   loading: () => <MobilePaneSkeleton />,
 });
 
+const SettingsPane = dynamic(() => import('../panes/SettingsPane').then((m) => m.SettingsPane), {
+  loading: () => <MobilePaneSkeleton />,
+});
+
 // Bottom zone components (lazy loaded)
 const TerminalPane = dynamic(() => import('../panes/TerminalPane').then((m) => m.TerminalPane), {
   loading: () => <MobilePaneSkeleton />,
@@ -48,18 +52,9 @@ const MAIN_PANE_COMPONENTS: Record<MainPaneId, React.ComponentType> = {
   database: DatabasePane,
   deployments: DeploymentsPane,
   activity: ActivityPane,
-  settings: SettingsPlaceholder, // TODO: Create settings pane
+  settings: SettingsPane,
 };
 
-// Placeholder for settings pane
-function SettingsPlaceholder() {
-  return (
-    <div className="mobile-settings-placeholder">
-      <h2>Settings</h2>
-      <p>IDE settings coming soon</p>
-    </div>
-  );
-}
 
 function MobilePaneSkeleton() {
   return (

@@ -45,7 +45,7 @@ export function IDEHeader({
   onReposRefresh,
 }: IDEHeaderProps) {
   const router = useRouter();
-  const { activeSession, setCommandPaletteOpen } = useIDEStore();
+  const { activeSession, setCommandPaletteOpen, resetProjectState } = useIDEStore();
   const { services, getStatusColor } = useServiceConnection();
   const [repoMenuOpen, setRepoMenuOpen] = useState(false);
   const [sessionMenuOpen, setSessionMenuOpen] = useState(false);
@@ -134,6 +134,9 @@ export function IDEHeader({
   const handleRepoSelect = (repo: Repo) => {
     setRepoMenuOpen(false);
     if (repo.repo_full_name !== repoFullName) {
+      // CRITICAL: Reset all project-specific state before switching repos
+      // This prevents port leakage, file leakage, and other cross-project contamination
+      resetProjectState();
       router.push(`/ide/${repo.repo_full_name}`);
     }
   };

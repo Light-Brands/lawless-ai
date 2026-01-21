@@ -73,6 +73,9 @@ export interface PortInfo {
 }
 
 interface IDEStore {
+  // Project isolation - reset all project-specific state
+  resetProjectState: () => void;
+
   // Sessions
   activeSession: Session | null;
   sessions: Session[];
@@ -169,6 +172,16 @@ interface IDEStore {
   deploymentStatus: 'idle' | 'building' | 'ready' | 'failed';
   setDeploymentStatus: (status: 'idle' | 'building' | 'ready' | 'failed') => void;
 
+  // IDE Settings
+  settings: {
+    editorFontSize: number;
+    terminalFontSize: number;
+    autoSave: boolean;
+    hapticFeedback: boolean;
+    reducedMotion: boolean;
+  };
+  updateSettings: (updates: Partial<IDEStore['settings']>) => void;
+
   // Mobile Two-Zone Layout (new architecture)
   mobile: {
     mainPane: 'preview' | 'editor' | 'database' | 'deployments' | 'activity' | 'settings';
@@ -189,6 +202,36 @@ interface IDEStore {
 export const useIDEStore = create<IDEStore>()(
   persist(
     (set, get) => ({
+      // Project isolation - reset all project-specific state when switching repos
+      resetProjectState: () => set({
+        // Sessions
+        activeSession: null,
+        sessions: [],
+        // Ports - CRITICAL: clear to prevent cross-project port leakage
+        activePorts: {},
+        selectedPort: null,
+        serverPort: null,
+        serverStatus: 'stopped',
+        // Terminal
+        terminalTabs: [],
+        activeTabId: null,
+        // Editor
+        activeFile: null,
+        openFiles: [],
+        unsavedFiles: new Set(),
+        // Chat messages
+        terminalMessages: [],
+        workspaceMessages: [],
+        // Migrations
+        migrations: [],
+        migrationsSummary: null,
+        migrationRunResults: {},
+        pendingMigrations: [],
+        migrationsLoading: false,
+        // Deployments
+        deploymentStatus: 'idle',
+      }),
+
       // Sessions
       activeSession: null,
       sessions: [],
@@ -426,6 +469,18 @@ export const useIDEStore = create<IDEStore>()(
       deploymentStatus: 'idle',
       setDeploymentStatus: (status) => set({ deploymentStatus: status }),
 
+      // IDE Settings
+      settings: {
+        editorFontSize: 14,
+        terminalFontSize: 13,
+        autoSave: false,
+        hapticFeedback: true,
+        reducedMotion: false,
+      },
+      updateSettings: (updates) => set((state) => ({
+        settings: { ...state.settings, ...updates }
+      })),
+
       // Mobile Two-Zone Layout (new architecture)
       mobile: {
         mainPane: 'preview',  // Default to preview
@@ -492,6 +547,8 @@ export const useIDEStore = create<IDEStore>()(
         mobileTabOrder: state.mobileTabOrder,
         // Two-zone mobile state
         mobile: state.mobile,
+        // IDE settings
+        settings: state.settings,
       }),
     }
   )

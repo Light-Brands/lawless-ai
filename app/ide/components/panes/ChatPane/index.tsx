@@ -53,6 +53,8 @@ export function ChatPane() {
   const [expandedContext, setExpandedContext] = useState<Set<string>>(new Set());
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [isUserScrolling, setIsUserScrolling] = useState(false);
+  const [showQuickPrompts, setShowQuickPrompts] = useState(false);
+  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Track scroll position to show/hide scroll-to-bottom button
   const handleScroll = useCallback(() => {
@@ -201,6 +203,41 @@ export function ChatPane() {
     }
     inputRef.current?.focus();
   }, []);
+
+  // Quick prompts for long-press menu (mobile)
+  const quickPrompts = [
+    { label: 'Fix errors', prompt: 'Fix the errors in this code' },
+    { label: 'Write tests', prompt: 'Write tests for this code' },
+    { label: 'Explain', prompt: 'Explain what this code does' },
+    { label: 'Refactor', prompt: 'Refactor this code for better readability' },
+    { label: 'Add types', prompt: 'Add TypeScript types to this code' },
+    { label: 'Optimize', prompt: 'Optimize this code for performance' },
+  ];
+
+  // Long-press handlers for send button (mobile quick prompts)
+  const handleSendTouchStart = useCallback(() => {
+    if (!isMobile) return;
+    longPressTimerRef.current = setTimeout(() => {
+      haptic('medium');
+      setShowQuickPrompts(true);
+    }, 500);
+  }, [isMobile]);
+
+  const handleSendTouchEnd = useCallback(() => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  }, []);
+
+  const handleQuickPromptSelect = useCallback(async (prompt: string) => {
+    setShowQuickPrompts(false);
+    haptic('light');
+    setInput('');
+    setIsUserScrolling(false);
+    scrollToBottom();
+    await sendMessage(prompt);
+  }, [sendMessage, scrollToBottom]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -428,6 +465,9 @@ export function ChatPane() {
             type="submit"
             disabled={isLoading || !input.trim()}
             className="chat-send-btn"
+            onTouchStart={handleSendTouchStart}
+            onTouchEnd={handleSendTouchEnd}
+            onTouchCancel={handleSendTouchEnd}
           >
             {isLoading ? (
               <span className="sending-indicator" />
@@ -436,6 +476,25 @@ export function ChatPane() {
             )}
           </button>
         </form>
+
+        {/* Quick prompts dropdown (mobile long-press) */}
+        {showQuickPrompts && (
+          <>
+            <div className="quick-prompts-backdrop" onClick={() => setShowQuickPrompts(false)} />
+            <div className="quick-prompts-dropdown">
+              <div className="quick-prompts-header">Quick Prompts</div>
+              {quickPrompts.map((item, i) => (
+                <button
+                  key={i}
+                  className="quick-prompt-item"
+                  onClick={() => handleQuickPromptSelect(item.prompt)}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
       </div>
 
       {/* Quick Commands Panel */}
@@ -834,6 +893,104 @@ export function ChatPane() {
           to {
             transform: rotate(360deg);
           }
+        }
+
+        /* Quick prompts dropdown (mobile long-press) */
+        .quick-prompts-backdrop {
+          position: fixed;
+          inset: 0;
+          background: rgba(0, 0, 0, 0.5);
+          z-index: 100;
+        }
+
+        .quick-prompts-dropdown {
+          position: absolute;
+          bottom: calc(100% + 8px);
+          right: 8px;
+          background: var(--bg-secondary, #141417);
+          border: 1px solid var(--border-color, #2a2a2f);
+          border-radius: 8px;
+          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+          z-index: 101;
+          min-width: 180px;
+          overflow: hidden;
+          animation: quickPromptsSlideUp 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        @keyframes quickPromptsSlideUp {
+          from {
+            opacity: 0;
+            transform: translateY(8px) scale(0.95);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+        }
+
+        .quick-prompts-header {
+          padding: 8px 12px;
+          font-size: 0.65rem;
+          font-weight: 600;
+          color: var(--text-secondary, #888);
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          border-bottom: 1px solid var(--border-color, #2a2a2f);
+        }
+
+        .quick-prompt-item {
+          display: block;
+          width: 100%;
+          padding: 10px 12px;
+          background: none;
+          border: none;
+          text-align: left;
+          font-size: 0.8rem;
+          color: var(--text-primary, #e0e0e0);
+          cursor: pointer;
+          transition: background 0.15s;
+        }
+
+        .quick-prompt-item:hover,
+        .quick-prompt-item:active {
+          background: rgba(124, 58, 237, 0.15);
+        }
+
+        .quick-prompt-item:not(:last-child) {
+          border-bottom: 1px solid var(--border-color, #1a1a1f);
+        }
+
+        /* Scroll to bottom button */
+        .chat-scroll-to-bottom {
+          position: absolute;
+          bottom: 70px;
+          right: 12px;
+          width: 36px;
+          height: 36px;
+          border-radius: 50%;
+          background: var(--accent-color, #7c3aed);
+          border: none;
+          color: white;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          opacity: 0;
+          transform: scale(0.8);
+          transition: opacity 0.2s, transform 0.2s;
+          pointer-events: none;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+          z-index: 10;
+        }
+
+        .chat-scroll-to-bottom.visible {
+          opacity: 1;
+          transform: scale(1);
+          pointer-events: auto;
+        }
+
+        .chat-scroll-to-bottom:active {
+          transform: scale(0.95);
         }
       `}</style>
     </div>
