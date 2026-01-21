@@ -6,7 +6,18 @@ import { useSupabaseConnection } from '../../../contexts/ServiceContext';
 import { useIDEContext } from '../../../contexts/IDEContext';
 import { useMobileDetection } from '../../../hooks/useMobileDetection';
 import { PullToRefresh } from '../../mobile/PullToRefresh';
-import { TableIcon, BellIcon } from '../../Icons';
+import { TableIcon, BellIcon, ChevronLeftIcon, ChevronRightIcon } from '../../Icons';
+
+// Mobile drill-down view type
+type MobileView = 'tables' | 'rows' | 'detail';
+
+// Haptic feedback helper
+const haptic = (style: 'light' | 'medium' | 'heavy' = 'light') => {
+  if ('vibrate' in navigator) {
+    const durations = { light: 10, medium: 20, heavy: 30 };
+    navigator.vibrate(durations[style]);
+  }
+};
 
 interface TableInfo {
   table_name: string;
@@ -143,6 +154,10 @@ export function DatabasePane() {
   const [editingRow, setEditingRow] = useState<Record<string, unknown> | null>(null);
   const [isAddingRow, setIsAddingRow] = useState(false);
   const [isAddingColumn, setIsAddingColumn] = useState(false);
+
+  // Mobile drill-down navigation state
+  const [mobileView, setMobileView] = useState<MobileView>('tables');
+  const [selectedRowForDetail, setSelectedRowForDetail] = useState<Record<string, unknown> | null>(null);
 
   // Fetch tables when project ref is available
   useEffect(() => {
@@ -361,7 +376,32 @@ export function DatabasePane() {
     setSelectedTable(table);
     setPaginationOffset(0);
     fetchTableData(table.table_name, 0);
-  }, [fetchTableData]);
+    // On mobile, navigate to rows view
+    if (isMobile) {
+      haptic('light');
+      setMobileView('rows');
+    }
+  }, [fetchTableData, isMobile]);
+
+  // Mobile: Navigate back from current view
+  const handleMobileBack = useCallback(() => {
+    haptic('light');
+    if (mobileView === 'detail') {
+      setMobileView('rows');
+      setSelectedRowForDetail(null);
+    } else if (mobileView === 'rows') {
+      setMobileView('tables');
+      setSelectedTable(null);
+      setTableData(null);
+    }
+  }, [mobileView]);
+
+  // Mobile: Select row for detail view
+  const handleMobileRowSelect = useCallback((row: Record<string, unknown>) => {
+    haptic('light');
+    setSelectedRowForDetail(row);
+    setMobileView('detail');
+  }, []);
 
   // Handle pagination
   const handlePageChange = useCallback((offset: number) => {
@@ -549,122 +589,121 @@ export function DatabasePane() {
 
       {isMobile ? (
         <PullToRefresh onRefresh={handlePullRefresh} className="db-content">
-          {/* Tables Tab - Table Browser */}
+          {/* Tables Tab - Mobile Drill-Down Navigation */}
           {activeTab === 'tables' && (
-          <div className="tables-browser-content">
-            <div className="tables-browser-layout">
-              {/* Table list sidebar */}
-              <div className="tables-list-sidebar">
-                <div className="tables-list-header">
-                  <span>Tables ({tables.length})</span>
+          <div className="mobile-db-drilldown">
+            {/* Level 1: Tables List */}
+            {mobileView === 'tables' && (
+              <div className="mobile-tables-list">
+                <div className="mobile-db-header">
+                  <h3>Tables</h3>
                   <button className="refresh-btn-sm" onClick={() => setRefreshKey(k => k + 1)} disabled={loading}>
                     ↻
                   </button>
                 </div>
-                <div className="tables-list">
-                  {loading ? (
-                    <div className="tables-loading">Loading...</div>
-                  ) : tables.length === 0 ? (
-                    <div className="tables-empty">No tables</div>
-                  ) : (
-                    tables.map(table => (
-                      <div
+                {loading ? (
+                  <div className="mobile-db-loading">
+                    <div className="loading-spinner" />
+                    <span>Loading tables...</span>
+                  </div>
+                ) : tables.length === 0 ? (
+                  <div className="mobile-db-empty">
+                    <div className="empty-icon">🗄️</div>
+                    <p>No tables found</p>
+                    <p className="hint">Create tables in your Supabase dashboard</p>
+                  </div>
+                ) : (
+                  <div className="mobile-table-cards">
+                    {tables.map(table => (
+                      <button
                         key={table.table_name}
-                        className={`table-list-item ${selectedTable?.table_name === table.table_name ? 'selected' : ''}`}
+                        className="mobile-table-card"
                         onClick={() => handleSelectTable(table)}
                       >
-                        <span className="table-icon-sm"><TableIcon size={12} /></span>
-                        <span className="table-name-sm">{table.table_name}</span>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-
-              {/* Table data browser */}
-              <div className="table-data-area">
-                {!selectedTable ? (
-                  <div className="table-data-empty">
-                    <p>Select a table to view data</p>
+                        <div className="table-card-icon">
+                          <TableIcon size={20} />
+                        </div>
+                        <div className="table-card-info">
+                          <span className="table-card-name">{table.table_name}</span>
+                          <span className="table-card-schema">{table.table_schema}</span>
+                        </div>
+                        <ChevronRightIcon size={18} className="table-card-chevron" />
+                      </button>
+                    ))}
                   </div>
-                ) : tableDataLoading ? (
-                  <div className="table-data-loading">
+                )}
+              </div>
+            )}
+
+            {/* Level 2: Table Rows */}
+            {mobileView === 'rows' && selectedTable && (
+              <div className="mobile-rows-view">
+                <div className="mobile-db-header with-back">
+                  <button className="mobile-back-btn" onClick={handleMobileBack}>
+                    <ChevronLeftIcon size={20} />
+                    <span>Tables</span>
+                  </button>
+                  <div className="header-spacer" />
+                  <button className="add-row-btn-sm" onClick={() => setIsAddingRow(true)}>
+                    <PlusIcon />
+                  </button>
+                </div>
+                <div className="mobile-table-title">
+                  <h3>{selectedTable.table_name}</h3>
+                  {tableData && <span className="row-count">{tableData.pagination.total} rows</span>}
+                </div>
+                {tableDataLoading ? (
+                  <div className="mobile-db-loading">
                     <div className="loading-spinner" />
                     <span>Loading data...</span>
                   </div>
                 ) : !tableData || tableData.rows.length === 0 ? (
-                  <div className="table-data-empty">
-                    <p>No data in {selectedTable.table_name}</p>
+                  <div className="mobile-db-empty">
+                    <p>No data in this table</p>
                     <button className="add-row-btn" onClick={() => setIsAddingRow(true)}>
                       <PlusIcon /> Add Row
                     </button>
                   </div>
                 ) : (
                   <>
-                    <div className="table-data-header">
-                      <div className="table-data-info">
-                        <h3>{tableData.table.name}</h3>
-                        <span className="row-count">{tableData.pagination.total} rows</span>
-                      </div>
-                      <button className="add-row-btn" onClick={() => setIsAddingRow(true)}>
-                        <PlusIcon /> Add Row
-                      </button>
-                    </div>
-                    <div className="table-data-scroll">
-                      <table className="data-table">
-                        <thead>
-                          <tr>
-                            {tableData.table.columns.map(col => (
-                              <th key={col.name}>
-                                <span className="col-name">{col.name}</span>
-                                <span className="col-type">{col.type}</span>
-                              </th>
-                            ))}
-                            <th className="add-col-header">
-                              <button className="add-col-btn" onClick={() => setIsAddingColumn(true)} title="Add Column">
-                                <PlusIcon />
-                              </button>
-                            </th>
-                            <th className="actions-header">Actions</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {tableData.rows.map((row, idx) => {
-                            const pkCol = tableData.table.columns[0]?.name || 'id';
-                            const pkVal = row[pkCol];
-                            return (
-                              <tr key={String(pkVal) || idx}>
-                                {tableData.table.columns.map(col => (
-                                  <td key={col.name}>
-                                    <span className={`cell-val ${row[col.name] === null ? 'null-val' : ''}`} title={formatCellValue(row[col.name])}>
-                                      {truncateValue(formatCellValue(row[col.name]))}
-                                    </span>
-                                  </td>
-                                ))}
-                                <td className="add-col-spacer" />
-                                <td className="actions-cell">
-                                  <button className="row-action edit" onClick={() => setEditingRow(row)} title="Edit">
-                                    <EditIcon />
-                                  </button>
-                                  <button className="row-action delete" onClick={() => handleDeleteRow({ [pkCol]: pkVal })} title="Delete">
-                                    <DeleteIcon />
-                                  </button>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
+                    <div className="mobile-row-cards">
+                      {tableData.rows.map((row, idx) => {
+                        const pkCol = tableData.table.columns[0]?.name || 'id';
+                        const pkVal = row[pkCol];
+                        // Show first 2-3 columns as preview
+                        const previewCols = tableData.table.columns.slice(0, 3);
+                        return (
+                          <button
+                            key={String(pkVal) || idx}
+                            className="mobile-row-card"
+                            onClick={() => handleMobileRowSelect(row)}
+                          >
+                            <div className="row-card-preview">
+                              {previewCols.map(col => (
+                                <div key={col.name} className="row-card-field">
+                                  <span className="field-name">{col.name}</span>
+                                  <span className={`field-value ${row[col.name] === null ? 'null-val' : ''}`}>
+                                    {truncateValue(formatCellValue(row[col.name]), 30)}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                            <div className="row-card-actions">
+                              <ChevronRightIcon size={18} className="row-card-chevron" />
+                            </div>
+                          </button>
+                        );
+                      })}
                     </div>
                     {tableData.pagination.total > 50 && (
-                      <div className="table-pagination">
+                      <div className="mobile-pagination">
                         <button
                           disabled={tableData.pagination.offset === 0}
                           onClick={() => handlePageChange(Math.max(0, tableData.pagination.offset - 50))}
                         >
                           ← Prev
                         </button>
-                        <span>
+                        <span className="page-info">
                           {Math.floor(tableData.pagination.offset / 50) + 1} / {Math.ceil(tableData.pagination.total / 50)}
                         </span>
                         <button
@@ -678,7 +717,49 @@ export function DatabasePane() {
                   </>
                 )}
               </div>
-            </div>
+            )}
+
+            {/* Level 3: Row Detail */}
+            {mobileView === 'detail' && selectedRowForDetail && tableData && (
+              <div className="mobile-detail-view">
+                <div className="mobile-db-header with-back">
+                  <button className="mobile-back-btn" onClick={handleMobileBack}>
+                    <ChevronLeftIcon size={20} />
+                    <span>{selectedTable?.table_name}</span>
+                  </button>
+                  <div className="header-spacer" />
+                  <button className="edit-row-btn" onClick={() => setEditingRow(selectedRowForDetail)}>
+                    <EditIcon />
+                  </button>
+                  <button
+                    className="delete-row-btn"
+                    onClick={() => {
+                      const pkCol = tableData.table.columns[0]?.name || 'id';
+                      const pkVal = selectedRowForDetail[pkCol];
+                      handleDeleteRow({ [pkCol]: pkVal });
+                      handleMobileBack();
+                    }}
+                  >
+                    <DeleteIcon />
+                  </button>
+                </div>
+                <div className="mobile-detail-content">
+                  <div className="detail-fields">
+                    {tableData.table.columns.map(col => (
+                      <div key={col.name} className="detail-field">
+                        <div className="detail-field-header">
+                          <span className="detail-field-name">{col.name}</span>
+                          <span className="detail-field-type">{col.type}</span>
+                        </div>
+                        <div className={`detail-field-value ${selectedRowForDetail[col.name] === null ? 'null-val' : ''}`}>
+                          {formatCellValue(selectedRowForDetail[col.name])}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 

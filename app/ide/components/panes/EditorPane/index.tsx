@@ -142,6 +142,9 @@ export function EditorPane() {
   // Mobile file tree sheet state
   const [isFileTreeOpen, setIsFileTreeOpen] = useState(false);
 
+  // Mobile two-mode layout: 'browser' shows file tree, 'editor' shows code
+  const [mobileMode, setMobileMode] = useState<'browser' | 'editor'>('browser');
+
   // Handle sidebar resize
   const handleResizeStart = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -355,11 +358,20 @@ export function EditorPane() {
   }, [viewMode, activeFile, fileContents]);
 
   const handleFileClick = useCallback((path: string) => {
-    if (isMobile) haptic('light');
+    if (isMobile) {
+      haptic('light');
+      setMobileMode('editor'); // Switch to editor mode on mobile
+    }
     openFile(path);
     setActiveFile(path);
     fetchFileContent(path);
   }, [isMobile, openFile, setActiveFile, fetchFileContent]);
+
+  // Mobile: Go back to file browser
+  const handleMobileBack = useCallback(() => {
+    haptic('light');
+    setMobileMode('browser');
+  }, []);
 
   const toggleFolder = (path: string) => {
     setExpandedFolders((prev) => {
@@ -448,6 +460,192 @@ export function EditorPane() {
     }
   };
 
+  // Mobile: Full-screen file browser mode
+  if (isMobile && mobileMode === 'browser') {
+    return (
+      <div className="editor-pane mobile-browser-mode">
+        <div className="mobile-browser-header">
+          <FolderIcon size={20} />
+          <span>Files</span>
+          <input
+            type="text"
+            placeholder="Search..."
+            className="mobile-browser-search"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+        <div className="mobile-browser-content">
+          {loading ? (
+            <div className="file-tree-loading">Loading files...</div>
+          ) : error ? (
+            <div className="file-tree-error">{error}</div>
+          ) : fileTree.length === 0 ? (
+            <div className="file-tree-empty">No files found</div>
+          ) : (
+            <div className="mobile-file-tree">
+              {renderFileTree(fileTree)}
+            </div>
+          )}
+        </div>
+        {/* Open files quick access */}
+        {openFiles.length > 0 && (
+          <div className="mobile-open-files">
+            <span className="mobile-open-files-label">Open Files</span>
+            <div className="mobile-open-files-list">
+              {openFiles.map((file) => (
+                <button
+                  key={file}
+                  className={`mobile-open-file-chip ${activeFile === file ? 'active' : ''}`}
+                  onClick={() => {
+                    haptic('light');
+                    setActiveFile(file);
+                    setMobileMode('editor');
+                  }}
+                >
+                  {unsavedFiles.has(file) && <span className="unsaved-dot">●</span>}
+                  {file.split('/').pop()}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Mobile: Full-screen editor mode
+  if (isMobile && mobileMode === 'editor') {
+    const fileName = activeFile?.split('/').pop() || '';
+    const isUnsaved = activeFile ? unsavedFiles.has(activeFile) : false;
+
+    return (
+      <div className="editor-pane mobile-editor-mode">
+        <div className="mobile-editor-header">
+          <button className="mobile-back-btn" onClick={handleMobileBack}>
+            <ChevronLeftIcon size={20} />
+          </button>
+          <div className="mobile-editor-file-info">
+            <span className="mobile-editor-filename">
+              {isUnsaved && <span className="unsaved-dot">●</span>}
+              {fileName || 'No file'}
+            </span>
+            {activeFile && (
+              <span className="mobile-editor-path">{activeFile}</span>
+            )}
+          </div>
+          <div className="mobile-editor-actions">
+            <button
+              className={`mobile-editor-action ${viewMode === 'preview' ? 'active' : ''}`}
+              onClick={() => setViewMode(viewMode === 'edit' ? 'preview' : 'edit')}
+            >
+              {viewMode === 'edit' ? '👁' : '✏️'}
+            </button>
+          </div>
+        </div>
+
+        {/* Open file tabs - horizontal scroll */}
+        {openFiles.length > 1 && (
+          <div className="mobile-editor-tabs">
+            {openFiles.map((file) => (
+              <button
+                key={file}
+                className={`mobile-editor-tab ${activeFile === file ? 'active' : ''}`}
+                onClick={() => {
+                  haptic('light');
+                  setActiveFile(file);
+                  fetchFileContent(file);
+                }}
+              >
+                {unsavedFiles.has(file) && <span className="unsaved-dot">●</span>}
+                {file.split('/').pop()}
+              </button>
+            ))}
+          </div>
+        )}
+
+        <div className="mobile-editor-content">
+          {activeFile ? (
+            loadingFile === activeFile ? (
+              <div className="editor-loading-state">
+                <div className="loading-spinner" />
+                <p>Loading...</p>
+              </div>
+            ) : (() => {
+              const isImage = isImageFile(fileName);
+              const isBinary = isBinaryFile(fileName);
+              const isMarkdown = isMarkdownFile(fileName);
+              const content = fileContents[activeFile];
+              const rawBase64 = rawBase64Contents[activeFile];
+              const fileSize = fileSizes[activeFile] || 0;
+
+              if (isImage && rawBase64) {
+                const ext = fileName.split('.').pop()?.toLowerCase();
+                const mimeType = ext === 'svg' ? 'svg+xml' : ext;
+                return (
+                  <div className="file-preview-image mobile">
+                    <img src={`data:image/${mimeType};base64,${rawBase64}`} alt={fileName} />
+                  </div>
+                );
+              }
+
+              if (isBinary) {
+                return (
+                  <div className="file-preview-binary mobile">
+                    <p>Binary file</p>
+                    <p className="binary-size">{formatFileSize(fileSize)}</p>
+                  </div>
+                );
+              }
+
+              if (viewMode === 'preview') {
+                if (isMarkdown) {
+                  return (
+                    <div className="file-preview-markdown mobile">
+                      <MarkdownRenderer content={content || ''} />
+                    </div>
+                  );
+                }
+                const language = getHighlightLanguage(fileName);
+                return (
+                  <div className="file-preview-code mobile">
+                    <pre className="code-content">
+                      <code ref={previewCodeRef} className={`language-${language}`}>
+                        {content || ''}
+                      </code>
+                    </pre>
+                  </div>
+                );
+              }
+
+              return (
+                <CodeEditor
+                  value={content || '// Loading...'}
+                  onChange={handleFileChange}
+                  language={activeFile}
+                  className="editor-main mobile"
+                />
+              );
+            })()
+          ) : (
+            <div className="editor-empty-state mobile">
+              <p>No file selected</p>
+              <button onClick={handleMobileBack}>Browse files</button>
+            </div>
+          )}
+        </div>
+
+        {/* Floating save button */}
+        {isUnsaved && (
+          <button className="mobile-floating-save" onClick={handleSave}>
+            Save
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  // Desktop layout (original)
   return (
     <div className="editor-pane">
       {/* File tabs */}
@@ -504,29 +702,6 @@ export function EditorPane() {
           </button>
         </div>
       </div>
-
-      {/* Mobile file selector - opens file tree sheet */}
-      {isMobile && (
-        <div className="mobile-file-selector">
-          <button
-            className="mobile-file-selector-btn"
-            onClick={() => {
-              haptic('light');
-              setIsFileTreeOpen(true);
-            }}
-          >
-            <span className="mobile-file-selector-icon">
-              <FolderIcon size={18} />
-            </span>
-            <span className="mobile-file-selector-path">
-              {activeFile ? activeFile.split('/').pop() : 'Select a file...'}
-            </span>
-            <span className="mobile-file-selector-chevron">
-              <ChevronDownIcon size={16} />
-            </span>
-          </button>
-        </div>
-      )}
 
       {/* File tree sidebar */}
       <div ref={layoutRef} className={`editor-layout ${isResizing ? 'resizing' : ''} ${fileTreeCollapsed ? 'sidebar-collapsed' : ''}`}>

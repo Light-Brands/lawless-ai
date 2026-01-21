@@ -289,6 +289,309 @@
   .chat-message li {
     margin-bottom: 4px;
   }
+
+  /* ==================== */
+  /* Expandable Code Blocks & Diffs */
+  /* ==================== */
+
+  /* Make long code blocks collapsible on mobile */
+  .chat-message .code-block-wrapper {
+    position: relative;
+    margin: 8px 0;
+  }
+
+  .chat-message .code-block-wrapper.collapsed pre {
+    max-height: 150px;
+    overflow: hidden;
+  }
+
+  .chat-message .code-block-wrapper.collapsed::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 40px;
+    background: linear-gradient(transparent, #1a1a2e);
+    pointer-events: none;
+  }
+
+  .chat-message .code-expand-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: 100%;
+    padding: 10px;
+    margin-top: -8px;
+    background: #1a1a2e;
+    border: 1px solid #2d2d44;
+    border-top: none;
+    border-radius: 0 0 8px 8px;
+    color: #888;
+    font-size: 12px;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .chat-message .code-expand-btn:active {
+    background: #2d2d44;
+    color: #c0c0c0;
+  }
+
+  /* Code block header with file name and copy button */
+  .chat-message .code-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    background: #141417;
+    border: 1px solid #2d2d44;
+    border-bottom: none;
+    border-radius: 8px 8px 0 0;
+    font-size: 11px;
+    color: #888;
+  }
+
+  .chat-message .code-filename {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: 'SF Mono', Menlo, monospace;
+    color: #a78bfa;
+  }
+
+  .chat-message .code-copy-btn {
+    padding: 4px 10px;
+    background: #2d2d44;
+    border: none;
+    border-radius: 4px;
+    color: #888;
+    font-size: 11px;
+    min-height: 28px;
+  }
+
+  .chat-message .code-copy-btn:active {
+    background: #3d3d5c;
+    color: #e0e0e0;
+  }
+
+  .chat-message .code-copy-btn.copied {
+    background: rgba(74, 222, 128, 0.15);
+    color: #4ade80;
+  }
+
+  /* Diff view styling */
+  .chat-message .diff-container {
+    margin: 8px 0;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid #2d2d44;
+  }
+
+  .chat-message .diff-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    background: #141417;
+    border-bottom: 1px solid #2d2d44;
+  }
+
+  .chat-message .diff-filename {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-family: 'SF Mono', Menlo, monospace;
+    color: #a78bfa;
+  }
+
+  .chat-message .diff-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    background: transparent;
+    border: none;
+    color: #888;
+    font-size: 11px;
+  }
+
+  .chat-message .diff-toggle:active {
+    color: #c0c0c0;
+  }
+
+  .chat-message .diff-content {
+    background: #0d0d0f;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    transition: max-height 0.2s ease;
+  }
+
+  .chat-message .diff-content.collapsed {
+    max-height: 0;
+    overflow: hidden;
+  }
+
+  .chat-message .diff-line {
+    padding: 2px 12px;
+    font-family: 'SF Mono', Menlo, monospace;
+    font-size: 11px;
+    white-space: pre;
+    line-height: 1.5;
+  }
+
+  .chat-message .diff-line.added {
+    background: rgba(74, 222, 128, 0.1);
+    color: #4ade80;
+  }
+
+  .chat-message .diff-line.removed {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+  }
+
+  .chat-message .diff-line.context {
+    color: #888;
+  }
+
+  .chat-message .diff-line .line-num {
+    display: inline-block;
+    width: 32px;
+    margin-right: 12px;
+    color: #555;
+    text-align: right;
+  }
+
+  /* File changes summary card */
+  .chat-message .file-changes-card {
+    margin: 8px 0;
+    background: #1a1a2e;
+    border: 1px solid #2d2d44;
+    border-radius: 10px;
+    overflow: hidden;
+  }
+
+  .chat-message .file-changes-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 14px;
+    background: #141417;
+    border-bottom: 1px solid #2d2d44;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .chat-message .file-changes-header:active {
+    background: #1a1a2e;
+  }
+
+  .chat-message .file-changes-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: #e0e0e0;
+    font-weight: 500;
+  }
+
+  .chat-message .file-changes-count {
+    font-size: 12px;
+    color: #888;
+    background: #2d2d44;
+    padding: 2px 8px;
+    border-radius: 10px;
+  }
+
+  .chat-message .file-changes-chevron {
+    font-size: 12px;
+    color: #666;
+    transition: transform 0.2s;
+  }
+
+  .chat-message .file-changes-card.expanded .file-changes-chevron {
+    transform: rotate(180deg);
+  }
+
+  .chat-message .file-changes-list {
+    display: none;
+    padding: 8px;
+  }
+
+  .chat-message .file-changes-card.expanded .file-changes-list {
+    display: block;
+  }
+
+  .chat-message .file-change-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    margin-bottom: 4px;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .chat-message .file-change-item:active {
+    background: rgba(124, 58, 237, 0.1);
+  }
+
+  .chat-message .file-change-item:last-child {
+    margin-bottom: 0;
+  }
+
+  .chat-message .file-change-icon {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    flex-shrink: 0;
+  }
+
+  .chat-message .file-change-icon.added {
+    background: rgba(74, 222, 128, 0.15);
+    color: #4ade80;
+  }
+
+  .chat-message .file-change-icon.modified {
+    background: rgba(245, 158, 11, 0.15);
+    color: #f59e0b;
+  }
+
+  .chat-message .file-change-icon.deleted {
+    background: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+  }
+
+  .chat-message .file-change-name {
+    flex: 1;
+    min-width: 0;
+    font-size: 13px;
+    color: #c0c0c0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .chat-message .file-change-stats {
+    font-size: 11px;
+    display: flex;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+
+  .chat-message .file-change-stats .additions {
+    color: #4ade80;
+  }
+
+  .chat-message .file-change-stats .deletions {
+    color: #ef4444;
+  }
 }
 
 /* Keyboard visible - adjust input positioning */

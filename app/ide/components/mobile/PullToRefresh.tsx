@@ -9,6 +9,7 @@ interface PullToRefreshProps {
   maxPull?: number;
   disabled?: boolean;
   className?: string;
+  onClick?: () => void;
 }
 
 export function PullToRefresh({
@@ -18,6 +19,7 @@ export function PullToRefresh({
   maxPull = 120,
   disabled = false,
   className = '',
+  onClick,
 }: PullToRefreshProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [pullDistance, setPullDistance] = useState(0);
@@ -113,6 +115,7 @@ export function PullToRefresh({
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
+      onClick={onClick}
       style={{
         // Apply transform to content when pulling
         '--pull-distance': `${pullDistance}px`,

@@ -1,5 +1,11 @@
 /* Mobile Database Pane Overrides */
 
+/* Spring-like easing */
+:root {
+  --spring-ease: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --smooth-ease: cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
 @media (max-width: 767px) {
   .database-pane {
     height: 100%;
@@ -65,6 +71,412 @@
     overflow: hidden;
     display: flex;
     flex-direction: column;
+  }
+
+  /* ==================== */
+  /* Mobile Drill-Down Navigation */
+  /* ==================== */
+
+  .mobile-db-drilldown {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* Common header styles */
+  .mobile-db-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: #0a0a0c;
+    border-bottom: 1px solid #1a1a1f;
+    flex-shrink: 0;
+    min-height: 52px;
+  }
+
+  .mobile-db-header h3 {
+    font-size: 17px;
+    font-weight: 600;
+    color: #e0e0e0;
+    margin: 0;
+  }
+
+  .mobile-db-header.with-back {
+    justify-content: flex-start;
+    gap: 8px;
+  }
+
+  .mobile-db-header .header-spacer {
+    flex: 1;
+  }
+
+  .mobile-back-btn {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 8px 12px 8px 8px;
+    background: transparent;
+    border: none;
+    color: #7c3aed;
+    font-size: 15px;
+    font-weight: 500;
+    transition: opacity 0.15s;
+  }
+
+  .mobile-back-btn:active {
+    opacity: 0.7;
+  }
+
+  .mobile-back-btn svg {
+    color: #7c3aed;
+  }
+
+  /* Loading and empty states */
+  .mobile-db-loading,
+  .mobile-db-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    padding: 32px 24px;
+    gap: 12px;
+    color: #888;
+    text-align: center;
+  }
+
+  .mobile-db-empty .empty-icon {
+    font-size: 48px;
+  }
+
+  .mobile-db-empty .hint {
+    font-size: 13px;
+    color: #666;
+  }
+
+  /* ==================== */
+  /* Level 1: Tables List */
+  /* ==================== */
+
+  .mobile-tables-list {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .mobile-table-cards {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .mobile-table-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    background: #1a1a2e;
+    border: 1px solid #2d2d44;
+    border-radius: 12px;
+    text-align: left;
+    color: inherit;
+    transition: all 0.15s var(--smooth-ease);
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .mobile-table-card:active {
+    transform: scale(0.98);
+    background: #222244;
+  }
+
+  .table-card-icon {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(124, 58, 237, 0.15);
+    border-radius: 10px;
+    color: #7c3aed;
+    flex-shrink: 0;
+  }
+
+  .table-card-info {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .table-card-name {
+    display: block;
+    font-size: 15px;
+    font-weight: 500;
+    color: #e0e0e0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .table-card-schema {
+    display: block;
+    font-size: 12px;
+    color: #666;
+    margin-top: 2px;
+  }
+
+  .table-card-chevron {
+    color: #555;
+    flex-shrink: 0;
+  }
+
+  /* ==================== */
+  /* Level 2: Table Rows */
+  /* ==================== */
+
+  .mobile-rows-view {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .mobile-table-title {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    padding: 12px 16px;
+    background: #0d0d0f;
+    border-bottom: 1px solid #1a1a1f;
+  }
+
+  .mobile-table-title h3 {
+    font-size: 20px;
+    font-weight: 600;
+    color: #e0e0e0;
+    margin: 0;
+  }
+
+  .mobile-table-title .row-count {
+    font-size: 13px;
+    color: #666;
+  }
+
+  .add-row-btn-sm {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #7c3aed;
+    border: none;
+    border-radius: 8px;
+    color: white;
+  }
+
+  .add-row-btn-sm:active {
+    opacity: 0.8;
+  }
+
+  .mobile-row-cards {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .mobile-row-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    background: #1a1a2e;
+    border: 1px solid #2d2d44;
+    border-radius: 12px;
+    text-align: left;
+    color: inherit;
+    transition: all 0.15s var(--smooth-ease);
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .mobile-row-card:active {
+    transform: scale(0.98);
+    background: #222244;
+  }
+
+  .row-card-preview {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .row-card-field {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .row-card-field .field-name {
+    font-size: 11px;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+
+  .row-card-field .field-value {
+    font-size: 14px;
+    color: #e0e0e0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .row-card-field .field-value.null-val {
+    color: #666;
+    font-style: italic;
+  }
+
+  .row-card-actions {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+  }
+
+  .row-card-chevron {
+    color: #555;
+  }
+
+  /* Mobile Pagination */
+  .mobile-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding: 12px 16px;
+    background: #0a0a0c;
+    border-top: 1px solid #1a1a1f;
+    flex-shrink: 0;
+  }
+
+  .mobile-pagination button {
+    padding: 10px 18px;
+    background: #1a1a2e;
+    border: 1px solid #2d2d44;
+    border-radius: 8px;
+    color: #c0c0c0;
+    font-size: 14px;
+    min-height: 40px;
+  }
+
+  .mobile-pagination button:disabled {
+    opacity: 0.4;
+  }
+
+  .mobile-pagination button:active:not(:disabled) {
+    background: #2d2d44;
+  }
+
+  .mobile-pagination .page-info {
+    font-size: 14px;
+    color: #888;
+    min-width: 60px;
+    text-align: center;
+  }
+
+  /* ==================== */
+  /* Level 3: Row Detail */
+  /* ==================== */
+
+  .mobile-detail-view {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .edit-row-btn,
+  .delete-row-btn {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #1a1a2e;
+    border: 1px solid #2d2d44;
+    border-radius: 8px;
+    color: #888;
+  }
+
+  .edit-row-btn:active {
+    background: rgba(124, 58, 237, 0.2);
+    color: #7c3aed;
+  }
+
+  .delete-row-btn:active {
+    background: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+  }
+
+  .mobile-detail-content {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 16px;
+  }
+
+  .detail-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .detail-field {
+    background: #1a1a2e;
+    border: 1px solid #2d2d44;
+    border-radius: 12px;
+    padding: 14px 16px;
+  }
+
+  .detail-field-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+  }
+
+  .detail-field-name {
+    font-size: 13px;
+    font-weight: 500;
+    color: #7c3aed;
+  }
+
+  .detail-field-type {
+    font-size: 11px;
+    color: #666;
+    font-family: 'SF Mono', Menlo, monospace;
+  }
+
+  .detail-field-value {
+    font-size: 15px;
+    color: #e0e0e0;
+    word-break: break-all;
+    white-space: pre-wrap;
+    line-height: 1.5;
+  }
+
+  .detail-field-value.null-val {
+    color: #666;
+    font-style: italic;
   }
 
   /* Not connected state */

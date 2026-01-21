@@ -21,6 +21,7 @@ type IDEEventType =
   | 'session:initialized'
   | 'toast:show'
   | 'pane:focus'
+  | 'pane:action'
   // Service connection events
   | 'service:connecting'
   | 'service:connected'
@@ -50,6 +51,7 @@ interface IDEEventMap {
   'session:initialized': { sessionId: string };
   'toast:show': { message: string; type: 'info' | 'success' | 'error' | 'warning'; duration?: number };
   'pane:focus': { paneId: number };
+  'pane:action': { pane: string | null; action: string };
   // Service connection events
   'service:connecting': { service: 'github' | 'supabase' | 'vercel' | 'worktree' | 'terminal' };
   'service:connected': { service: 'github' | 'supabase' | 'vercel' | 'worktree' | 'terminal' };

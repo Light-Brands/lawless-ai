@@ -3,9 +3,20 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useIDEStore } from '../../../stores/ideStore';
 import { useVercelConnection } from '../../../contexts/ServiceContext';
-import { RocketIcon } from '../../Icons';
+import { RocketIcon, ChevronLeftIcon } from '../../Icons';
 import { useMobileDetection } from '../../../hooks/useMobileDetection';
 import { PullToRefresh } from '../../mobile/PullToRefresh';
+
+// Haptic feedback helper
+const haptic = (style: 'light' | 'medium' | 'heavy' = 'light') => {
+  if ('vibrate' in navigator) {
+    const durations = { light: 10, medium: 20, heavy: 30 };
+    navigator.vibrate(durations[style]);
+  }
+};
+
+// Mobile view state
+type MobileDeployView = 'list' | 'detail';
 
 interface Deployment {
   id: string;
@@ -132,6 +143,9 @@ export function DeploymentsPane() {
   const [envSaving, setEnvSaving] = useState(false);
   const [envError, setEnvError] = useState<string | null>(null);
 
+  // Mobile drill-down state
+  const [mobileView, setMobileView] = useState<MobileDeployView>('list');
+
   // Fetch deployments
   const fetchDeployments = useCallback(async () => {
     if (!projectId) return;
@@ -246,7 +260,19 @@ export function DeploymentsPane() {
   const handleViewLogs = useCallback((deployment: Deployment) => {
     setSelectedDeployment(deployment);
     fetchLogs(deployment.id);
-  }, [fetchLogs]);
+    // On mobile, switch to detail view
+    if (isMobile) {
+      haptic('light');
+      setMobileView('detail');
+    }
+  }, [fetchLogs, isMobile]);
+
+  // Mobile: Navigate back from detail view
+  const handleMobileBack = useCallback(() => {
+    haptic('light');
+    setMobileView('list');
+    setSelectedDeployment(null);
+  }, []);
 
   // Open add env modal
   const handleAddEnv = useCallback(() => {
@@ -371,108 +397,167 @@ export function DeploymentsPane() {
       <div className="deploy-content">
         {activeTab === 'deployments' && (
           isMobile ? (
-            <PullToRefresh onRefresh={fetchDeployments} className="deployments-list-content">
-              <div className="deployments-list-header">
-                <h2>Deployments</h2>
-                <div className="deployments-header-right">
-                  <span className="deployments-count">{deployments.length} deployments</span>
-                  <button className="refresh-deployments-btn" onClick={fetchDeployments} disabled={loading}>
-                    {loading ? '...' : '↻'}
-                  </button>
-                </div>
-              </div>
+            <div className="mobile-deploy-drilldown">
+              {/* Mobile List View */}
+              {mobileView === 'list' && (
+                <PullToRefresh onRefresh={fetchDeployments} className="mobile-deploy-list">
+                  <div className="mobile-deploy-header">
+                    <h3>Deployments</h3>
+                    <button className="refresh-btn-sm" onClick={fetchDeployments} disabled={loading}>
+                      {loading ? '...' : '↻'}
+                    </button>
+                  </div>
 
-              {loading && deployments.length === 0 ? (
-                <div className="deployments-loading">Loading deployments...</div>
-              ) : error ? (
-                <div className="deployments-error">{error}</div>
-              ) : deployments.length === 0 ? (
-                <div className="deployments-empty">No deployments found</div>
-              ) : (
-                <div className="deployment-items">
-                  {deployments.map((deploy) => {
-                    const isBuilding = ['BUILDING', 'INITIALIZING', 'QUEUED'].includes(deploy.state?.toUpperCase());
-                    return (
-                      <div key={deploy.id} className="deployment-card">
-                        {/* Top row: badges left, time + actions right */}
-                        <div className="deployment-card-top">
-                          <div className="deployment-badges">
-                            <span className={`deployment-status-badge ${getStatusBadgeClass(deploy.state)}`}>
-                              <span className="status-dot" />
-                              {deploy.state}
-                            </span>
-                            {deploy.target === 'production' && (
-                              <span className="deployment-env-badge">Production</span>
-                            )}
-                          </div>
-                          <div className="deployment-actions-row">
-                            <span className="deployment-time">{getTimeAgo(deploy.createdAt)}</span>
-                            <button
-                              className="deployment-action-btn"
-                              onClick={() => handleViewLogs(deploy)}
-                              title="View Logs"
-                            >
-                              <LogsIcon />
-                              <span>Logs</span>
-                            </button>
-                            {isBuilding ? (
-                              <button
-                                className="deployment-action-btn danger"
-                                onClick={() => handleCancel(deploy)}
-                                title="Cancel Build"
-                              >
-                                <CancelIcon />
-                                <span>Cancel</span>
-                              </button>
-                            ) : (
-                              <button
-                                className="deployment-action-btn"
-                                onClick={() => handleRedeploy(deploy)}
-                                disabled={redeploying === deploy.id}
-                                title="Redeploy"
-                              >
-                                <RedeployIcon />
-                                <span>{redeploying === deploy.id ? '...' : 'Redeploy'}</span>
-                              </button>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Commit message */}
-                        {deploy.meta?.githubCommitMessage && (
-                          <p className="deployment-commit-message">{deploy.meta.githubCommitMessage}</p>
-                        )}
-
-                        {/* Branch and SHA */}
-                        {deploy.meta?.githubCommitRef && (
-                          <div className="deployment-branch">
-                            <GitBranchIcon />
-                            <span>{deploy.meta.githubCommitRef}</span>
-                            {deploy.meta.githubCommitSha && (
-                              <code className="deployment-sha">{deploy.meta.githubCommitSha.substring(0, 7)}</code>
-                            )}
-                          </div>
-                        )}
-
-                        {/* URL */}
-                        {deploy.url && (
-                          <a
-                            href={`https://${deploy.url}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="deployment-url"
-                            onClick={(e) => e.stopPropagation()}
+                  {loading && deployments.length === 0 ? (
+                    <div className="mobile-deploy-loading">
+                      <div className="loading-spinner" />
+                      <span>Loading deployments...</span>
+                    </div>
+                  ) : error ? (
+                    <div className="mobile-deploy-error">{error}</div>
+                  ) : deployments.length === 0 ? (
+                    <div className="mobile-deploy-empty">
+                      <div className="empty-icon">🚀</div>
+                      <p>No deployments yet</p>
+                      <p className="hint">Push to your repository to trigger a deployment</p>
+                    </div>
+                  ) : (
+                    <div className="mobile-deploy-cards">
+                      {deployments.map((deploy) => {
+                        const isBuilding = ['BUILDING', 'INITIALIZING', 'QUEUED'].includes(deploy.state?.toUpperCase());
+                        return (
+                          <button
+                            key={deploy.id}
+                            className="mobile-deploy-card"
+                            onClick={() => handleViewLogs(deploy)}
                           >
-                            {deploy.url}
-                            <ExternalLinkIcon />
-                          </a>
-                        )}
-                      </div>
-                    );
-                  })}
+                            <div className="deploy-card-main">
+                              <div className="deploy-card-status">
+                                <span className={`status-dot ${getStatusBadgeClass(deploy.state)}`} />
+                                <span className={`status-text ${getStatusBadgeClass(deploy.state)}`}>
+                                  {deploy.state}
+                                </span>
+                                {deploy.target === 'production' && (
+                                  <span className="prod-badge">PROD</span>
+                                )}
+                              </div>
+                              {deploy.meta?.githubCommitMessage && (
+                                <p className="deploy-card-commit">{deploy.meta.githubCommitMessage}</p>
+                              )}
+                              <div className="deploy-card-meta">
+                                {deploy.meta?.githubCommitRef && (
+                                  <span className="deploy-card-branch">
+                                    <GitBranchIcon />
+                                    {deploy.meta.githubCommitRef}
+                                  </span>
+                                )}
+                                <span className="deploy-card-time">{getTimeAgo(deploy.createdAt)}</span>
+                              </div>
+                            </div>
+                            <div className="deploy-card-actions">
+                              {isBuilding ? (
+                                <span className="building-indicator" />
+                              ) : (
+                                <span className="chevron">›</span>
+                              )}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </PullToRefresh>
+              )}
+
+              {/* Mobile Detail View - Logs */}
+              {mobileView === 'detail' && selectedDeployment && (
+                <div className="mobile-deploy-detail">
+                  <div className="mobile-deploy-header with-back">
+                    <button className="mobile-back-btn" onClick={handleMobileBack}>
+                      <ChevronLeftIcon size={20} />
+                      <span>Deployments</span>
+                    </button>
+                    <div className="header-spacer" />
+                    <span className={`status-badge ${getStatusBadgeClass(selectedDeployment.state)}`}>
+                      {selectedDeployment.state}
+                    </span>
+                  </div>
+
+                  <div className="mobile-deploy-detail-info">
+                    {selectedDeployment.meta?.githubCommitMessage && (
+                      <p className="detail-commit">{selectedDeployment.meta.githubCommitMessage}</p>
+                    )}
+                    <div className="detail-meta">
+                      {selectedDeployment.meta?.githubCommitRef && (
+                        <span className="detail-branch">
+                          <GitBranchIcon />
+                          {selectedDeployment.meta.githubCommitRef}
+                          {selectedDeployment.meta.githubCommitSha && (
+                            <code>{selectedDeployment.meta.githubCommitSha.substring(0, 7)}</code>
+                          )}
+                        </span>
+                      )}
+                      <span className="detail-time">{getTimeAgo(selectedDeployment.createdAt)}</span>
+                    </div>
+                    {selectedDeployment.url && (
+                      <a
+                        href={`https://${selectedDeployment.url}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="detail-url"
+                      >
+                        {selectedDeployment.url}
+                        <ExternalLinkIcon />
+                      </a>
+                    )}
+                  </div>
+
+                  <div className="mobile-deploy-detail-actions">
+                    {['BUILDING', 'INITIALIZING', 'QUEUED'].includes(selectedDeployment.state?.toUpperCase()) ? (
+                      <button className="action-btn danger" onClick={() => handleCancel(selectedDeployment)}>
+                        <CancelIcon /> Cancel Build
+                      </button>
+                    ) : (
+                      <button
+                        className="action-btn"
+                        onClick={() => handleRedeploy(selectedDeployment)}
+                        disabled={redeploying === selectedDeployment.id}
+                      >
+                        <RedeployIcon /> {redeploying === selectedDeployment.id ? 'Redeploying...' : 'Redeploy'}
+                      </button>
+                    )}
+                    {selectedDeployment.url && (
+                      <a
+                        href={`https://${selectedDeployment.url}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="action-btn primary"
+                      >
+                        <ExternalLinkIcon /> Open Site
+                      </a>
+                    )}
+                  </div>
+
+                  <div className="mobile-deploy-logs">
+                    <div className="logs-header">Build Logs</div>
+                    <div className="logs-content">
+                      {logsLoading ? (
+                        <div className="logs-loading">
+                          <div className="loading-spinner" />
+                          <span>Loading logs...</span>
+                        </div>
+                      ) : deploymentLogs.length === 0 ? (
+                        <div className="logs-empty">No logs available</div>
+                      ) : (
+                        deploymentLogs.map((log, idx) => (
+                          <div key={idx} className="log-line">{log}</div>
+                        ))
+                      )}
+                    </div>
+                  </div>
                 </div>
               )}
-            </PullToRefresh>
+            </div>
           ) : (
             <div className="deployments-list-content">
               <div className="deployments-list-header">
