@@ -3,6 +3,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { ideEvents, useIDEEvent } from '../../../lib/eventBus';
 import { useIDEContext } from '../../../contexts/IDEContext';
+import { useMobileDetection } from '../../../hooks/useMobileDetection';
+import { PullToRefresh } from '../../mobile/PullToRefresh';
 import type { ActivityEventType } from '@/types/database';
 import {
   GitHubIcon,
@@ -133,6 +135,7 @@ function createServiceEvent(service: string, action: 'connecting' | 'connected' 
 
 export function ActivityPane() {
   const { sessionId, repoFullName } = useIDEContext();
+  const isMobile = useMobileDetection();
   const [events, setEvents] = useState<ActivityEvent[]>([]);
   const [filter, setFilter] = useState<string>('all');
   const [search, setSearch] = useState('');
@@ -141,37 +144,38 @@ export function ActivityPane() {
   const saveQueueRef = useRef<ActivityEvent[]>([]);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Load events from database on mount
-  useEffect(() => {
-    async function loadEvents() {
-      if (!sessionId) {
-        setIsLoading(false);
-        return;
-      }
-
-      try {
-        const params = new URLSearchParams();
-        if (sessionId) params.set('sessionId', sessionId);
-        if (repoFullName) params.set('repoFullName', repoFullName);
-        params.set('limit', '100');
-
-        const response = await fetch(`/api/activity?${params.toString()}`);
-        if (response.ok) {
-          const data = await response.json();
-          if (data.events && Array.isArray(data.events)) {
-            const loadedEvents = data.events.map(fromDatabaseEvent);
-            setEvents(loadedEvents);
-          }
-        }
-      } catch (err) {
-        console.error('Failed to load activity events:', err);
-      } finally {
-        setIsLoading(false);
-      }
+  // Load events from database
+  const loadEvents = useCallback(async () => {
+    if (!sessionId) {
+      setIsLoading(false);
+      return;
     }
 
-    loadEvents();
+    try {
+      const params = new URLSearchParams();
+      if (sessionId) params.set('sessionId', sessionId);
+      if (repoFullName) params.set('repoFullName', repoFullName);
+      params.set('limit', '100');
+
+      const response = await fetch(`/api/activity?${params.toString()}`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.events && Array.isArray(data.events)) {
+          const loadedEvents = data.events.map(fromDatabaseEvent);
+          setEvents(loadedEvents);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to load activity events:', err);
+    } finally {
+      setIsLoading(false);
+    }
   }, [sessionId, repoFullName]);
+
+  // Load events from database on mount
+  useEffect(() => {
+    loadEvents();
+  }, [loadEvents]);
 
   // Save events to database (debounced batch save)
   const saveEventsToDatabase = useCallback(async () => {
@@ -499,39 +503,75 @@ export function ActivityPane() {
       </div>
 
       {/* Timeline */}
-      <div className="activity-timeline">
-        {isLoading ? (
-          <div className="activity-empty">
-            <div className="loading-spinner" />
-            <p>Loading activity...</p>
-          </div>
-        ) : Object.keys(groupedEvents).length === 0 ? (
-          <div className="activity-empty">
-            <span className="empty-icon"><ActivityIcon size={24} /></span>
-            <p>No activity yet</p>
-          </div>
-        ) : (
-          Object.entries(groupedEvents).map(([date, dayEvents]) => (
-            <div key={date} className="timeline-group">
-              <div className="timeline-date">{getDateLabel(date)}</div>
-              {dayEvents.map((event) => (
-                <div
-                  key={event.id}
-                  className={`timeline-event ${event.type} ${selectedEvent?.id === event.id ? 'selected' : ''}`}
-                  onClick={() => setSelectedEvent(selectedEvent?.id === event.id ? null : event)}
-                >
-                  <div className="event-time">{formatTime(event.timestamp)}</div>
-                  <div className="event-icon">{getActivityIcon(event.icon)}</div>
-                  <div className="event-content">
-                    <div className="event-summary">{event.summary}</div>
-                  </div>
-                  <div className="event-chevron">{selectedEvent?.id === event.id ? '▼' : '▶'}</div>
-                </div>
-              ))}
+      {isMobile ? (
+        <PullToRefresh onRefresh={loadEvents} className="activity-timeline">
+          {isLoading ? (
+            <div className="activity-empty">
+              <div className="loading-spinner" />
+              <p>Loading activity...</p>
             </div>
-          ))
-        )}
-      </div>
+          ) : Object.keys(groupedEvents).length === 0 ? (
+            <div className="activity-empty">
+              <span className="empty-icon"><ActivityIcon size={24} /></span>
+              <p>No activity yet</p>
+            </div>
+          ) : (
+            Object.entries(groupedEvents).map(([date, dayEvents]) => (
+              <div key={date} className="timeline-group">
+                <div className="timeline-date">{getDateLabel(date)}</div>
+                {dayEvents.map((event) => (
+                  <div
+                    key={event.id}
+                    className={`timeline-event ${event.type} ${selectedEvent?.id === event.id ? 'selected' : ''}`}
+                    onClick={() => setSelectedEvent(selectedEvent?.id === event.id ? null : event)}
+                  >
+                    <div className="event-time">{formatTime(event.timestamp)}</div>
+                    <div className="event-icon">{getActivityIcon(event.icon)}</div>
+                    <div className="event-content">
+                      <div className="event-summary">{event.summary}</div>
+                    </div>
+                    <div className="event-chevron">{selectedEvent?.id === event.id ? '▼' : '▶'}</div>
+                  </div>
+                ))}
+              </div>
+            ))
+          )}
+        </PullToRefresh>
+      ) : (
+        <div className="activity-timeline">
+          {isLoading ? (
+            <div className="activity-empty">
+              <div className="loading-spinner" />
+              <p>Loading activity...</p>
+            </div>
+          ) : Object.keys(groupedEvents).length === 0 ? (
+            <div className="activity-empty">
+              <span className="empty-icon"><ActivityIcon size={24} /></span>
+              <p>No activity yet</p>
+            </div>
+          ) : (
+            Object.entries(groupedEvents).map(([date, dayEvents]) => (
+              <div key={date} className="timeline-group">
+                <div className="timeline-date">{getDateLabel(date)}</div>
+                {dayEvents.map((event) => (
+                  <div
+                    key={event.id}
+                    className={`timeline-event ${event.type} ${selectedEvent?.id === event.id ? 'selected' : ''}`}
+                    onClick={() => setSelectedEvent(selectedEvent?.id === event.id ? null : event)}
+                  >
+                    <div className="event-time">{formatTime(event.timestamp)}</div>
+                    <div className="event-icon">{getActivityIcon(event.icon)}</div>
+                    <div className="event-content">
+                      <div className="event-summary">{event.summary}</div>
+                    </div>
+                    <div className="event-chevron">{selectedEvent?.id === event.id ? '▼' : '▶'}</div>
+                  </div>
+                ))}
+              </div>
+            ))
+          )}
+        </div>
+      )}
 
       {/* Detail Panel */}
       {selectedEvent && (

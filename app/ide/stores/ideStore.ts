@@ -92,6 +92,14 @@ interface IDEStore {
   reorderPanes: (order: number[]) => void;
   setMaxPanesReached: (reached: boolean) => void;
 
+  // Mobile state
+  activeMobilePane: number;
+  mobileTabOrder: number[];
+  setActiveMobilePane: (pane: number) => void;
+  setMobileTabOrder: (order: number[]) => void;
+  goToNextMobilePane: () => void;
+  goToPrevMobilePane: () => void;
+
   // Chat
   chatMode: 'terminal' | 'workspace';
   setChatMode: (mode: 'terminal' | 'workspace') => void;
@@ -213,6 +221,22 @@ export const useIDEStore = create<IDEStore>()(
         })),
       reorderPanes: (order) => set({ paneOrder: order }),
       setMaxPanesReached: (reached) => set({ maxPanesReached: reached }),
+
+      // Mobile state - order: Chat, Editor, Terminal, Preview, Database, Deployments, Activity
+      activeMobilePane: 1,
+      mobileTabOrder: [1, 2, 7, 3, 4, 5, 6],
+      setActiveMobilePane: (pane) => set({ activeMobilePane: pane }),
+      setMobileTabOrder: (order) => set({ mobileTabOrder: order }),
+      goToNextMobilePane: () => set((state) => {
+        const currentIndex = state.mobileTabOrder.indexOf(state.activeMobilePane);
+        const nextIndex = (currentIndex + 1) % state.mobileTabOrder.length;
+        return { activeMobilePane: state.mobileTabOrder[nextIndex] };
+      }),
+      goToPrevMobilePane: () => set((state) => {
+        const currentIndex = state.mobileTabOrder.indexOf(state.activeMobilePane);
+        const prevIndex = currentIndex === 0 ? state.mobileTabOrder.length - 1 : currentIndex - 1;
+        return { activeMobilePane: state.mobileTabOrder[prevIndex] };
+      }),
 
       // Chat
       chatMode: 'workspace',
@@ -397,6 +421,8 @@ export const useIDEStore = create<IDEStore>()(
         fileTreeCollapsed: state.fileTreeCollapsed,
         previewMode: state.previewMode,
         autoApplyMigrations: state.autoApplyMigrations,
+        activeMobilePane: state.activeMobilePane,
+        mobileTabOrder: state.mobileTabOrder,
       }),
     }
   )

@@ -1,0 +1,269 @@
+/* Mobile Terminal Pane Overrides */
+
+@media (max-width: 767px) {
+  .terminal-pane {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    background: #0d0d0f;
+    overflow: hidden;
+  }
+
+  /* Terminal tabs bar - horizontal scroll */
+  .terminal-tabs-bar {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 8px 12px;
+    background: #0a0a0c;
+    border-bottom: 1px solid #1a1a1f;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    flex-shrink: 0;
+  }
+
+  .terminal-tabs-bar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .terminal-tab {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    background: #1a1a2e;
+    border: 1px solid #2d2d44;
+    border-radius: 8px;
+    color: #888;
+    font-size: 12px;
+    white-space: nowrap;
+    min-height: 40px;
+  }
+
+  .terminal-tab.active {
+    background: #2d2d44;
+    border-color: #3d3d5c;
+    color: #e0e0e0;
+  }
+
+  .terminal-tab .tab-name {
+    max-width: 80px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .terminal-tab .tab-branch {
+    font-size: 10px;
+    color: #7c3aed;
+    opacity: 0.8;
+  }
+
+  .terminal-tab .tab-close {
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+    opacity: 0.6;
+  }
+
+  .new-tab-btn {
+    flex-shrink: 0;
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Terminal header - simplified for mobile */
+  .terminal-header {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 8px 12px;
+    background: #0a0a0c;
+    border-bottom: 1px solid #1a1a1f;
+    flex-shrink: 0;
+  }
+
+  .terminal-header-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .terminal-header-right {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .connection-status {
+    font-size: 12px;
+    padding: 4px 8px;
+    background: #1a1a2e;
+    border-radius: 12px;
+  }
+
+  .branch-badge {
+    font-size: 11px;
+    padding: 4px 8px;
+    background: rgba(124, 58, 237, 0.15);
+    border-radius: 12px;
+  }
+
+  .error-badge {
+    font-size: 11px;
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .terminal-action-btn {
+    min-width: 36px;
+    min-height: 36px;
+    padding: 8px !important;
+    border-radius: 8px !important;
+  }
+
+  .terminal-action-btn span {
+    display: none; /* Hide text labels on mobile */
+  }
+
+  /* Terminal container */
+  .terminal-container {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .terminal-wrapper {
+    height: 100%;
+    padding: 8px !important;
+  }
+
+  /* Loading state */
+  .terminal-loading {
+    padding: 24px;
+  }
+
+  .terminal-loading .loading-spinner {
+    width: 32px;
+    height: 32px;
+  }
+
+  /* Mobile keyboard toolbar - enhanced */
+  .terminal-mobile-toolbar {
+    display: flex !important;
+    gap: 6px;
+    padding: 10px 12px;
+    padding-bottom: calc(10px + env(safe-area-inset-bottom));
+    background: #0a0a0c;
+    border-top: 1px solid #1a1a1f;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    flex-shrink: 0;
+  }
+
+  .terminal-mobile-toolbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .terminal-mobile-toolbar button {
+    flex-shrink: 0;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0 14px !important;
+    background: #1a1a2e !important;
+    border: 1px solid #2d2d44 !important;
+    border-radius: 8px !important;
+    color: #c0c0c0 !important;
+    font-family: 'SF Mono', Menlo, monospace !important;
+    font-size: 13px !important;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .terminal-mobile-toolbar button:active {
+    background: #2d2d44 !important;
+    color: #e0e0e0 !important;
+  }
+
+  .terminal-mobile-toolbar button:disabled {
+    opacity: 0.4;
+  }
+
+  /* New tab dialog - mobile friendly */
+  .new-tab-dialog-overlay {
+    padding: 16px;
+    align-items: flex-end !important;
+  }
+
+  .new-tab-dialog {
+    width: 100% !important;
+    max-width: 100% !important;
+    border-radius: 16px 16px 0 0 !important;
+    padding: 20px 16px !important;
+    padding-bottom: calc(20px + env(safe-area-inset-bottom)) !important;
+  }
+
+  .new-tab-dialog h4 {
+    font-size: 17px;
+    text-align: center;
+  }
+
+  .new-tab-dialog p {
+    text-align: center;
+    margin-bottom: 16px;
+  }
+
+  .branch-list {
+    max-height: 50vh;
+  }
+
+  .branch-option {
+    padding: 14px 16px !important;
+    font-size: 15px !important;
+    min-height: 48px;
+  }
+
+  .cancel-btn {
+    padding: 14px !important;
+    font-size: 15px !important;
+    min-height: 48px;
+  }
+
+  /* XTerm adjustments for mobile */
+  .terminal-wrapper :global(.xterm) {
+    font-size: 13px !important;
+  }
+
+  .terminal-wrapper :global(.xterm-viewport) {
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  /* Not connected state */
+  .terminal-not-connected {
+    padding: 32px 24px;
+  }
+
+  .terminal-not-connected .not-connected-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 14px;
+  }
+
+  .terminal-not-connected h3 {
+    font-size: 17px;
+  }
+
+  .terminal-not-connected p {
+    font-size: 14px;
+    max-width: 280px;
+    margin: 0 auto;
+  }
+}

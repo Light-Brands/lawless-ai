@@ -1,0 +1,20 @@
+/* Mobile IDE Styles - Only loaded on mobile viewports */
+
+/* Core mobile layout */
+@import './layout.css';
+@import './header.css';
+@import './tab-bar.css';
+
+/* Mobile components */
+@import './components/bottom-sheet.css';
+@import './components/swipeable.css';
+@import './components/pull-to-refresh.css';
+
+/* Mobile pane overrides */
+@import './panes/chat.css';
+@import './panes/editor.css';
+@import './panes/terminal.css';
+@import './panes/preview.css';
+@import './panes/database.css';
+@import './panes/deployments.css';
+@import './panes/activity.css';

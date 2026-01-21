@@ -31,3 +31,6 @@
 @import './panes/database.css';
 @import './panes/deployments.css';
 @import './panes/activity.css';
+
+/* Mobile overrides - loaded last to override desktop styles */
+@import './mobile/index.css';

@@ -4,6 +4,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useIDEStore, MigrationFile, MigrationRunResult } from '../../../stores/ideStore';
 import { useSupabaseConnection } from '../../../contexts/ServiceContext';
 import { useIDEContext } from '../../../contexts/IDEContext';
+import { useMobileDetection } from '../../../hooks/useMobileDetection';
+import { PullToRefresh } from '../../mobile/PullToRefresh';
 import { TableIcon, BellIcon } from '../../Icons';
 
 interface TableInfo {
@@ -101,6 +103,7 @@ export function DatabasePane() {
   const supabase = useSupabaseConnection();
   const projectRef = supabase.projectRef;
   const connected = supabase.status === 'connected';
+  const isMobile = useMobileDetection();
 
   // Get repo context for migrations
   const { owner, repo } = useIDEContext();
@@ -190,6 +193,15 @@ export function DatabasePane() {
   useEffect(() => {
     fetchMigrations();
   }, [fetchMigrations]);
+
+  // Pull-to-refresh handler based on active tab
+  const handlePullRefresh = useCallback(async () => {
+    if (activeTab === 'tables' || activeTab === 'schema') {
+      setRefreshKey(k => k + 1);
+    } else if (activeTab === 'migrations') {
+      await fetchMigrations();
+    }
+  }, [activeTab, fetchMigrations]);
 
   // State for tracking which migration is being run
   const [runningMigration, setRunningMigration] = useState<string | null>(null);
@@ -535,9 +547,10 @@ export function DatabasePane() {
         </button>
       </div>
 
-      <div className="db-content">
-        {/* Tables Tab - Table Browser */}
-        {activeTab === 'tables' && (
+      {isMobile ? (
+        <PullToRefresh onRefresh={handlePullRefresh} className="db-content">
+          {/* Tables Tab - Table Browser */}
+          {activeTab === 'tables' && (
           <div className="tables-browser-content">
             <div className="tables-browser-layout">
               {/* Table list sidebar */}
@@ -843,7 +856,318 @@ export function DatabasePane() {
             </div>
           </div>
         )}
-      </div>
+        </PullToRefresh>
+      ) : (
+        <div className="db-content">
+          {/* Tables Tab - Table Browser */}
+          {activeTab === 'tables' && (
+            <div className="tables-browser-content">
+              <div className="tables-browser-layout">
+                {/* Table list sidebar */}
+                <div className="tables-list-sidebar">
+                  <div className="tables-list-header">
+                    <span>Tables ({tables.length})</span>
+                    <button className="refresh-btn-sm" onClick={() => setRefreshKey(k => k + 1)} disabled={loading}>
+                      ↻
+                    </button>
+                  </div>
+                  <div className="tables-list">
+                    {loading ? (
+                      <div className="tables-loading">Loading...</div>
+                    ) : tables.length === 0 ? (
+                      <div className="tables-empty">No tables</div>
+                    ) : (
+                      tables.map(table => (
+                        <div
+                          key={table.table_name}
+                          className={`table-list-item ${selectedTable?.table_name === table.table_name ? 'selected' : ''}`}
+                          onClick={() => handleSelectTable(table)}
+                        >
+                          <span className="table-icon-sm"><TableIcon size={12} /></span>
+                          <span className="table-name-sm">{table.table_name}</span>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                {/* Table data browser */}
+                <div className="table-data-area">
+                  {!selectedTable ? (
+                    <div className="table-data-empty">
+                      <p>Select a table to view data</p>
+                    </div>
+                  ) : tableDataLoading ? (
+                    <div className="table-data-loading">
+                      <div className="loading-spinner" />
+                      <span>Loading data...</span>
+                    </div>
+                  ) : !tableData || tableData.rows.length === 0 ? (
+                    <div className="table-data-empty">
+                      <p>No data in {selectedTable.table_name}</p>
+                      <button className="add-row-btn" onClick={() => setIsAddingRow(true)}>
+                        <PlusIcon /> Add Row
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="table-data-header">
+                        <div className="table-data-info">
+                          <h3>{tableData.table.name}</h3>
+                          <span className="row-count">{tableData.pagination.total} rows</span>
+                        </div>
+                        <button className="add-row-btn" onClick={() => setIsAddingRow(true)}>
+                          <PlusIcon /> Add Row
+                        </button>
+                      </div>
+                      <div className="table-data-scroll">
+                        <table className="data-table">
+                          <thead>
+                            <tr>
+                              {tableData.table.columns.map(col => (
+                                <th key={col.name}>
+                                  <span className="col-name">{col.name}</span>
+                                  <span className="col-type">{col.type}</span>
+                                </th>
+                              ))}
+                              <th className="add-col-header">
+                                <button className="add-col-btn" onClick={() => setIsAddingColumn(true)} title="Add Column">
+                                  <PlusIcon />
+                                </button>
+                              </th>
+                              <th className="actions-header">Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {tableData.rows.map((row, idx) => {
+                              const pkCol = tableData.table.columns[0]?.name || 'id';
+                              const pkVal = row[pkCol];
+                              return (
+                                <tr key={String(pkVal) || idx}>
+                                  {tableData.table.columns.map(col => (
+                                    <td key={col.name}>
+                                      <span className={`cell-val ${row[col.name] === null ? 'null-val' : ''}`} title={formatCellValue(row[col.name])}>
+                                        {truncateValue(formatCellValue(row[col.name]))}
+                                      </span>
+                                    </td>
+                                  ))}
+                                  <td className="add-col-spacer" />
+                                  <td className="actions-cell">
+                                    <button className="row-action edit" onClick={() => setEditingRow(row)} title="Edit">
+                                      <EditIcon />
+                                    </button>
+                                    <button className="row-action delete" onClick={() => handleDeleteRow({ [pkCol]: pkVal })} title="Delete">
+                                      <DeleteIcon />
+                                    </button>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                      {tableData.pagination.total > 50 && (
+                        <div className="table-pagination">
+                          <button
+                            disabled={tableData.pagination.offset === 0}
+                            onClick={() => handlePageChange(Math.max(0, tableData.pagination.offset - 50))}
+                          >
+                            ← Prev
+                          </button>
+                          <span>
+                            {Math.floor(tableData.pagination.offset / 50) + 1} / {Math.ceil(tableData.pagination.total / 50)}
+                          </span>
+                          <button
+                            disabled={tableData.pagination.offset + 50 >= tableData.pagination.total}
+                            onClick={() => handlePageChange(tableData.pagination.offset + 50)}
+                          >
+                            Next →
+                          </button>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Schema Tab */}
+          {activeTab === 'schema' && (
+            <div className="schema-content">
+              <div className="schema-header">
+                <span>Tables ({tables.length})</span>
+                <button className="refresh-btn" onClick={() => setRefreshKey(k => k + 1)} disabled={loading}>
+                  {loading ? '...' : 'Refresh'}
+                </button>
+              </div>
+              {loading ? (
+                <div className="schema-loading">Loading schema...</div>
+              ) : error ? (
+                <div className="schema-error">{error}</div>
+              ) : tables.length === 0 ? (
+                <div className="schema-empty">No tables found</div>
+              ) : (
+                <div className="schema-tree">
+                  {tables.map(table => {
+                    const isExpanded = expandedTables.has(table.table_name);
+                    return (
+                      <React.Fragment key={table.table_name}>
+                        <div className="table-item" onClick={() => toggleTable(table.table_name)}>
+                          <span className="table-expand">{isExpanded ? '▼' : '▶'}</span>
+                          <span className="table-icon"><TableIcon size={16} /></span>
+                          <span className="table-name">{table.table_name}</span>
+                        </div>
+                        {isExpanded && table.columns && (
+                          <div className="columns-list">
+                            {table.columns.map((col, idx) => (
+                              <div key={col.column_name} className="column-item">
+                                <span>
+                                  {idx === table.columns!.length - 1 ? '└─' : '├─'} {col.column_name}
+                                  <span className="column-type"> ({col.data_type}
+                                    {col.is_primary_key ? ', PK' : ''}
+                                    {col.is_nullable === 'NO' ? ', NOT NULL' : ''})
+                                  </span>
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {isExpanded && !table.columns && <div className="columns-loading">Loading columns...</div>}
+                      </React.Fragment>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Query Tab */}
+          {activeTab === 'query' && (
+            <div className="query-content">
+              <div className="query-editor">
+                <textarea
+                  value={query}
+                  onChange={e => setQuery(e.target.value)}
+                  placeholder="Enter SQL query..."
+                  className="query-input"
+                  onKeyDown={e => {
+                    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+                      e.preventDefault();
+                      runQuery();
+                    }
+                  }}
+                />
+                <button className="run-query-btn" onClick={runQuery} disabled={queryLoading || !query.trim()}>
+                  {queryLoading ? '...' : 'Run ▶'}
+                </button>
+              </div>
+              <div className="query-results">
+                {queryResults ? (
+                  <>
+                    <div className="results-header">
+                      {queryResults.error ? (
+                        <span className="results-error">Error: {queryResults.error}</span>
+                      ) : (
+                        <span>Results ({queryResults.rowCount} rows)</span>
+                      )}
+                    </div>
+                    {!queryResults.error && queryResults.results.length > 0 && (
+                      <div className="results-table">
+                        <table>
+                          <thead>
+                            <tr>
+                              {Object.keys(queryResults.results[0]).map(key => <th key={key}>{key}</th>)}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {queryResults.results.map((row, idx) => (
+                              <tr key={idx}>
+                                {Object.values(row).map((val, vIdx) => (
+                                  <td key={vIdx}>{val === null ? <em>null</em> : String(val)}</td>
+                                ))}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                    {!queryResults.error && queryResults.results.length === 0 && (
+                      <div className="results-empty">Query executed successfully. No rows returned.</div>
+                    )}
+                  </>
+                ) : (
+                  <div className="results-placeholder">
+                    <p>Run a query to see results</p>
+                    <p className="hint">Press ⌘+Enter to execute</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Migrations Tab */}
+          {activeTab === 'migrations' && (
+            <div className="migrations-content">
+              {pendingMigrations.length > 0 && (
+                <div className="migration-alert">
+                  <div className="alert-header">
+                    <span><BellIcon size={14} /> {pendingMigrations.length} Pending Migration{pendingMigrations.length > 1 ? 's' : ''}</span>
+                  </div>
+                  <div className="auto-apply">
+                    <label>
+                      <input type="checkbox" checked={autoApplyMigrations} onChange={e => setAutoApplyMigrations(e.target.checked)} />
+                      Auto-apply migrations on push
+                    </label>
+                  </div>
+                </div>
+              )}
+              <div className="migration-list">
+                <div className="migration-list-header">
+                  <span>
+                    Migrations
+                    {migrationsSummary && (
+                      <span className="migrations-count">
+                        ({migrationsSummary.applied}/{migrationsSummary.total} applied)
+                      </span>
+                    )}
+                  </span>
+                  <button className="refresh-btn-sm" onClick={fetchMigrations} disabled={migrationsLoading}>
+                    ↻
+                  </button>
+                </div>
+                {migrationsLoading ? (
+                  <div className="migrations-loading">
+                    <div className="loading-spinner" />
+                    <span>Loading migrations...</span>
+                  </div>
+                ) : migrations.length === 0 ? (
+                  <div className="migrations-empty">
+                    <div className="empty-icon">📁</div>
+                    <p>No migrations found</p>
+                    <p className="hint">Migration files should be in supabase/migrations/</p>
+                  </div>
+                ) : (
+                  <div className="migrations-list-items">
+                    {migrations.map((migration) => (
+                      <MigrationItem
+                        key={migration.version}
+                        migration={migration}
+                        onRun={runMigration}
+                        onMarkApplied={markMigrationApplied}
+                        onDismissResult={() => clearMigrationRunResult(migration.version)}
+                        isRunning={runningMigration === migration.version}
+                        canRun={connected}
+                        runResult={migrationRunResults[migration.version]}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Row Editor Modal */}
       {(editingRow !== null || isAddingRow) && tableData && (

@@ -12,6 +12,8 @@ import { IDEProvider } from '../contexts/IDEContext';
 import { ServiceProvider } from '../contexts/ServiceContext';
 import { InitializationOverlay } from '../components/InitializationOverlay';
 import { useAuth } from '@/app/contexts/AuthContext';
+import { useMobileDetection } from '../hooks/useMobileDetection';
+import { MobileIDELayout } from '../components/mobile';
 
 interface WorkspaceSession {
   sessionId: string;
@@ -49,6 +51,9 @@ export default function IDERepoPage() {
   const [repos, setRepos] = useState<UserRepo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Mobile detection
+  const isMobile = useMobileDetection();
 
   // Initialize keyboard shortcuts
   useKeyboardShortcuts();
@@ -323,6 +328,26 @@ export default function IDERepoPage() {
     );
   }
 
+  // Get current branch name from active session
+  const currentSession = sessions.find((s) => s.sessionId === activeSessionId);
+  const branchName = currentSession?.branchName || 'main';
+
+  // Mobile layout
+  if (isMobile) {
+    return (
+      <ServiceProvider sessionId={activeSessionId}>
+        <MobileIDELayout
+          owner={owner}
+          repo={repoName}
+          sessionId={activeSessionId}
+          branchName={branchName}
+        />
+        <CommandPalette />
+      </ServiceProvider>
+    );
+  }
+
+  // Desktop layout
   return (
     <IDEProvider owner={owner} repo={repoName} sessionId={activeSessionId}>
       <ServiceProvider sessionId={activeSessionId}>

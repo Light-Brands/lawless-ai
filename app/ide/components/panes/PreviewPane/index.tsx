@@ -5,6 +5,8 @@ import { useIDEStore } from '../../../stores/ideStore';
 import { useVercelConnection, useTerminalConnection } from '../../../contexts/ServiceContext';
 import { useIDEContext } from '../../../contexts/IDEContext';
 import { usePortScanner } from '../../../hooks/usePortScanner';
+import { useMobileDetection } from '../../../hooks/useMobileDetection';
+import { PullToRefresh } from '../../mobile/PullToRefresh';
 
 interface Deployment {
   id: string;
@@ -55,6 +57,7 @@ export function PreviewPane() {
   const vercel = useVercelConnection();
   const terminal = useTerminalConnection();
   const { sessionId: contextSessionId } = useIDEContext();
+  const isMobile = useMobileDetection();
 
   // Detect if we're running inside an iframe (nested preview)
   const [isInIframe, setIsInIframe] = useState(false);
@@ -318,71 +321,139 @@ export function PreviewPane() {
       </div>
 
       {/* Preview iframe */}
-      <div className="preview-content">
-        {isInIframe ? (
-          <div className="preview-placeholder">
-            <p>Preview disabled in nested view</p>
-            <p className="preview-hint">Open in a new window to use preview</p>
-          </div>
-        ) : previewMode === 'local' ? (
-          hasActivePorts && selectedPort && effectiveSessionId ? (
-            <iframe
-              ref={iframeRef}
-              src={getLocalPreviewUrl()}
-              className="preview-iframe"
-              title="Local Preview"
-            />
-          ) : (
+      {isMobile ? (
+        <PullToRefresh onRefresh={handleRefresh} className="preview-content">
+          {isInIframe ? (
             <div className="preview-placeholder">
-              <div className="server-status scanning">
-                <div className="scanning-animation" />
-                <span>{effectiveSessionId ? 'Scanning for dev servers' : 'Connecting to session...'}</span>
-              </div>
-              <p className="preview-hint">Start a dev server in the terminal</p>
-              <p className="preview-ports-hint">Monitoring ports 3000-3999</p>
+              <p>Preview disabled in nested view</p>
+              <p className="preview-hint">Open in a new window to use preview</p>
             </div>
-          )
-        ) : (
-          deploymentsLoading ? (
-            <div className="preview-placeholder">
-              <div className="loading-spinner" />
-              <p>Loading deployments...</p>
-            </div>
-          ) : latestDeployment ? (
-            latestDeployment.state === 'READY' ? (
+          ) : previewMode === 'local' ? (
+            hasActivePorts && selectedPort && effectiveSessionId ? (
               <iframe
                 ref={iframeRef}
-                src={getDeployedUrl() || ''}
+                src={getLocalPreviewUrl()}
                 className="preview-iframe"
-                title="Deployed Preview"
+                title="Local Preview"
               />
             ) : (
               <div className="preview-placeholder">
-                <div className={`deployment-status-indicator ${latestDeployment.state.toLowerCase()}`}>
-                  {latestDeployment.state === 'BUILDING' && <div className="loading-spinner" />}
-                  <span>{latestDeployment.state}</span>
+                <div className="server-status scanning">
+                  <div className="scanning-animation" />
+                  <span>{effectiveSessionId ? 'Scanning for dev servers' : 'Connecting to session...'}</span>
                 </div>
-                {latestDeployment.meta?.githubCommitMessage && (
-                  <p className="preview-commit-message">{latestDeployment.meta.githubCommitMessage}</p>
-                )}
-                {latestDeployment.meta?.githubCommitRef && (
-                  <p className="preview-branch-info">Branch: {latestDeployment.meta.githubCommitRef}</p>
-                )}
+                <p className="preview-hint">Start a dev server in the terminal</p>
+                <p className="preview-ports-hint">Monitoring ports 3000-3999</p>
               </div>
             )
-          ) : vercel.status !== 'connected' ? (
-            <div className="preview-placeholder">
-              <p>Connect Vercel to view deployments</p>
-              <a href="/integrations/vercel" className="connect-vercel-btn">Connect Vercel</a>
-            </div>
           ) : (
+            deploymentsLoading ? (
+              <div className="preview-placeholder">
+                <div className="loading-spinner" />
+                <p>Loading deployments...</p>
+              </div>
+            ) : latestDeployment ? (
+              latestDeployment.state === 'READY' ? (
+                <iframe
+                  ref={iframeRef}
+                  src={getDeployedUrl() || ''}
+                  className="preview-iframe"
+                  title="Deployed Preview"
+                />
+              ) : (
+                <div className="preview-placeholder">
+                  <div className={`deployment-status-indicator ${latestDeployment.state.toLowerCase()}`}>
+                    {latestDeployment.state === 'BUILDING' && <div className="loading-spinner" />}
+                    <span>{latestDeployment.state}</span>
+                  </div>
+                  {latestDeployment.meta?.githubCommitMessage && (
+                    <p className="preview-commit-message">{latestDeployment.meta.githubCommitMessage}</p>
+                  )}
+                  {latestDeployment.meta?.githubCommitRef && (
+                    <p className="preview-branch-info">Branch: {latestDeployment.meta.githubCommitRef}</p>
+                  )}
+                </div>
+              )
+            ) : vercel.status !== 'connected' ? (
+              <div className="preview-placeholder">
+                <p>Connect Vercel to view deployments</p>
+                <a href="/integrations/vercel" className="connect-vercel-btn">Connect Vercel</a>
+              </div>
+            ) : (
+              <div className="preview-placeholder">
+                <p>No deployments found</p>
+                <p className="preview-hint">Push to your repository to trigger a deployment</p>
+              </div>
+            )
+          )}
+        </PullToRefresh>
+      ) : (
+        <div className="preview-content">
+          {isInIframe ? (
             <div className="preview-placeholder">
-              <p>No deployments found</p>
-              <p className="preview-hint">Push to your repository to trigger a deployment</p>
+              <p>Preview disabled in nested view</p>
+              <p className="preview-hint">Open in a new window to use preview</p>
             </div>
-          )
-        )}
-      </div>
+          ) : previewMode === 'local' ? (
+            hasActivePorts && selectedPort && effectiveSessionId ? (
+              <iframe
+                ref={iframeRef}
+                src={getLocalPreviewUrl()}
+                className="preview-iframe"
+                title="Local Preview"
+              />
+            ) : (
+              <div className="preview-placeholder">
+                <div className="server-status scanning">
+                  <div className="scanning-animation" />
+                  <span>{effectiveSessionId ? 'Scanning for dev servers' : 'Connecting to session...'}</span>
+                </div>
+                <p className="preview-hint">Start a dev server in the terminal</p>
+                <p className="preview-ports-hint">Monitoring ports 3000-3999</p>
+              </div>
+            )
+          ) : (
+            deploymentsLoading ? (
+              <div className="preview-placeholder">
+                <div className="loading-spinner" />
+                <p>Loading deployments...</p>
+              </div>
+            ) : latestDeployment ? (
+              latestDeployment.state === 'READY' ? (
+                <iframe
+                  ref={iframeRef}
+                  src={getDeployedUrl() || ''}
+                  className="preview-iframe"
+                  title="Deployed Preview"
+                />
+              ) : (
+                <div className="preview-placeholder">
+                  <div className={`deployment-status-indicator ${latestDeployment.state.toLowerCase()}`}>
+                    {latestDeployment.state === 'BUILDING' && <div className="loading-spinner" />}
+                    <span>{latestDeployment.state}</span>
+                  </div>
+                  {latestDeployment.meta?.githubCommitMessage && (
+                    <p className="preview-commit-message">{latestDeployment.meta.githubCommitMessage}</p>
+                  )}
+                  {latestDeployment.meta?.githubCommitRef && (
+                    <p className="preview-branch-info">Branch: {latestDeployment.meta.githubCommitRef}</p>
+                  )}
+                </div>
+              )
+            ) : vercel.status !== 'connected' ? (
+              <div className="preview-placeholder">
+                <p>Connect Vercel to view deployments</p>
+                <a href="/integrations/vercel" className="connect-vercel-btn">Connect Vercel</a>
+              </div>
+            ) : (
+              <div className="preview-placeholder">
+                <p>No deployments found</p>
+                <p className="preview-hint">Push to your repository to trigger a deployment</p>
+              </div>
+            )
+          )}
+        </div>
+      )}
 
       {/* Console */}
       <div className="preview-console">
