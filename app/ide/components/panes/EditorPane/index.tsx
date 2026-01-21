@@ -6,6 +6,7 @@ import { marked } from 'marked';
 import { useIDEStore } from '../../../stores/ideStore';
 import { useIDEContext } from '../../../contexts/IDEContext';
 import { useGitHubConnection } from '../../../contexts/ServiceContext';
+import { useMobileDetection } from '../../../hooks/useMobileDetection';
 import { CodeEditor } from '../../CodeEditor';
 import { ideEvents } from '../../../lib/eventBus';
 import {
@@ -22,8 +23,18 @@ import {
   LoadingIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  ChevronDownIcon,
 } from '../../Icons';
 import { MarkdownRenderer } from '../../MarkdownRenderer';
+import { MobileFileTreeSheet } from '../../mobile/MobileFileTreeSheet';
+
+// Haptic feedback helper
+const haptic = (style: 'light' | 'medium' | 'heavy' = 'light') => {
+  if ('vibrate' in navigator) {
+    const durations = { light: 10, medium: 20, heavy: 30 };
+    navigator.vibrate(durations[style]);
+  }
+};
 
 // File type detection helpers
 function isImageFile(filename: string): boolean {
@@ -107,6 +118,7 @@ function convertApiTree(nodes: ApiTreeNode[]): FileTreeItem[] {
 export function EditorPane() {
   const { owner, repo } = useIDEContext();
   const github = useGitHubConnection();
+  const isMobile = useMobileDetection();
   const { activeFile, openFiles, unsavedFiles, setActiveFile, closeFile, splitView, setSplitView, openFile, markFileUnsaved, markFileSaved, fileTreeCollapsed, setFileTreeCollapsed } = useIDEStore();
   const [fileTree, setFileTree] = useState<FileTreeItem[]>([]);
   const [fileContents, setFileContents] = useState<Record<string, string>>({});
@@ -126,6 +138,9 @@ export function EditorPane() {
   const [isResizing, setIsResizing] = useState(false);
   const layoutRef = useRef<HTMLDivElement>(null);
   const resizeRef = useRef<{ startX: number; startPercent: number; containerWidth: number } | null>(null);
+
+  // Mobile file tree sheet state
+  const [isFileTreeOpen, setIsFileTreeOpen] = useState(false);
 
   // Handle sidebar resize
   const handleResizeStart = useCallback((e: React.MouseEvent) => {
@@ -340,10 +355,11 @@ export function EditorPane() {
   }, [viewMode, activeFile, fileContents]);
 
   const handleFileClick = useCallback((path: string) => {
+    if (isMobile) haptic('light');
     openFile(path);
     setActiveFile(path);
     fetchFileContent(path);
-  }, [openFile, setActiveFile, fetchFileContent]);
+  }, [isMobile, openFile, setActiveFile, fetchFileContent]);
 
   const toggleFolder = (path: string) => {
     setExpandedFolders((prev) => {
@@ -488,6 +504,29 @@ export function EditorPane() {
           </button>
         </div>
       </div>
+
+      {/* Mobile file selector - opens file tree sheet */}
+      {isMobile && (
+        <div className="mobile-file-selector">
+          <button
+            className="mobile-file-selector-btn"
+            onClick={() => {
+              haptic('light');
+              setIsFileTreeOpen(true);
+            }}
+          >
+            <span className="mobile-file-selector-icon">
+              <FolderIcon size={18} />
+            </span>
+            <span className="mobile-file-selector-path">
+              {activeFile ? activeFile.split('/').pop() : 'Select a file...'}
+            </span>
+            <span className="mobile-file-selector-chevron">
+              <ChevronDownIcon size={16} />
+            </span>
+          </button>
+        </div>
+      )}
 
       {/* File tree sidebar */}
       <div ref={layoutRef} className={`editor-layout ${isResizing ? 'resizing' : ''} ${fileTreeCollapsed ? 'sidebar-collapsed' : ''}`}>
@@ -683,6 +722,15 @@ export function EditorPane() {
           <button className="commit-btn">Commit</button>
         </div>
       </div>
+
+      {/* Mobile file tree bottom sheet */}
+      {isMobile && (
+        <MobileFileTreeSheet
+          isOpen={isFileTreeOpen}
+          onClose={() => setIsFileTreeOpen(false)}
+          onFileSelect={handleFileClick}
+        />
+      )}
     </div>
   );
 }

@@ -10,6 +10,7 @@ import AtMentionAutocomplete from '../../../../components/AtMentionAutocomplete'
 import CommandDictionary from '../../../../components/CommandDictionary';
 import { DictionaryItem } from '../../../../data/command-dictionary';
 import { ideEvents, useIDEEvent } from '../../../lib/eventBus';
+import { useMobileDetection } from '../../../hooks/useMobileDetection';
 import '../../../../styles/command-dictionary.css';
 import {
   BookIcon,
@@ -19,15 +20,26 @@ import {
   FileIcon,
   WrenchIcon,
   ChatIcon,
+  ChevronDownIcon,
 } from '../../Icons';
 import { QuickCommands } from '../../QuickCommands';
+
+// Haptic feedback helper
+const haptic = (style: 'light' | 'medium' | 'heavy' = 'light') => {
+  if ('vibrate' in navigator) {
+    const durations = { light: 10, medium: 20, heavy: 30 };
+    navigator.vibrate(durations[style]);
+  }
+};
 
 export function ChatPane() {
   const { repoFullName, sessionId } = useIDEContext();
   const { activeSession } = useIDEStore();
+  const isMobile = useMobileDetection();
 
   const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Autocomplete state
@@ -39,6 +51,27 @@ export function ChatPane() {
   const [showContext, setShowContext] = useState(true);
   const [showQuickCommands, setShowQuickCommands] = useState(false);
   const [expandedContext, setExpandedContext] = useState<Set<string>>(new Set());
+  const [showScrollButton, setShowScrollButton] = useState(false);
+  const [isUserScrolling, setIsUserScrolling] = useState(false);
+
+  // Track scroll position to show/hide scroll-to-bottom button
+  const handleScroll = useCallback(() => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+
+    const { scrollTop, scrollHeight, clientHeight } = container;
+    const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
+
+    // Show button if user has scrolled up more than 100px
+    setShowScrollButton(distanceFromBottom > 100);
+    setIsUserScrolling(distanceFromBottom > 50);
+  }, []);
+
+  // Scroll to bottom function
+  const scrollToBottom = useCallback((smooth = true) => {
+    if (isMobile) haptic('light');
+    messagesEndRef.current?.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto' });
+  }, [isMobile]);
 
   // Toggle context section expansion
   const toggleContextExpand = (section: string) => {
@@ -91,10 +124,12 @@ export function ChatPane() {
     },
   });
 
-  // Auto-scroll to bottom
+  // Auto-scroll to bottom (only if user isn't scrolling)
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+    if (!isUserScrolling) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages, isUserScrolling]);
 
   // Listen for chat:send events from other panes
   useIDEEvent('chat:send', async (data) => {
@@ -175,6 +210,13 @@ export function ChatPane() {
     setInput('');
     setShowAutocomplete(false);
     setShowAtMention(false);
+
+    // Haptic feedback on mobile
+    if (isMobile) haptic('medium');
+
+    // Scroll to bottom when sending
+    setIsUserScrolling(false);
+    scrollToBottom();
 
     await sendMessage(message);
   };
@@ -292,7 +334,11 @@ export function ChatPane() {
       )}
 
       {/* Messages */}
-      <div className="chat-messages-container">
+      <div
+        ref={messagesContainerRef}
+        className="chat-messages-container"
+        onScroll={handleScroll}
+      >
         {messages.length === 0 ? (
           <div className="chat-empty-state">
             <div className="empty-icon"><ChatIcon size={32} /></div>
@@ -308,6 +354,17 @@ export function ChatPane() {
         )}
         <div ref={messagesEndRef} />
       </div>
+
+      {/* Scroll to bottom button (mobile) */}
+      {isMobile && (
+        <button
+          className={`chat-scroll-to-bottom ${showScrollButton ? 'visible' : ''}`}
+          onClick={() => scrollToBottom()}
+          aria-label="Scroll to bottom"
+        >
+          <ChevronDownIcon size={20} />
+        </button>
+      )}
 
       {/* Error display */}
       {error && (
