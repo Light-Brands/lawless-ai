@@ -5,14 +5,129 @@
     height: 100%;
     display: flex;
     flex-direction: column;
+    background: #0d0d0f;
+    overflow: hidden;
   }
 
-  /* Hide desktop sidebar, use bottom sheet instead */
-  .editor-file-tree-sidebar {
+  /* Hide desktop file tree sidebar completely */
+  .editor-layout .file-tree,
+  .editor-layout .file-tree-resize-handle,
+  .editor-layout .file-tree-collapsed {
+    display: none !important;
+  }
+
+  /* Editor layout fills available space */
+  .editor-layout {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Code editor takes full width */
+  .code-editor-container {
+    flex: 1;
+    width: 100% !important;
+    min-height: 0;
+  }
+
+  /* Hide split view on mobile */
+  .code-editor-container.split {
     display: none;
   }
 
-  /* File selector in header */
+  /* File tabs - horizontal scroll */
+  .editor-tabs {
+    display: flex;
+    flex-direction: column;
+    border-bottom: 1px solid #1a1a1f;
+    background: #0a0a0c;
+    flex-shrink: 0;
+  }
+
+  .tabs-list {
+    display: flex;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 0 8px;
+    gap: 4px;
+  }
+
+  .tabs-list::-webkit-scrollbar {
+    display: none;
+  }
+
+  .editor-tab {
+    flex-shrink: 0;
+    padding: 10px 12px;
+    font-size: 13px;
+    border-radius: 8px 8px 0 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 40px;
+    background: transparent;
+    border: none;
+    color: #888;
+  }
+
+  .editor-tab.active {
+    background: #1a1a2e;
+    color: #e0e0e0;
+  }
+
+  .tab-close {
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .unsaved-dot {
+    color: #7c3aed;
+    font-size: 10px;
+    margin-right: 4px;
+  }
+
+  /* Editor actions - simplify for mobile */
+  .editor-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 8px;
+    border-top: 1px solid #1a1a1f;
+  }
+
+  .view-mode-toggle {
+    display: flex;
+    gap: 2px;
+  }
+
+  .editor-action-btn {
+    padding: 8px 12px;
+    font-size: 12px;
+    border-radius: 6px;
+    background: #1a1a2e;
+    border: 1px solid #2d2d44;
+    color: #888;
+  }
+
+  .editor-action-btn.active {
+    background: #7c3aed;
+    border-color: #7c3aed;
+    color: white;
+  }
+
+  /* Hide split and diff buttons on mobile - not enough screen space */
+  .editor-actions .editor-action-btn[title="Split View"],
+  .editor-actions .editor-action-btn[title="Diff View"] {
+    display: none;
+  }
+
+  /* Mobile file selector button - opens file tree sheet */
   .mobile-file-selector {
     display: flex;
     align-items: center;
@@ -27,13 +142,23 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 8px 12px;
+    padding: 10px 14px;
     background: #1a1a2e;
     border: 1px solid #2d2d44;
-    border-radius: 8px;
+    border-radius: 10px;
     color: #e0e0e0;
-    font-size: 13px;
+    font-size: 14px;
     text-align: left;
+    min-height: 44px;
+  }
+
+  .mobile-file-selector-btn:active {
+    background: #2d2d44;
+  }
+
+  .mobile-file-selector-icon {
+    color: #7c3aed;
+    flex-shrink: 0;
   }
 
   .mobile-file-selector-path {
@@ -43,22 +168,177 @@
     text-overflow: ellipsis;
   }
 
-  /* Editor area */
-  .editor-content {
-    flex: 1;
-    min-height: 0;
+  .mobile-file-selector-chevron {
+    color: #666;
+    flex-shrink: 0;
   }
 
-  /* Monaco editor adjustments */
+  /* Monaco editor adjustments for mobile */
   .monaco-editor {
     font-size: 14px !important;
   }
 
   .monaco-editor .margin {
-    width: 40px !important;
+    width: 36px !important;
   }
 
-  /* Mobile editor toolbar */
+  .monaco-editor .line-numbers {
+    font-size: 11px !important;
+  }
+
+  /* Editor empty state */
+  .editor-empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    padding: 24px;
+    text-align: center;
+    color: #666;
+  }
+
+  .editor-empty-state p {
+    font-size: 14px;
+    margin: 4px 0;
+  }
+
+  .editor-empty-state .hint {
+    font-size: 12px;
+    color: #555;
+  }
+
+  /* Editor loading state */
+  .editor-loading-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    gap: 12px;
+  }
+
+  .editor-loading-state .loading-spinner {
+    width: 32px;
+    height: 32px;
+  }
+
+  /* File preview containers */
+  .file-preview-container {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .file-preview-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    background: #0a0a0c;
+    border-bottom: 1px solid #1a1a1f;
+    font-size: 13px;
+  }
+
+  .file-preview-name {
+    font-weight: 500;
+    color: #e0e0e0;
+  }
+
+  .file-preview-meta,
+  .file-preview-size {
+    color: #666;
+    font-size: 12px;
+  }
+
+  .file-preview-image {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    overflow: auto;
+  }
+
+  .file-preview-image img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+  }
+
+  .file-preview-binary {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: #666;
+    padding: 24px;
+  }
+
+  .file-preview-code {
+    flex: 1;
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+    font-size: 12px;
+  }
+
+  .file-preview-markdown {
+    flex: 1;
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 16px;
+  }
+
+  /* Status bar - simplified for mobile */
+  .editor-status-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 12px;
+    padding-bottom: calc(6px + env(safe-area-inset-bottom));
+    background: #0a0a0c;
+    border-top: 1px solid #1a1a1f;
+    font-size: 11px;
+    color: #666;
+    flex-shrink: 0;
+  }
+
+  .editor-status-bar span {
+    display: none;
+  }
+
+  /* Only show cursor position on mobile */
+  .editor-status-bar span:first-child {
+    display: inline;
+  }
+
+  .status-bar-right {
+    display: flex;
+    gap: 8px;
+  }
+
+  .save-btn,
+  .commit-btn {
+    padding: 6px 12px;
+    font-size: 12px;
+    border-radius: 6px;
+    min-height: 32px;
+  }
+
+  .save-btn {
+    background: #7c3aed;
+    color: white;
+  }
+
+  .commit-btn {
+    background: #1a1a2e;
+    border: 1px solid #2d2d44;
+    color: #888;
+  }
+
+  /* Mobile editor toolbar - quick actions */
   .mobile-editor-toolbar {
     display: flex;
     align-items: center;
@@ -68,6 +348,7 @@
     border-top: 1px solid #1a1a1f;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
+    flex-shrink: 0;
   }
 
   .mobile-editor-toolbar::-webkit-scrollbar {
@@ -78,15 +359,16 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    min-width: 40px;
-    height: 40px;
-    padding: 0 12px;
+    min-width: 44px;
+    height: 44px;
+    padding: 0 14px;
     background: #1a1a2e;
     border: 1px solid #2d2d44;
     border-radius: 8px;
     color: #888;
     font-size: 13px;
     white-space: nowrap;
+    flex-shrink: 0;
   }
 
   .mobile-editor-toolbar-btn:active {
@@ -98,5 +380,10 @@
     background: #7c3aed;
     border-color: #7c3aed;
     color: white;
+  }
+
+  .mobile-editor-toolbar-btn svg {
+    width: 18px;
+    height: 18px;
   }
 }
