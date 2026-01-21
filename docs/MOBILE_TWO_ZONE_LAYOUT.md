@@ -1,4 +1,4 @@
-# Mobile IDE Optimization Plan
+# Mobile IDE Two-Zone Layout Plan
 
 ## Executive Summary
 
@@ -773,9 +773,7 @@ mobile: {
 **New file: styles/mobile-ide.css**
 
 ```css
-/* ===========================================
-   Mobile IDE Root Layout
-   =========================================== */
+/* Mobile IDE Root Layout */
 .mobile-ide-layout {
   display: flex;
   flex-direction: column;
@@ -801,9 +799,7 @@ mobile: {
   min-height: 0; /* Allow shrinking */
 }
 
-/* ===========================================
-   Bottom Zone (Terminal + Chat)
-   =========================================== */
+/* Bottom Zone (Terminal + Chat) */
 .mobile-bottom-zone {
   flex-shrink: 0;
   display: flex;
@@ -977,9 +973,7 @@ mobile: {
   font-family: monospace;
 }
 
-/* ===========================================
-   Bottom Navigation (Main Pane Control)
-   =========================================== */
+/* Bottom Navigation (Main Pane Control) */
 .mobile-bottom-nav {
   height: 56px;
   display: flex;
