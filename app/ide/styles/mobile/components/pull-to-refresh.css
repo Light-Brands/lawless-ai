@@ -1,0 +1,116 @@
+/* Pull to Refresh Component */
+
+.pull-to-refresh-container {
+  position: relative;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+}
+
+/* Prevent native pull-to-refresh on mobile browsers */
+.pull-to-refresh-container.pulling {
+  overflow: hidden;
+}
+
+/* Pull indicator */
+.pull-indicator {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.pull-indicator-content {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 20px;
+  background: #1a1a2e;
+  border: 1px solid #2d2d44;
+  border-radius: 24px;
+  color: #888;
+  font-size: 13px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.pull-indicator.can-release .pull-indicator-content {
+  background: rgba(124, 58, 237, 0.15);
+  border-color: rgba(124, 58, 237, 0.3);
+  color: #a78bfa;
+}
+
+.pull-indicator.refreshing .pull-indicator-content {
+  background: rgba(124, 58, 237, 0.15);
+  border-color: rgba(124, 58, 237, 0.3);
+  color: #a78bfa;
+}
+
+/* Arrow icon */
+.pull-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s ease;
+}
+
+.pull-arrow svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* Pull text */
+.pull-text {
+  white-space: nowrap;
+}
+
+/* Spinner */
+.pull-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(167, 139, 250, 0.3);
+  border-top-color: #a78bfa;
+  border-radius: 50%;
+  animation: pullSpin 0.8s linear infinite;
+}
+
+@keyframes pullSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Content wrapper */
+.pull-content {
+  min-height: 100%;
+  will-change: transform;
+}
+
+/* Refreshing state - show subtle animation */
+.pull-to-refresh-container.refreshing .pull-content {
+  opacity: 0.7;
+}
+
+/* Hide indicator when not needed */
+.pull-indicator {
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+/* Desktop - hide pull-to-refresh completely */
+@media (min-width: 768px) {
+  .pull-indicator {
+    display: none;
+  }
+
+  .pull-to-refresh-container {
+    overscroll-behavior-y: auto;
+  }
+}

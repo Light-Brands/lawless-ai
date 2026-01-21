@@ -8,6 +8,7 @@
 /* Mobile components */
 @import './components/bottom-sheet.css';
 @import './components/swipeable.css';
+@import './components/pull-to-refresh.css';
 
 /* Mobile pane overrides */
 @import './panes/chat.css';
