@@ -291,11 +291,24 @@ export function PreviewPane() {
       {/* URL bar */}
       <div className="preview-url-bar">
         {previewMode === 'local' ? (
-          <span>
-            {hasActivePorts && effectiveSessionId
-              ? `preview-${effectiveSessionId}-${selectedPort || 3000}.dev.lightbrands.ai`
-              : 'Scanning for dev servers...'}
-          </span>
+          <div className="preview-url-local">
+            {hasActivePorts && effectiveSessionId ? (
+              <>
+                <span>{`preview-${effectiveSessionId}-${selectedPort || 3000}.dev.lightbrands.ai`}</span>
+                <a
+                  href={getLocalPreviewUrl()}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="preview-external-link"
+                  title="Open in new tab"
+                >
+                  <ExternalLinkIcon />
+                </a>
+              </>
+            ) : (
+              <span>Scanning for dev servers...</span>
+            )}
+          </div>
         ) : (
           <div className="preview-url-deployed">
             {deploymentsLoading ? (

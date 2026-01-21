@@ -319,14 +319,16 @@
   color: #7c3aed;
 }
 
-.preview-url-deployed {
+.preview-url-deployed,
+.preview-url-local {
   display: flex;
   align-items: center;
   gap: 8px;
   flex: 1;
 }
 
-.preview-url-deployed span {
+.preview-url-deployed span,
+.preview-url-local span {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
