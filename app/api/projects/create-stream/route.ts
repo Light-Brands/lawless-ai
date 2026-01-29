@@ -4,9 +4,8 @@ export const runtime = 'nodejs';
 export const maxDuration = 300; // 5 minutes
 
 const AI_CODING_CONFIG_REPO = 'Light-Brands/local-ide';
-// Only skip .git internals - literally everything else comes through
-const SKIP_PREFIXES = ['.git/'];
-const SKIP_FILES: string[] = [];
+// Only skip .git/ internals (object database), NOT .github/
+const SKIP_PREFIX = '.git/';
 
 const SUBMODULE_REPOS = [
   { path: 'ai-coding-config', repo: 'Light-Brands/ai-coding-config' },
@@ -92,11 +91,10 @@ async function fetchAiCodingConfig(
   if (!treeRes.ok) throw new Error('Failed to fetch tree');
   const tree = await treeRes.json();
 
-  const blobs = tree.tree.filter((item: { type: string; path: string; size?: number }) => {
+  const blobs = tree.tree.filter((item: { type: string; path: string }) => {
     if (item.type !== 'blob') return false;
-    if (item.size && item.size > 100000) return false;
-    if (SKIP_FILES.includes(item.path)) return false;
-    if (SKIP_PREFIXES.some(p => item.path.startsWith(p))) return false;
+    // Only skip .git/ internals — allow .github/, all sizes, everything else
+    if (item.path.startsWith(SKIP_PREFIX) && !item.path.startsWith('.github/')) return false;
     return true;
   });
 
@@ -408,8 +406,6 @@ export async function POST(request: NextRequest) {
               let fileCount = 0;
               const totalFiles = Object.keys(aiConfigFiles).length;
               for (const [path, content] of Object.entries(aiConfigFiles)) {
-                if (content.length < 100 && !content.includes('\n')) continue;
-
                 await fetch(`https://api.github.com/repos/${repo.full_name}/contents/${path}`, {
                   method: 'PUT',
                   headers: {
