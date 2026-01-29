@@ -8,6 +8,11 @@ const AI_CODING_CONFIG_REPO = 'Light-Brands/local-ide';
 const SKIP_PREFIXES = ['.git/'];
 const SKIP_FILES: string[] = [];
 
+const SUBMODULE_REPOS = [
+  { path: 'ai-coding-config', repo: 'Light-Brands/ai-coding-config' },
+  { path: 'bmad-method', repo: 'Light-Brands/bmad-method' },
+];
+
 // Helper to send SSE messages
 function sendEvent(controller: ReadableStreamDefaultController, event: string, data: unknown) {
   const message = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
@@ -120,6 +125,109 @@ async function fetchAiCodingConfig(
   }
 
   return files;
+}
+
+// Add git submodules using the Git Data API (mode 160000 requires tree-level operations)
+async function addSubmodules(
+  token: string,
+  repoFullName: string,
+  branch: string = 'main'
+): Promise<void> {
+  const headers = {
+    'Authorization': `Bearer ${token}`,
+    'Content-Type': 'application/json',
+  };
+
+  // 1. Get current HEAD SHA
+  const refRes = await fetch(
+    `https://api.github.com/repos/${repoFullName}/git/refs/heads/${branch}`,
+    { headers }
+  );
+  if (!refRes.ok) throw new Error('Failed to get branch ref');
+  const refData = await refRes.json();
+  const headSha = refData.object.sha;
+
+  // 2. Get current commit's tree SHA
+  const commitRes = await fetch(
+    `https://api.github.com/repos/${repoFullName}/git/commits/${headSha}`,
+    { headers }
+  );
+  if (!commitRes.ok) throw new Error('Failed to get commit');
+  const commitData = await commitRes.json();
+  const baseTreeSha = commitData.tree.sha;
+
+  // 3. Get HEAD SHA for each submodule repo (parallel)
+  const submoduleShas = await Promise.all(
+    SUBMODULE_REPOS.map(async (sub) => {
+      const res = await fetch(
+        `https://api.github.com/repos/${sub.repo}/git/refs/heads/main`,
+        { headers }
+      );
+      if (!res.ok) throw new Error(`Failed to get HEAD for ${sub.repo}`);
+      const data = await res.json();
+      return { ...sub, sha: data.object.sha };
+    })
+  );
+
+  // 4. Build .gitmodules content
+  const gitmodulesContent = SUBMODULE_REPOS.map(
+    (sub) =>
+      `[submodule "${sub.path}"]\n\tpath = ${sub.path}\n\turl = https://github.com/${sub.repo}.git`
+  ).join('\n');
+
+  // 5. Create new tree with base_tree (preserves existing files)
+  const treeEntries = [
+    {
+      path: '.gitmodules',
+      mode: '100644',
+      type: 'blob',
+      content: gitmodulesContent,
+    },
+    ...submoduleShas.map((sub) => ({
+      path: sub.path,
+      mode: '160000',
+      type: 'commit',
+      sha: sub.sha,
+    })),
+  ];
+
+  const treeRes = await fetch(
+    `https://api.github.com/repos/${repoFullName}/git/trees`,
+    {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ base_tree: baseTreeSha, tree: treeEntries }),
+    }
+  );
+  if (!treeRes.ok) throw new Error('Failed to create tree');
+  const treeData = await treeRes.json();
+
+  // 6. Create commit
+  const newCommitRes = await fetch(
+    `https://api.github.com/repos/${repoFullName}/git/commits`,
+    {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        message: 'Add ai-coding-config and bmad-method submodules',
+        tree: treeData.sha,
+        parents: [headSha],
+      }),
+    }
+  );
+  if (!newCommitRes.ok) throw new Error('Failed to create commit');
+  const newCommitData = await newCommitRes.json();
+
+  // 7. Update branch ref
+  const updateRefRes = await fetch(
+    `https://api.github.com/repos/${repoFullName}/git/refs/heads/${branch}`,
+    {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify({ sha: newCommitData.sha }),
+    }
+  );
+  if (!updateRefRes.ok) throw new Error('Failed to update branch ref');
 }
 
 export async function POST(request: NextRequest) {
@@ -277,7 +385,7 @@ export async function POST(request: NextRequest) {
 
             // Add template files
             progress('Adding template files...');
-            const templateFiles = getTemplateFiles(name, supabaseProject?.url, projectPlanContent);
+            const templateFiles = getTemplateFiles(name, supabaseProject?.url);
             for (const [path, content] of Object.entries(templateFiles)) {
               await fetch(`https://api.github.com/repos/${repo.full_name}/contents/${path}`, {
                 method: 'PUT',
@@ -353,6 +461,15 @@ export async function POST(request: NextRequest) {
               });
             }
 
+            // Add git submodules (ai-coding-config + bmad-method)
+            try {
+              progress('Adding git submodules...');
+              await addSubmodules(githubToken, repo.full_name);
+            } catch (submoduleError) {
+              console.error('Failed to add submodules:', submoduleError);
+              // Non-fatal — don't break project creation
+            }
+
             stepComplete('github', { fullName: repo.full_name, htmlUrl: repo.html_url });
           } else {
             const err = await createRes.json();
@@ -411,18 +528,33 @@ export async function POST(request: NextRequest) {
                 url: `https://${project.name}.vercel.app`,
               };
 
-              // Add env vars if Supabase exists
-              if (supabaseProject) {
-                const envBase = vercelTeamId
-                  ? `https://api.vercel.com/v10/projects/${project.id}/env?teamId=${vercelTeamId}`
-                  : `https://api.vercel.com/v10/projects/${project.id}/env`;
+              const envBase = vercelTeamId
+                ? `https://api.vercel.com/v10/projects/${project.id}/env?teamId=${vercelTeamId}`
+                : `https://api.vercel.com/v10/projects/${project.id}/env`;
 
-                const envVars = [
+              // Enable deep clone so Vercel initializes git submodules
+              await fetch(envBase, {
+                method: 'POST',
+                headers: {
+                  'Authorization': `Bearer ${vercelToken}`,
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  key: 'VERCEL_DEEP_CLONE',
+                  value: 'true',
+                  type: 'encrypted',
+                  target: ['production', 'preview', 'development'],
+                }),
+              });
+
+              // Add Supabase env vars if available
+              if (supabaseProject) {
+                const supabaseEnvVars = [
                   { key: 'NEXT_PUBLIC_SUPABASE_URL', value: supabaseProject.url },
                   ...(supabaseProject.anonKey ? [{ key: 'NEXT_PUBLIC_SUPABASE_ANON_KEY', value: supabaseProject.anonKey }] : []),
                 ];
 
-                for (const env of envVars) {
+                for (const env of supabaseEnvVars) {
                   await fetch(envBase, {
                     method: 'POST',
                     headers: {
@@ -505,40 +637,8 @@ function generatePassword(): string {
   return Array.from({ length: 24 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
 }
 
-function getTemplateFiles(projectName: string, supabaseUrl?: string, projectPlanContent?: string | null): Record<string, string> {
-  // Generate README from project plan or use default
-  const readme = projectPlanContent
-    ? projectPlanContent
-    : `# ${projectName}
-
-A Next.js project with Supabase integration.
-
-## Getting Started
-
-First, run the development server:
-
-\`\`\`bash
-npm run dev
-\`\`\`
-
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-## Tech Stack
-
-- [Next.js](https://nextjs.org/) - React framework
-- [Supabase](https://supabase.com/) - Backend as a Service
-- [TypeScript](https://www.typescriptlang.org/) - Type safety
-
-## Learn More
-
-To learn more about the technologies used in this project:
-
-- [Next.js Documentation](https://nextjs.org/docs)
-- [Supabase Documentation](https://supabase.com/docs)
-`;
-
+function getTemplateFiles(projectName: string, supabaseUrl?: string): Record<string, string> {
   return {
-    'README.md': readme,
     'package.json': JSON.stringify({
       name: projectName,
       version: '0.1.0',
