@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import type { Brand } from '@/app/types/builder';
@@ -152,6 +152,10 @@ export default function NewProjectPage() {
   const [planContent, setPlanContent] = useState<string>('');
   const [identityContent, setIdentityContent] = useState<string>('');
 
+  // File upload refs
+  const planFileRef = useRef<HTMLInputElement>(null);
+  const identityFileRef = useRef<HTMLInputElement>(null);
+
   useEffect(() => {
     checkAuth();
   }, []);
@@ -276,14 +280,37 @@ export default function NewProjectPage() {
     }
   }, [selectedBrand]);
 
+  function handleFileUpload(file: File, target: 'plan' | 'identity') {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const content = e.target?.result as string;
+      if (target === 'plan') {
+        setPlanContent(content);
+      } else {
+        setIdentityContent(content);
+      }
+    };
+    reader.readAsText(file);
+  }
+
   async function handleCreate() {
-    if (!projectName.trim()) {
-      alert('Please enter a project name');
+    if (!selectedBrand) {
+      alert('Please select a brand.');
       return;
     }
 
-    if (!selectedBrand) {
-      alert('Please select a brand. Brand selection is required to create a project.');
+    if (!projectName.trim()) {
+      alert('Please enter a project name.');
+      return;
+    }
+
+    if (!planContent.trim()) {
+      alert('Project plan is required. Paste content, upload a .md file, or select a brand that has a plan.');
+      return;
+    }
+
+    if (!identityContent.trim()) {
+      alert('Brand identity is required. Paste content, upload a .md file, or select a brand that has an identity.');
       return;
     }
 
@@ -405,10 +432,8 @@ export default function NewProjectPage() {
   const vercelConnected = authStatus?.vercel?.connected;
   const supabaseConnected = authStatus?.supabase?.connected;
 
-  // Filter to only show complete brands
-  const completeBrands = brands.filter(b => b.isComplete);
-  const incompleteBrands = brands.filter(b => !b.isComplete);
   const selectedBrandData = brands.find(b => b.name === selectedBrand);
+  const canCreate = Boolean(selectedBrand && projectName.trim() && planContent.trim() && identityContent.trim());
 
   return (
     <div className="new-project-page">
@@ -495,73 +520,115 @@ export default function NewProjectPage() {
                     <option value="">
                       {loadingBrands ? 'Loading brands...' : 'Select a brand...'}
                     </option>
-                    {completeBrands.length > 0 && (
-                      <optgroup label="Complete Brands">
-                        {completeBrands.map(brand => (
-                          <option key={brand.name} value={brand.name}>
-                            {brand.displayName}
-                          </option>
-                        ))}
-                      </optgroup>
-                    )}
-                    {incompleteBrands.length > 0 && (
-                      <optgroup label="Incomplete (needs both plan & identity)">
-                        {incompleteBrands.map(brand => (
-                          <option key={brand.name} value={brand.name} disabled>
-                            {brand.displayName} ({brand.hasPlan ? 'has plan' : 'no plan'}, {brand.hasIdentity ? 'has identity' : 'no identity'})
-                          </option>
-                        ))}
-                      </optgroup>
-                    )}
+                    {brands.map(brand => (
+                      <option key={brand.name} value={brand.name}>
+                        {brand.displayName}
+                        {!brand.hasPlan && !brand.hasIdentity ? ' (no plan or identity)' : !brand.hasPlan ? ' (no plan)' : !brand.hasIdentity ? ' (no identity)' : ''}
+                      </option>
+                    ))}
                   </select>
-
-                  {selectedBrand && selectedBrandData && (
-                    <div className="new-project-brand-preview">
-                      <div className="new-project-brand-preview-header">
-                        <span className="new-project-brand-preview-name">{selectedBrandData.displayName}</span>
-                        <div className="new-project-brand-preview-badges">
-                          <span className={`new-project-brand-badge ${selectedBrandData.hasPlan ? 'complete' : ''}`}>
-                            {selectedBrandData.hasPlan ? <CheckIcon /> : null}
-                            Plan
-                          </span>
-                          <span className={`new-project-brand-badge ${selectedBrandData.hasIdentity ? 'complete' : ''}`}>
-                            {selectedBrandData.hasIdentity ? <CheckIcon /> : null}
-                            Identity
-                          </span>
-                        </div>
-                      </div>
-                      <div className="new-project-brand-preview-actions">
-                        <button
-                          type="button"
-                          className="new-project-preview-btn"
-                          onClick={() => setShowPlanPreview(true)}
-                          disabled={!planContent}
-                        >
-                          <FileIcon />
-                          View Plan
-                        </button>
-                        <button
-                          type="button"
-                          className="new-project-preview-btn"
-                          onClick={() => setShowIdentityPreview(true)}
-                          disabled={!identityContent}
-                        >
-                          <FileIcon />
-                          View Identity
-                        </button>
-                      </div>
-                    </div>
-                  )}
 
                   {!selectedBrand && brands.length === 0 && !loadingBrands && (
                     <div className="new-project-brand-empty">
-                      <p>No brands found. Create a brand with both a project plan and brand identity to continue.</p>
+                      <p>No brands found. Create a brand in the Builder to get started.</p>
                       <Link href="/builder" className="new-project-brand-create-btn">
                         <PlusIcon />
                         Create Brand in Builder
                       </Link>
                     </div>
                   )}
+                </div>
+
+                {/* Project Plan - editable textarea */}
+                <div className="new-project-doc-section">
+                  <div className="new-project-doc-header">
+                    <span className="new-project-doc-title">
+                      Project Plan <span className="new-project-required">*</span>
+                    </span>
+                    <div className="new-project-doc-actions">
+                      <button
+                        type="button"
+                        className="new-project-preview-btn"
+                        onClick={() => setShowPlanPreview(true)}
+                        disabled={!planContent}
+                      >
+                        Preview
+                      </button>
+                      <button
+                        type="button"
+                        className="new-project-preview-btn"
+                        onClick={() => planFileRef.current?.click()}
+                        disabled={creating}
+                      >
+                        Upload .md
+                      </button>
+                      <input
+                        ref={planFileRef}
+                        type="file"
+                        accept=".md,.markdown,.txt"
+                        className="new-project-upload-input"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) handleFileUpload(file, 'plan');
+                          e.target.value = '';
+                        }}
+                      />
+                    </div>
+                  </div>
+                  <textarea
+                    className="new-project-content-textarea"
+                    value={planContent}
+                    onChange={(e) => setPlanContent(e.target.value)}
+                    placeholder="Paste or type your project plan in markdown..."
+                    disabled={creating}
+                    rows={10}
+                  />
+                </div>
+
+                {/* Brand Identity - editable textarea */}
+                <div className="new-project-doc-section">
+                  <div className="new-project-doc-header">
+                    <span className="new-project-doc-title">
+                      Brand Identity <span className="new-project-required">*</span>
+                    </span>
+                    <div className="new-project-doc-actions">
+                      <button
+                        type="button"
+                        className="new-project-preview-btn"
+                        onClick={() => setShowIdentityPreview(true)}
+                        disabled={!identityContent}
+                      >
+                        Preview
+                      </button>
+                      <button
+                        type="button"
+                        className="new-project-preview-btn"
+                        onClick={() => identityFileRef.current?.click()}
+                        disabled={creating}
+                      >
+                        Upload .md
+                      </button>
+                      <input
+                        ref={identityFileRef}
+                        type="file"
+                        accept=".md,.markdown,.txt"
+                        className="new-project-upload-input"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) handleFileUpload(file, 'identity');
+                          e.target.value = '';
+                        }}
+                      />
+                    </div>
+                  </div>
+                  <textarea
+                    className="new-project-content-textarea"
+                    value={identityContent}
+                    onChange={(e) => setIdentityContent(e.target.value)}
+                    placeholder="Paste or type your brand identity in markdown..."
+                    disabled={creating}
+                    rows={10}
+                  />
                 </div>
 
                 <div className="new-project-field">
@@ -606,7 +673,7 @@ export default function NewProjectPage() {
                       onChange={(e) => setIncludeAiConfig(e.target.checked)}
                       disabled={creating}
                     />
-                    <span>Include AI coding config</span>
+                    <span>Include LightBrands Studio</span>
                   </label>
 
                   <label className="new-project-checkbox">
@@ -724,7 +791,7 @@ export default function NewProjectPage() {
                 <button
                   className="new-project-create-btn"
                   onClick={handleCreate}
-                  disabled={creating || !githubConnected || !selectedBrand || !selectedBrandData?.isComplete}
+                  disabled={creating || !githubConnected || !canCreate}
                 >
                   {creating ? (
                     <>
@@ -739,9 +806,17 @@ export default function NewProjectPage() {
                   )}
                 </button>
 
-                {!selectedBrand && (
+                {!canCreate && !creating && (
                   <p className="new-project-create-hint">
-                    Select a complete brand to enable project creation
+                    {!selectedBrand
+                      ? 'Select a brand to get started'
+                      : !planContent.trim()
+                        ? 'Add a project plan to continue'
+                        : !identityContent.trim()
+                          ? 'Add a brand identity to continue'
+                          : !projectName.trim()
+                            ? 'Enter a project name'
+                            : ''}
                   </p>
                 )}
               </div>
@@ -751,7 +826,7 @@ export default function NewProjectPage() {
                 <h3>What gets created:</h3>
                 <ul>
                   <li>GitHub repository with Next.js 14 + TypeScript template</li>
-                  <li>Project plan and brand identity copied to plans/ folder</li>
+                  <li>Project plan and brand identity deployed to brand-details/</li>
                   <li>Supabase client configured and ready to use</li>
                   {includeVercel && vercelConnected && (
                     <li>Vercel project linked to GitHub with auto-deploy</li>
@@ -836,6 +911,8 @@ export default function NewProjectPage() {
                     setProjectName('');
                     setDescription('');
                     setSelectedBrand('');
+                    setPlanContent('');
+                    setIdentityContent('');
                   }}
                 >
                   Create Another

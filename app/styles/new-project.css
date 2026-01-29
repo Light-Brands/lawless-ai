@@ -716,6 +716,44 @@
   height: 16px;
 }
 
+/* Editable Content Textarea */
+.new-project-content-textarea {
+  width: 100%;
+  min-height: 200px;
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-surface-glass-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text-primary);
+  font-size: 0.9rem;
+  font-family: var(--font-mono);
+  line-height: 1.6;
+  resize: vertical;
+  transition: border-color var(--transition-fast);
+}
+
+.new-project-content-textarea:focus {
+  outline: none;
+  border-color: var(--color-primary-500);
+}
+
+.new-project-content-textarea::placeholder {
+  color: var(--color-text-muted);
+  font-family: var(--font-body);
+}
+
+.new-project-content-textarea:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Doc Actions (Preview + Upload buttons row) */
+.new-project-doc-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
 /* Converting state */
 .new-project-converting {
   display: flex;
@@ -1259,13 +1297,12 @@
     gap: var(--space-2);
   }
 
-  .new-project-brand-preview-actions {
-    flex-direction: column;
-    width: 100%;
+  .new-project-doc-actions {
+    flex-wrap: wrap;
   }
 
-  .new-project-preview-btn {
-    justify-content: center;
+  .new-project-content-textarea {
+    min-height: 150px;
   }
 
   .new-project-modal {

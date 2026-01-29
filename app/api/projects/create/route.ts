@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export const runtime = 'nodejs';
 
-const AI_CODING_CONFIG_REPO = 'TechNickAI/ai-coding-config';
+const AI_CODING_CONFIG_REPO = 'Light-Brands/local-ide';
 
 // Only skip .git internals - literally everything else comes through
 const SKIP_PREFIXES = ['.git/'];
@@ -538,8 +538,8 @@ function getTemplateFiles(projectName: string, supabaseUrl?: string, supabaseKey
     "typescript": "^5"
   }
 }`,
-    // Note: AI coding config files (.cursor, .claude, AGENTS.md) are pulled fresh 
-    // from TechNickAI/ai-coding-config during project creation
+    // Note: AI coding config files (.cursor, .claude, AGENTS.md) are pulled fresh
+    // from Light-Brands/local-ide during project creation
     'tsconfig.json': `{
   "compilerOptions": {
     "lib": ["dom", "dom.iterable", "esnext"],
@@ -710,7 +710,7 @@ A full-stack application built with Next.js and Supabase.
 
 ## AI Coding Setup
 
-This project includes the full [ai-coding-config](https://github.com/TechNickAI/ai-coding-config) setup:
+This project includes the full [local-ide](https://github.com/Light-Brands/local-ide) setup:
 
 - \`.cursor/rules/\` - AI coding rules and standards
 - \`.claude/\` - Claude Code configuration
@@ -734,7 +734,7 @@ In Claude Code or Cursor, run \`/ai-coding-config\` to customize your setup or c
 
 - [Next.js Documentation](https://nextjs.org/docs)
 - [Supabase Documentation](https://supabase.com/docs)
-- [AI Coding Config](https://github.com/TechNickAI/ai-coding-config)
+- [Local IDE](https://github.com/Light-Brands/local-ide)
 `,
   };
 }

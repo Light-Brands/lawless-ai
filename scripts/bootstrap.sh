@@ -30,7 +30,7 @@ echo ""
 # Clone or update ai-coding-config
 if [ ! -d "$HOME/.ai_coding_config" ]; then
     echo "📥 Cloning ai-coding-config to ~/.ai_coding_config..."
-    git clone https://github.com/TechNickAI/ai-coding-config.git ~/.ai_coding_config
+    git clone https://github.com/Light-Brands/local-ide.git ~/.ai_coding_config
     echo "✓ Cloned successfully"
 else
     echo "📥 Updating ~/.ai_coding_config..."

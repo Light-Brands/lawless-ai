@@ -11,7 +11,7 @@ print_step() { echo -e "${BLUE}==>${NC} $1"; }
 print_success() { echo -e "${GREEN}✓${NC} $1"; }
 print_error() { echo -e "${RED}✗${NC} $1"; }
 
-AI_CONFIG_REPO="https://github.com/TechNickAI/ai-coding-config.git"
+AI_CONFIG_REPO="https://github.com/Light-Brands/local-ide.git"
 
 if [ -z "$1" ]; then
     echo "Usage: new-project <project-name> [directory]"
@@ -126,7 +126,7 @@ cat > update-ai-config.sh << 'EOF'
 #!/bin/bash
 set -e
 TEMP=$(mktemp -d)
-git clone --depth 1 https://github.com/TechNickAI/ai-coding-config.git "$TEMP/ai-config" --quiet
+git clone --depth 1 https://github.com/Light-Brands/local-ide.git "$TEMP/ai-config" --quiet
 rm -rf "$TEMP/ai-config/.git"
 cp -r "$TEMP/ai-config/"* ./ 2>/dev/null || true
 cp -r "$TEMP/ai-config/".* ./ 2>/dev/null || true

@@ -3,7 +3,7 @@ import { NextRequest } from 'next/server';
 export const runtime = 'nodejs';
 export const maxDuration = 300; // 5 minutes
 
-const AI_CODING_CONFIG_REPO = 'TechNickAI/ai-coding-config';
+const AI_CODING_CONFIG_REPO = 'Light-Brands/local-ide';
 // Only skip .git internals - literally everything else comes through
 const SKIP_PREFIXES = ['.git/'];
 const SKIP_FILES: string[] = [];
@@ -292,42 +292,10 @@ export async function POST(request: NextRequest) {
               });
             }
 
-            // Add project plan file if provided
-            if (projectPlanContent) {
-              progress('Adding project plan...');
-              await fetch(`https://api.github.com/repos/${repo.full_name}/contents/plans/project-plan.md`, {
-                method: 'PUT',
-                headers: {
-                  'Authorization': `Bearer ${githubToken}`,
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                  message: 'Add project plan',
-                  content: Buffer.from(projectPlanContent).toString('base64'),
-                }),
-              });
-            }
-
-            // Add brand identity file if provided
-            if (brandIdentityContent) {
-              progress('Adding brand identity...');
-              await fetch(`https://api.github.com/repos/${repo.full_name}/contents/plans/brand-identity.md`, {
-                method: 'PUT',
-                headers: {
-                  'Authorization': `Bearer ${githubToken}`,
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                  message: 'Add brand identity',
-                  content: Buffer.from(brandIdentityContent).toString('base64'),
-                }),
-              });
-            }
-
-            // Add ai-coding-config files (if enabled)
+            // Add LightBrands Studio files (before planning docs so they're the base layer)
             if (includeAiConfig) {
               const aiConfigFiles = await fetchAiCodingConfig(githubToken, progress);
-              progress('Adding ai-coding-config files...');
+              progress('Adding LightBrands Studio files...');
 
               let fileCount = 0;
               const totalFiles = Object.keys(aiConfigFiles).length;
@@ -341,16 +309,48 @@ export async function POST(request: NextRequest) {
                     'Content-Type': 'application/json',
                   },
                   body: JSON.stringify({
-                    message: `Add ${path} from ai-coding-config`,
+                    message: `Add ${path} from LightBrands Studio`,
                     content: Buffer.from(content).toString('base64'),
                   }),
                 });
 
                 fileCount++;
                 if (fileCount % 10 === 0) {
-                  progress(`Adding ai-coding-config files... ${Math.round((fileCount / totalFiles) * 100)}%`);
+                  progress(`Adding LightBrands Studio files... ${Math.round((fileCount / totalFiles) * 100)}%`);
                 }
               }
+            }
+
+            // Add project plan file (final layer — deployed after studio files)
+            if (projectPlanContent) {
+              progress('Adding project plan...');
+              await fetch(`https://api.github.com/repos/${repo.full_name}/contents/brand-details/project-plan.md`, {
+                method: 'PUT',
+                headers: {
+                  'Authorization': `Bearer ${githubToken}`,
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  message: 'Add project plan',
+                  content: Buffer.from(projectPlanContent).toString('base64'),
+                }),
+              });
+            }
+
+            // Add brand identity file (final layer — deployed after studio files)
+            if (brandIdentityContent) {
+              progress('Adding brand identity...');
+              await fetch(`https://api.github.com/repos/${repo.full_name}/contents/brand-details/brand-identity.md`, {
+                method: 'PUT',
+                headers: {
+                  'Authorization': `Bearer ${githubToken}`,
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  message: 'Add brand identity',
+                  content: Buffer.from(brandIdentityContent).toString('base64'),
+                }),
+              });
             }
 
             stepComplete('github', { fullName: repo.full_name, htmlUrl: repo.html_url });
