@@ -8,8 +8,8 @@ const AI_CODING_CONFIG_REPO = 'Light-Brands/local-ide';
 const SKIP_PREFIX = '.git/';
 
 const SUBMODULE_REPOS = [
-  { path: 'ai-coding-config', repo: 'Light-Brands/ai-coding-config' },
-  { path: 'bmad-method', repo: 'Light-Brands/bmad-method' },
+  { path: '.ai-coding-config', repo: 'Light-Brands/ai-coding-config' },
+  { path: '.bmad-method', repo: 'Light-Brands/bmad-method' },
 ];
 
 // Helper to send SSE messages
